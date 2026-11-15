@@ -1,0 +1,70 @@
+/* Health checks and failover widget. Tokens only. */
+.fo-main { container-type: inline-size; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.fo-head { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+.fo-head .ui-seg { flex: 1 1 280px; }
+.fo-head .ui-btn { min-width: 84px; margin-bottom: 4px; }
+.fo-blurb { margin: 0; font-size: 14px; line-height: 1.45; color: var(--ink-2); min-height: 2.9em; }
+
+.fo-stage { padding: 14px 12px 10px; }
+.fo-measure { width: 100%; min-width: 0; }
+.fo-svg { display: block; overflow: visible; }
+.fo-svg text { font-family: var(--font-body); }
+.fo-t-name { fill: var(--ink); font-size: 13.5px; font-weight: 700; }
+.fo-t-chip { font-size: 12px; font-weight: 700; }
+.fo-t-small, .fo-t-small text { fill: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.fo-t-label { fill: var(--ink-2); font-size: 12px; font-weight: 600; }
+.fo-tl .fo-t-label, .fo-tl .fo-t-small { paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; }
+
+.fo-node-box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.fo-pill { fill: var(--surface); stroke-width: 1; }
+.fo-check-line { fill: none; stroke-width: 1; stroke-dasharray: 2 4; }
+.fo-track { fill: none; stroke: var(--line); stroke-width: 2; }
+.fo-band { fill: none; stroke-linecap: round; transition: stroke-width var(--dur) var(--ease), opacity var(--dur) var(--ease); }
+.fo-flow { fill: none; stroke: var(--surface); stroke-width: 2; opacity: .5; stroke-linecap: round; stroke-dasharray: 8 16; animation: fo-dash 1.2s linear infinite; }
+.fo-paused .fo-flow { animation-play-state: paused; }
+.fo-bar { transition: width var(--dur) var(--ease); }
+.fo-pulse { animation: fo-pulse 1.6s var(--ease) infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes fo-dash { to { stroke-dashoffset: -48; } }
+@keyframes fo-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+
+.fo-caption { display: flex; gap: 10px; align-items: baseline; font-size: 13.5px; line-height: 1.4; color: var(--ink-2); min-height: 2.9em; margin: 8px 0 6px; padding: 8px 10px; background: var(--surface-2); border-radius: var(--radius-s); }
+.fo-caption time { font-family: var(--font-mono); font-size: 12.5px; color: var(--muted); flex: none; font-variant-numeric: tabular-nums; }
+.fo-caption .tone-bad { color: var(--bad); } .fo-caption .tone-good { color: var(--good); } .fo-caption .tone-warn { color: var(--warn); }
+
+.fo-tl { cursor: ew-resize; touch-action: none; border-radius: var(--radius-s); }
+.fo-tl:focus { outline: none; }
+.fo-tl:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.fo-fault { fill: var(--warn-soft); }
+.fo-fault-key { fill: var(--warn); opacity: .45; }
+.fo-plot-bg { fill: var(--surface-2); }
+.fo-future { fill: var(--surface); opacity: .6; }
+.fo-playhead { stroke: var(--ink); stroke-width: 1.5; }
+.fo-playhead-knob { fill: var(--surface); stroke: var(--ink); stroke-width: 2; }
+
+.fo-stats .ui-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.fo-stats .ui-stat-value { font-size: 20px; }
+@container (max-width: 460px) { .fo-stats .ui-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.fo-ctl { container-type: inline-size; display: flex; flex-direction: column; gap: 14px; }
+.fo-ctl-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px 22px; align-items: start; }
+@container (min-width: 520px) { .fo-ctl-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.fo-sec { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--p5); }
+.fo-reset { display: flex; justify-content: flex-start; align-items: end; }
+.fo-reset .ui-btn { padding-left: 0; color: var(--muted); }
+
+.fo-challenge { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--p5); border-radius: var(--radius-l); transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease); }
+.fo-challenge.done { background: var(--good-soft); border-color: var(--good); }
+.fo-ch-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.fo-ch-text { margin: 0; font-size: 15px; line-height: 1.45; color: var(--ink); }
+.fo-check { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--ink-2); font-variant-numeric: tabular-nums; flex-wrap: wrap; }
+.fo-check i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--muted); flex: none; transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease); }
+.fo-check.ok i { background: var(--good); border-color: var(--good); }
+.fo-check.ok { color: var(--ink); }
+.fo-need { color: var(--muted); font-size: 13px; }
+.fo-ch-note { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--muted); }
+.fo-challenge.done .fo-ch-note { color: var(--ink-2); }
+
+@media (prefers-reduced-motion: reduce) {
+  .fo-flow, .fo-pulse { animation: none; }
+  .fo-band, .fo-bar, .fo-challenge, .fo-check i { transition: none; }
+}

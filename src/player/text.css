@@ -1,0 +1,60 @@
+/* Lite-markdown text and glossary popover / sheet. Owned by the lesson player. */
+.tx p { margin: 0; text-wrap: pretty; }
+.tx ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 0.45em; }
+.tx > p + p, .tx > p + ul, .tx > ul + p, .tx > ul + ul { margin-top: 0.9em; }
+.tx li { position: relative; padding-left: 1.15em; }
+.tx li::before {
+  content: ""; position: absolute; left: 0.2em; top: calc(0.5lh - 3px);
+  width: 6px; height: 6px; border-radius: 50%; background: var(--muted);
+}
+.tx strong { font-weight: 600; }
+.tx em { font-style: italic; }
+.tx-code {
+  font-family: var(--font-mono); font-size: 0.86em; padding: 0.1em 0.38em; border-radius: var(--radius-xs);
+  background: var(--surface-2); border: 1px solid var(--line-soft); white-space: nowrap; letter-spacing: 0;
+}
+
+/* Glossary chip: reads as text, with a dotted accent underline. */
+.tx-term {
+  display: inline; appearance: none; border: 0; margin: 0; padding: 0 1px; background: transparent;
+  font: inherit; color: inherit; letter-spacing: inherit; cursor: help; border-radius: 4px;
+  text-decoration: underline dotted var(--accent); text-decoration-thickness: 1.5px; text-underline-offset: 3px;
+  transition: background-color var(--dur-fast) var(--ease-color);
+}
+.tx-term:hover, .tx-term[aria-expanded="true"] { background: var(--accent-soft); }
+.tx-term:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.tx-pop {
+  position: fixed; z-index: 1000; width: min(320px, calc(100vw - 32px));
+  background: var(--surface); color: var(--ink); border-radius: var(--radius-m);
+  box-shadow: var(--shadow-2), var(--highlight); border: 1px solid var(--line-soft);
+  padding: 14px 16px 16px; transform-origin: var(--arrow) top;
+}
+.tx-pop.above { transform-origin: var(--arrow) bottom; }
+.tx-pop::before {
+  content: ""; position: absolute; left: calc(var(--arrow) - 7px); width: 14px; height: 14px;
+  background: var(--surface); border: 1px solid var(--line-soft); transform: rotate(45deg);
+}
+.tx-pop.below::before { top: -8px; border-right: 0; border-bottom: 0; }
+.tx-pop.above::before { bottom: -8px; border-left: 0; border-top: 0; }
+.tx-pop-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; position: relative; }
+.tx-pop-term { font-size: var(--fs-headline); line-height: var(--lh-headline); font-weight: 600; letter-spacing: -0.02em; margin: 0; }
+.tx-pop-def { margin: 6px 0 0; font-size: var(--fs-callout); line-height: var(--lh-callout); color: var(--ink-2); letter-spacing: -0.012em; }
+.tx-pop-close {
+  flex: none; width: 28px; height: 28px; margin: -4px -6px 0 0; border-radius: 50%; border: 0;
+  display: grid; place-items: center; background: var(--surface-2); color: var(--muted); cursor: pointer;
+}
+.tx-pop-close:hover { color: var(--ink); background: var(--surface-3); }
+
+.tx-sheet-root { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: flex-end; justify-content: center; }
+.tx-scrim { position: absolute; inset: 0; background: var(--scrim); }
+.tx-sheet {
+  position: relative; width: 100%; max-width: 640px; max-height: 60vh; overflow-y: auto;
+  background: var(--surface); color: var(--ink); border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  box-shadow: var(--shadow-3), var(--highlight);
+  padding: 8px var(--gutter) calc(28px + env(safe-area-inset-bottom)); touch-action: none;
+}
+.tx-sheet .tx-pop-term { font-size: 20px; line-height: 26px; }
+.tx-sheet .tx-pop-def { font-size: var(--fs-body); line-height: 26px; color: var(--ink); }
+.tx-sheet .tx-pop-close { width: 32px; height: 32px; margin: 0; }
+.tx-grabber { width: 36px; height: 5px; border-radius: 3px; background: var(--surface-3); margin: 0 auto 14px; }

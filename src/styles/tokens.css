@@ -1,0 +1,129 @@
+/* Design tokens. Token NAMES are a contract used by every widget and the diagram engine.
+   The design lead may change VALUES (and add tokens) but must not rename or remove these.
+   System: design/DESIGN.md. True neutral grays, Apple blue = "act", semantic colors = "result",
+   part colors = "where am I" (small identifiers only). */
+:root {
+  /* Surfaces and text (true neutrals, no tint) */
+  --bg: #F5F5F7; --surface: #FFFFFF; --surface-2: #F2F2F7; --surface-3: #E5E5EA;
+  --ink: #1D1D1F; --ink-2: #424245; --muted: #6E6E73; --line: #D8D8DD;
+  --line-soft: #E8E8ED;            /* card hairlines, list separators */
+  --reading-bg: #FFFFFF;           /* lesson reading column */
+
+  /* Accent: Apple blue. Means "you can act here". */
+  --accent: #0071E3; --accent-ink: #FFFFFF; --accent-soft: #E8F2FD;
+  --accent-edge: #0058B0;          /* 3D bottom edge under primary buttons / selected tiles */
+  --accent-hover: #0077ED;
+  --accent-text: #0066CC;          /* inline links and accent text on white (5.6:1) */
+
+  /* Status. Only after the reader acts. Always paired with a word or icon. */
+  --good: #248A3D; --good-soft: #E9F3EC; --bad: #D70015; --bad-soft: #FBE6E8; --warn: #B25000; --warn-soft: #FCF0E3;
+  --good-strong: #1F7A36; --good-ink: #1A6B2F; --good-edge: #155C27;
+  --bad-strong: #C00013; --bad-ink: #A30010; --bad-edge: #8A000E;
+  --warn-ink: #8A3E00;
+
+  /* Part colors: same lightness, lowered saturation. Identifiers, never surfaces. */
+  --p0: #5E6B7E; --p1: #0E8A80; --p2: #4E5BD0; --p3: #8450C8; --p4: #C0436F; --p5: #B5650C; --p6: #2F7D47;
+
+  /* Callouts: 3px leading bar + colored label, body text stays --ink */
+  --c-staff: #6B4FBB; --c-staff-soft: #F2EEFA; --c-mistake: #C42B1C; --c-mistake-soft: #FCEDEB;
+  --c-industry: #0B7A8C; --c-industry-soft: #E6F4F6; --c-cr: #E0640F; --c-cr-soft: #FDF0E6;
+
+  /* Tactile edge for idle tiles and path nodes */
+  --tile-edge: #D1D1D6;
+  --on-part: #FFFFFF;              /* glyph/text on a part-color or semantic fill */
+
+  /* Materials */
+  --material: rgba(255,255,255,.72);
+  --material-strong: rgba(255,255,255,.88);
+  --scrim: rgba(0,0,0,.25);
+  --highlight: inset 0 0 0 0 transparent;   /* dark mode adds a 1px top inner highlight */
+
+  /* Shape */
+  --radius-xs: 6px; --radius-s: 10px; --radius-m: 14px; --radius-l: 20px; --radius-xl: 28px; --radius-pill: 999px;
+  --shadow-1: 0 1px 2px rgba(0,0,0,.04), 0 4px 12px rgba(0,0,0,.05);
+  --shadow-2: 0 2px 6px rgba(0,0,0,.06), 0 16px 40px rgba(0,0,0,.14);
+  --shadow-3: 0 8px 24px rgba(0,0,0,.10), 0 32px 80px rgba(0,0,0,.20);
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--accent) 45%, transparent);
+
+  /* Spacing (8pt grid) */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px; --sp-7: 40px; --sp-8: 48px; --sp-9: 64px; --sp-10: 80px;
+  --gutter: 16px;
+  --col-reading: 640px; --col-page: 1040px; --col-lab: 1100px;
+
+  /* Type */
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  --fs-display: 48px; --lh-display: 52px;
+  --fs-title1: 34px; --lh-title1: 41px;
+  --fs-title2: 28px; --lh-title2: 34px;
+  --fs-title3: 22px; --lh-title3: 28px;
+  --fs-headline: 17px; --lh-headline: 22px;
+  --fs-reading: 19px; --lh-reading: 30px;
+  --fs-body: 17px; --lh-body: 24px;
+  --fs-callout: 16px; --lh-callout: 24px;
+  --fs-footnote: 14px; --lh-footnote: 20px;
+  --fs-caption: 12px; --lh-caption: 16px;
+
+  /* Motion */
+  --ease: cubic-bezier(.2,.8,.2,1);          /* ease-out for movement tweens */
+  --ease-color: cubic-bezier(.28,.11,.32,1);  /* color / opacity tweens */
+  --dur: 220ms; --dur-fast: 120ms; --dur-slow: 360ms;
+
+  color-scheme: light;
+}
+@media (max-width: 480px) {
+  :root {
+    --fs-display: 34px; --lh-display: 40px;
+    --fs-title1: 30px; --lh-title1: 36px;
+    --fs-title2: 24px; --lh-title2: 30px;
+    --fs-title3: 20px; --lh-title3: 26px;
+    --fs-reading: 17px; --lh-reading: 27px;
+  }
+}
+@media (min-width: 430px) { :root { --gutter: 20px; } }
+@media (min-width: 768px) { :root { --gutter: 32px; } }
+
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0C0C0E; --surface: #1C1C1E; --surface-2: #2C2C2E; --surface-3: #3A3A3C;
+  --ink: #F5F5F7; --ink-2: #D1D1D6; --muted: #98989D; --line: #3A3A3C;
+  --line-soft: #2C2C2E; --reading-bg: #0C0C0E;
+  --accent: #0A84FF; --accent-ink: #FFFFFF; --accent-soft: #0B2A4A; --accent-edge: #0058B0; --accent-hover: #2491FF; --accent-text: #2997FF;
+  --good: #30D158; --good-soft: #12301A; --bad: #FF453A; --bad-soft: #3A1614; --warn: #FF9F0A; --warn-soft: #3A2A0E;
+  --good-strong: #1F8A3B; --good-ink: #5DE07E; --good-edge: #145C27;
+  --bad-strong: #D70015; --bad-ink: #FF7A72; --bad-edge: #80000C;
+  --warn-ink: #FFB940;
+  --p0: #A3AEC0; --p1: #40C8BC; --p2: #8C98FF; --p3: #BC9BF5; --p4: #F28AAE; --p5: #F5A855; --p6: #6BCB85;
+  --c-staff: #BC9BF5; --c-staff-soft: #241D38; --c-mistake: #FF7A72; --c-mistake-soft: #361614;
+  --c-industry: #5FD0DF; --c-industry-soft: #0E2A30; --c-cr: #FF9A52; --c-cr-soft: #36220F;
+  --tile-edge: #3A3A3C; --on-part: #0C0C0E;
+  --material: rgba(22,22,24,.72); --material-strong: rgba(22,22,24,.9); --scrim: rgba(0,0,0,.55);
+  --highlight: inset 0 1px 0 rgba(255,255,255,.06);
+  --shadow-1: 0 1px 2px rgba(0,0,0,.5), 0 4px 12px rgba(0,0,0,.3);
+  --shadow-2: 0 2px 6px rgba(0,0,0,.5), 0 16px 40px rgba(0,0,0,.55);
+  --shadow-3: 0 8px 24px rgba(0,0,0,.5), 0 32px 80px rgba(0,0,0,.6);
+  color-scheme: dark;
+}}
+:root[data-theme="dark"] {
+  --bg: #0C0C0E; --surface: #1C1C1E; --surface-2: #2C2C2E; --surface-3: #3A3A3C;
+  --ink: #F5F5F7; --ink-2: #D1D1D6; --muted: #98989D; --line: #3A3A3C;
+  --line-soft: #2C2C2E; --reading-bg: #0C0C0E;
+  --accent: #0A84FF; --accent-ink: #FFFFFF; --accent-soft: #0B2A4A; --accent-edge: #0058B0; --accent-hover: #2491FF; --accent-text: #2997FF;
+  --good: #30D158; --good-soft: #12301A; --bad: #FF453A; --bad-soft: #3A1614; --warn: #FF9F0A; --warn-soft: #3A2A0E;
+  --good-strong: #1F8A3B; --good-ink: #5DE07E; --good-edge: #145C27;
+  --bad-strong: #D70015; --bad-ink: #FF7A72; --bad-edge: #80000C;
+  --warn-ink: #FFB940;
+  --p0: #A3AEC0; --p1: #40C8BC; --p2: #8C98FF; --p3: #BC9BF5; --p4: #F28AAE; --p5: #F5A855; --p6: #6BCB85;
+  --c-staff: #BC9BF5; --c-staff-soft: #241D38; --c-mistake: #FF7A72; --c-mistake-soft: #361614;
+  --c-industry: #5FD0DF; --c-industry-soft: #0E2A30; --c-cr: #FF9A52; --c-cr-soft: #36220F;
+  --tile-edge: #3A3A3C; --on-part: #0C0C0E;
+  --material: rgba(22,22,24,.72); --material-strong: rgba(22,22,24,.9); --scrim: rgba(0,0,0,.55);
+  --highlight: inset 0 1px 0 rgba(255,255,255,.06);
+  --shadow-1: 0 1px 2px rgba(0,0,0,.5), 0 4px 12px rgba(0,0,0,.3);
+  --shadow-2: 0 2px 6px rgba(0,0,0,.5), 0 16px 40px rgba(0,0,0,.55);
+  --shadow-3: 0 8px 24px rgba(0,0,0,.5), 0 32px 80px rgba(0,0,0,.6);
+  color-scheme: dark;
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root { --material: var(--surface); --material-strong: var(--surface); }
+}
