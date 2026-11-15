@@ -20,6 +20,11 @@ export const IconClock = ({ size = 18, className }: P) => <svg {...base(size)} c
 export const IconTarget = ({ size = 18, className }: P) => <svg {...base(size)} className={className}><circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="12" r="4.5" /><circle cx="12" cy="12" r="0.8" fill="currentColor" /></svg>;
 export const IconFlask = ({ size = 18, className }: P) => <svg {...base(size)} className={className}><path d="M9.5 3h5M10 3v6L4.8 18.2A1.9 1.9 0 0 0 6.5 21h11a1.9 1.9 0 0 0 1.7-2.8L14 9V3" /><path d="M7.5 15h9" /></svg>;
 export const IconExpand = ({ size = 18, className }: P) => <svg {...base(size)} className={className}><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7" /></svg>;
+export const IconChevronLeft = ({ size = 22, className }: P) => <svg {...base(size)} strokeWidth={2.2} className={className}><path d="M14.5 5.5L8 12l6.5 6.5" /></svg>;
+/** A small four-point spark: "an idea", used for guesses. */
+export const IconSpark = ({ size = 16, className }: P) => (
+  <svg {...base(size)} className={className} strokeWidth={1.8}><path d="M12 3.5c.6 4.3 2.2 5.9 6.5 6.5-4.3.6-5.9 2.2-6.5 6.5-.6-4.3-2.2-5.9-6.5-6.5 4.3-.6 5.9-2.2 6.5-6.5z" fill="currentColor" fillOpacity={0.2} /><path d="M18.5 16.5v3M17 18h3" /></svg>
+);
 export const IconRetry = ({ size = 18, className }: P) => <svg {...base(size)} className={className}><path d="M4 12a8 8 0 1 0 2.5-5.8M4 4v4.5h4.5" /></svg>;
 
 /** A check mark that draws itself (used in the feedback sheet and on completion). */

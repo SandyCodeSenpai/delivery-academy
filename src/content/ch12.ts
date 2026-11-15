@@ -163,29 +163,53 @@ const chapter: Chapter = {
       id: "ch12-l1",
       title: "The buffer is your failover budget",
       goal: "Tell hard failures from soft ones, and size the failover budget and the cost of an outage with back-of-envelope math.",
-      minutes: 10,
+      minutes: 11,
       steps: [
         {
+          kind: "read",
+          title: "When the video stops",
+          body: "Every earlier chapter described how bytes *should* flow from origin to player. This chapter is about the days when they do not.\n\nIf a bad ten minutes falls at the start of a [[simulcast]] premiere, millions of people notice at the same moment, and they say so in public.\n\nBy the end of this lesson you can tell a hard failure from a soft one, and work out how much time you have to fail over, and what an outage costs.",
+        },
+        {
+          kind: "quiz",
+          guess: true,
+          prompt: "You press play on a 24-minute episode. What would you expect the player to download?",
+          options: [
+            "One big video file, at the start",
+            "Hundreds of small pieces, one after another, while you watch",
+            "Nothing: the video arrives as one live signal, like TV",
+          ],
+          answer: 1,
+          explain: "Streaming video is cut into small files called **segments**, each a few seconds long. The player downloads them one after another while you watch. So one \"play\" is hundreds of separate requests, and any one of them can fail.",
+        },
+        {
+          kind: "read",
+          title: "A session is many requests",
+          body: "A **playback session** is one viewer watching one video. It is not one request. It is a long chain of [[segment]] requests.\n\nTo count them, divide the video length by the segment length. Example: a 10-minute clip with 6-second segments.\n\n- 10 × 60 = 600 seconds\n- 600 / 6 = **100** video segment requests\n\nAudio segments, subtitles, a [[manifest|Manifest / playlist]] (the list of segments) and a [[DRM]] license come on top.",
+        },
+        {
           kind: "number",
-          prompt: "A viewer starts a 24-minute episode. The video is cut into 4-second segments. About how many **video segment requests** does this one playback session make?",
+          teach: "Turn the episode length into seconds, then divide by the segment length.",
+          prompt: "Now the real case. A viewer starts a 24-minute episode cut into 4-second segments. About how many **video segment requests** does this one session make?",
           answer: 360,
           tolerance: 10,
           unit: "requests",
-          hint: "Turn 24 minutes into seconds, then divide by the segment length.",
+          hint: "24 × 60 seconds, then divide by 4.",
           explain: "24 × 60 = 1,440 seconds. 1,440 / 4 = **360** video segment requests. Audio segments, subtitles, a manifest and a DRM license come on top. One \"play\" is hundreds of requests, and any one of them can fail.",
         },
         {
           kind: "read",
-          title: "A session is long and fragile",
-          body: "A **playback session** is not a single request. It is hundreds of [[segment]] requests in a row, plus audio, subtitles, a [[manifest|Manifest / playlist]] and a [[DRM]] license.\n\nOne slow segment does not show an error. It drains the player's **buffer**: video already downloaded but not yet shown. When the buffer is empty, the player **rebuffers** and the spinner appears.",
+          title: "The buffer and the spinner",
+          body: "One slow segment does not show an error. Instead, it drains the player's **buffer**: video already downloaded but not yet shown.\n\nThink of the buffer as a water tank. Arriving segments fill it; watching empties it.\n\nWhen the buffer is empty, the player **rebuffers**: the picture freezes and the spinner appears until more video arrives.",
         },
         {
           kind: "read",
           title: "Hard and soft failures",
-          body: "There are two kinds of failure.\n\n- **Hard failure:** the session cannot start, or must stop. This is [[video start failure]] or **exit due to error**.\n- **Soft failure:** the session continues at lower quality, with more rebuffering. Users leave quietly.\n\nA good platform turns hard failures into soft ones, and soft ones into invisible ones. Player [[QoE]] metrics are in Chapter 10. Measuring them is Chapter 11.",
+          body: "There are two kinds of failure.\n\n- **Hard failure:** the session cannot start, or must stop. This is [[video start failure]] or **exit due to error**.\n- **Soft failure:** the session continues at lower quality, with more rebuffering. Users leave quietly.\n\nA good platform turns hard failures into soft ones, and soft ones into invisible ones. Player [[QoE]] (quality of experience) metrics are in Chapter 10. Measuring them is Chapter 11.",
         },
         {
           kind: "quiz",
+          teach: "A hard failure means the session cannot start or must stop. A soft failure means it goes on, but worse.",
           prompt: "An episode keeps playing, but it drops to low quality and the spinner appears twice. What kind of failure is this?",
           options: [
             "A hard failure: exit due to error",
@@ -213,17 +237,13 @@ const chapter: Chapter = {
           },
         },
         {
-          kind: "order",
-          prompt: "Put these failover mechanisms in order, from the fastest to the slowest.",
-          items: [
-            "Player retries the segment on another CDN host",
-            "DNS steering change with a 60 s TTL",
-            "A human decides and changes the config",
-          ],
-          explain: "Player retry: **1-5 s**. DNS change with a 60 s TTL: **a minute or more**. A human: **5-30 minutes**. Only the player fits inside a 20-30 second buffer.",
+          kind: "read",
+          title: "Why DNS alone is not enough",
+          body: "This is why serious platforms do not rely on DNS alone for failover.\n\nDNS is good for moving **new** traffic. It is too slow for sessions already playing: resolvers (the servers that look up names for devices) cache answers for the [[TTL]] (time to live), and a running player does not look up the name again for every segment.\n\nDNS steering is Chapter 3. [[Multi-CDN]] steering is Chapter 9.",
         },
         {
           kind: "quiz",
+          teach: "Compare each mechanism's time to take effect with the 20-30 second buffer. A session already playing is saved only by something faster than its buffer.",
           prompt: "Which of these can save sessions that are **already playing**?",
           options: [
             "A DNS steering change with a 60 s TTL",
@@ -236,13 +256,8 @@ const chapter: Chapter = {
         },
         {
           kind: "read",
-          title: "Why DNS alone is not enough",
-          body: "This is why serious platforms do not rely on DNS alone for failover.\n\nDNS is good for moving **new** traffic. It is too slow for sessions already playing: resolvers cache answers for the [[TTL]], and a running player does not look up the name again for every segment.\n\nDNS steering is Chapter 3. [[Multi-CDN]] steering is Chapter 9.",
-        },
-        {
-          kind: "read",
           title: "What an outage costs",
-          body: "Now size the stakes. Use the assumed Crunchyroll model at a big [[simulcast]] spike: about 2M concurrent streams at about 4 Mbps, so about 8 Tbps of [[egress]].\n\nThe next four questions use these numbers.",
+          body: "Now size the stakes. Use the assumed Crunchyroll model at a big [[simulcast]] spike: about 2M concurrent streams at about 4 Mbps, so about 8 Tbps of [[egress]] (bytes sent out to viewers).\n\nFirst, the request rate. Each stream asks for one segment per segment length. Example: 1M streams with 6-second segments make 1,000,000 / 6 = about **167,000** requests per second.",
           visual: {
             kind: "stats",
             items: [
@@ -255,6 +270,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Each stream sends one video segment request per segment length. Divide the number of streams by the segment length in seconds.",
           prompt: "Each of the 2M streams asks for one 4-second video segment every 4 seconds. About how many video segment requests per second is that?",
           answer: 500000,
           tolerance: 50000,
@@ -262,7 +278,13 @@ const chapter: Chapter = {
           explain: "2,000,000 / 4 s = about **500,000** video segment requests per second (assumed). With separate audio segments, it is roughly **1M requests per second**.",
         },
         {
+          kind: "read",
+          title: "The error budget",
+          body: "An **[[SLO|SLI / SLO / SLA]]** (service level objective) is a target, such as \"available 99.9% of the time this month\". The part you are allowed to fail is the **[[error budget]]**.\n\nWorked example with a 99.5% SLO in a 30-day month:\n\n- 30 × 24 × 60 = 43,200 minutes\n- 0.5% of 43,200 = **216 minutes** of allowed outage\n- One 54-minute outage would use 54 / 216 = **25%** of it.",
+        },
+        {
           kind: "number",
+          teach: "The allowed outage is the failure share (100% minus the SLO) times the minutes in the month.",
           prompt: "Your SLO is **99.9%** monthly availability. How many minutes of full outage does it allow in a 30-day month?",
           answer: 43,
           tolerance: 2,
@@ -271,15 +293,18 @@ const chapter: Chapter = {
           explain: "30 × 24 × 60 = 43,200 minutes. 0.1% of that is about **43 minutes**. This is your [[error budget]] for the month.",
         },
         {
-          kind: "number",
-          prompt: "The Cloudflare outage of 2 July 2019 lasted 27 minutes. What share of a 43-minute monthly budget would that one event use?",
-          answer: 62,
-          tolerance: 3,
-          unit: "%",
-          explain: "27 / 43 = about **62%** of the whole month's budget, in one event.",
+          kind: "reveal",
+          prompt: "The Cloudflare outage of 2 July 2019 lasted **27 minutes**. What share of a 43-minute monthly budget would that one event use? Work it out, then tap.",
+          answer: "27 / 43 = about **62%** of the whole month's budget, in one event.",
+        },
+        {
+          kind: "read",
+          title: "Concentration risk",
+          body: "**Concentration risk** is how much of your traffic sits on one provider. If that provider fails, all of that traffic must move at once.\n\nExample: a CDN carries 25% of a 6 Tbps peak. If it fails:\n\n- 0.25 × 6 = **1.5 Tbps** must move to the other CDNs, inside the buffer window.",
         },
         {
           kind: "number",
+          teach: "Multiply the failed CDN's share by the total peak egress.",
           prompt: "One CDN carries about **40%** of the 8 Tbps peak (assumed). It fails. How much traffic must move to the other CDNs within the buffer window?",
           answer: 3.2,
           tolerance: 0.2,
@@ -302,6 +327,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "One measure counts minutes. The other counts the people each failure hurt.",
           prompt: "Two outages each last 10 minutes. One is at 03:00 UTC on a Tuesday. One is at a big premiere. Which measure shows the premiere outage as much worse?",
           options: [
             "Availability by time",
@@ -339,30 +365,35 @@ const chapter: Chapter = {
       id: "ch12-l2",
       title: "A map of how delivery fails",
       goal: "Name the failure modes at each layer of the delivery path, with their blast radius and fast mitigation.",
-      minutes: 9,
+      minutes: 10,
       steps: [
         {
+          kind: "read",
+          title: "Where can it break?",
+          body: "A video byte passes many systems on its way to a viewer: DNS, a CDN, a shield, a cloud origin. Each one can fail, and each failure hurts a different number of people.\n\nBefore designing for failure, list how things fail. By the end of this lesson you can name the failure modes at each layer, say how far each one spreads, and give the fast fix for each.",
+        },
+        {
           kind: "quiz",
-          prompt: "Your origin goes completely down. The CDN cache hit ratio is 95% by bytes. In the first minutes, what do your **global** error rates show?",
+          guess: true,
+          prompt: "Your origin goes completely down. But the CDN already holds 95% of the bytes viewers ask for in its cache. What would you expect viewers to notice first?",
           options: [
-            "Errors jump to nearly 100% at once",
-            "Global errors look almost fine, while new episodes and long-tail titles fail",
-            "Nothing fails until someone purges the CDN cache",
-            "Only the DRM license server reports errors",
+            "Everyone's video stops at once",
+            "Popular shows keep playing; new episodes and rarely watched titles fail",
+            "Nothing at all, ever, because the cache covers everything",
           ],
           answer: 1,
-          explain: "At a 95% byte hit ratio, an origin outage first hits only the 5% of misses. Popular content keeps playing from cache. New episodes and the long tail fail first. So global error rates can look fine while one show fails everywhere.",
+          explain: "The CDN serves cached content without asking the origin. Only the 5% of requests that **miss** the cache need the origin, so those fail first: new episodes and the [[long tail]] (rarely watched titles). Popular content keeps playing. So global error rates can look almost fine while one show fails everywhere.",
         },
         {
           kind: "read",
           title: "Blast radius",
-          body: "Before designing for failure, list how things fail. Each layer has a different **[[blast radius]]**: how much of the user base one failure can affect.\n\nHere is the delivery path. Bytes go from the player through DNS, the CDN edge, the shield and the cloud origin. A separate **control plane** decides who may play.",
+          body: "Each layer has a different **[[blast radius]]**: how much of the user base one failure can affect.\n\nHere is the delivery path. Bytes go from the player through DNS, the CDN edge, the shield and the cloud origin. A separate **control plane** decides who may play.",
           visual: { kind: "flow", spec: failMap(undefined, undefined, ["pl>dns", "dns>edge", "edge>sh", "sh>or"]) },
         },
         {
           kind: "read",
           title: "Failures on the bytes path",
-          body: "Each layer fails in its own way:\n\n- **Player:** an ISP or [[BGP]] problem.\n- **DNS:** a DNS provider outage or a bad record.\n- **CDN edge [[PoP]]:** a PoP failure, a bad config push, or certificate expiry.\n- **[[Shield]] or [[mid-tier]]:** overload, or a [[thundering herd]].",
+          body: "Each layer fails in its own way:\n\n- **Player:** an ISP problem, or a [[BGP]] problem (BGP is how networks tell each other which addresses they can reach).\n- **DNS:** a DNS provider outage or a bad record.\n- **CDN edge [[PoP]]:** a PoP failure, a bad config push, or certificate expiry.\n- **[[Shield]] or [[mid-tier]]:** overload, or a [[thundering herd]]: many misses for the same object arriving at once.",
           visual: {
             kind: "flow",
             spec: failMap(["pl", "dns", "edge", "sh", "pl>dns", "dns>edge", "edge>sh"], { pl: "ISP / BGP", dns: "outage", edge: "bad config", sh: "herd" }),
@@ -371,7 +402,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Failures behind the cache",
-          body: "- **Cloud [[origin]]:** a region outage, or a bucket policy change.\n- **Replication between clouds:** [[replication lag]], or missing objects.\n- **[[Control plane]]** (playback API, [[entitlement]], DRM license): a dependency outage, or a [[retry storm]].\n\nEach of these has a different blast radius.",
+          body: "- **Cloud [[origin]]:** a region outage, or a bucket policy change.\n- **Replication between clouds:** [[replication lag]] (one copy is behind the other), or missing objects.\n- **[[Control plane]]** (playback API, [[entitlement]], DRM license): a dependency outage, or a [[retry storm]], where clients retry so hard that they cause more failure.\n\nEach of these has a different blast radius.",
           visual: {
             kind: "flow",
             spec: failMap(["or", "rep", "cp", "or>rep", "pl>cp"], { or: "region", rep: "lag", cp: "retry storm" }),
@@ -400,6 +431,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Think about how far each fault reaches: one city, one network, one origin, or every server that one CDN runs. The \"Typical blast radius\" column says it.",
           prompt: "Which failure in the table is **often global** on the affected CDN?",
           options: ["One CDN PoP down", "A bad CDN config push", "A BGP or ISP problem", "Replication lag"],
           answer: 1,
@@ -407,6 +439,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Use the \"Fast mitigation\" column of the checklist. Most fast fixes either undo a change or move traffic to a path that still works.",
           prompt: "Match each failure to its fast mitigation.",
           pairs: [
             ["Bad CDN config push", "Roll back to last-known-good"],
@@ -429,6 +462,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Think about what a player needs from the control plane before it can fetch its first segment.",
           prompt: "All three CDNs are healthy. The DRM license server is down. What happens?",
           options: [
             "Nothing: the CDNs are healthy, so playback works",
@@ -442,10 +476,11 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Note 3: certificate expiry is a silent bomb",
-          body: "On 30 September 2021 the Let's Encrypt root **DST Root CA X3** expired. Older devices that did not trust **ISRG Root X1** began showing certificate errors. Streaming services have a long tail of old TVs and boxes that cannot update their trust stores.\n\nAlso: Route 53 HTTPS health checks do not validate certificates. A check can stay green while every browser rejects your cert. Certificate management is Chapter 15.",
+          body: "On 30 September 2021 the Let's Encrypt root **DST Root CA X3** expired. Older devices that did not trust **ISRG Root X1** began showing certificate errors. Streaming services have a long tail of old TVs and boxes that cannot update their trust stores (the list of certificates a device trusts).\n\nAlso: Route 53 HTTPS health checks do not validate certificates. A check can stay green while every browser rejects your cert. Certificate management is Chapter 15.",
         },
         {
           kind: "quiz",
+          teach: "Recall what the note said about what a Route 53 HTTPS health check verifies, and what it skips.",
           prompt: "Your Route 53 HTTPS health check is green, but every browser rejects your certificate. How is that possible?",
           options: [
             "Route 53 HTTPS health checks do not validate certificates",
@@ -467,6 +502,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "A good health check does what a real player does: same kind of object, same path, same credentials.",
           prompt: "Which of these make a health check closer to \"a player can play\"? Select all that apply.",
           options: [
             "Fetch a real small media object",
@@ -499,21 +535,14 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
-          kind: "quiz",
-          prompt: "Fastly 2021, Akamai 2021, Cloudflare 2019 and 2025, AWS and Google Cloud 2025, Facebook 2021. What started **most** of these big outages?",
-          options: [
-            "Hardware failure in a data center",
-            "A change: a config push, new rule, permissions update or release",
-            "A DDoS attack",
-            "Undersea cable cuts",
-          ],
-          answer: 1,
-          explain: "Almost none were hardware failures. Almost all were **changes** that reached everything at once. Reading other companies' postmortems is one of the best ways to learn this field. This lesson uses only facts from the published reports.",
+          kind: "read",
+          title: "Learning from other people's bad days",
+          body: "A **postmortem** is the written report a company publishes after an incident: what broke, when, why, and what it will change. Reading other companies' postmortems is one of the best ways to learn this field.\n\nThis lesson retells the big CDN and cloud outages, using only facts from the published reports. As you read, watch for one thing: **what started each outage?**",
         },
         {
           kind: "read",
           title: "Fastly, 8 June 2021",
-          body: "A software deployment on 12 May 2021 contained a bug that \"could be triggered by a specific customer configuration under specific circumstances.\"\n\nOn 8 June a customer pushed a **valid** config change that triggered it. 85% of Fastly's network returned errors.",
+          body: "A software deployment on 12 May 2021 contained a **latent bug** (a bug that sits unseen until some input triggers it). It \"could be triggered by a specific customer configuration under specific circumstances.\"\n\nOn 8 June a customer pushed a **valid** config change that triggered it. 85% of Fastly's network returned errors.",
           visual: {
             kind: "table",
             headers: ["When (UTC)", "What happened"],
@@ -540,7 +569,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Cloudflare, 2 July 2019",
-          body: "A new [[WAF]] rule had a regular expression that \"backtracked enormously and exhausted CPU used for HTTP/HTTPS serving\" on every machine.",
+          body: "A [[WAF]] (web application firewall) blocks attacks using rules. A new WAF rule had a regular expression (a text-matching pattern) that \"backtracked enormously and exhausted CPU used for HTTP/HTTPS serving\" on every machine.\n\nNormal Cloudflare software first goes to test and **canary** PoPs (a few PoPs that get a change first), then the fleet. Look at the timeline for this rule.",
           visual: {
             kind: "table",
             headers: ["When (UTC)", "What happened"],
@@ -551,18 +580,6 @@ const chapter: Chapter = {
               ["14:09", "Traffic normal: 27 minutes of outage"],
             ],
           },
-        },
-        {
-          kind: "quiz",
-          prompt: "Cloudflare's software passes test and canary PoPs before the fleet. Why did this WAF rule reach every machine at once?",
-          options: [
-            "WAF rules skipped the staged rollout by design, to respond rapidly to threats",
-            "An attacker pushed the rule",
-            "The canary PoPs were offline that day",
-            "An engineer copied the rule to each server by hand",
-          ],
-          answer: 0,
-          explain: "WAF rules skipped the staged rollout used for software, by design, \"because of the need to respond rapidly to threats\". The emergency fast path became the outage path.",
         },
         {
           kind: "read",
@@ -591,6 +608,19 @@ const chapter: Chapter = {
           },
         },
         {
+          kind: "quiz",
+          teach: "Compare how normal software reaches the fleet with what the timeline shows for this rule. The remediations also hint at what was missing.",
+          prompt: "Cloudflare's software passes test and canary PoPs before the fleet. Why did this WAF rule reach every machine at once?",
+          options: [
+            "WAF rules skipped the staged rollout by design, to respond rapidly to threats",
+            "An attacker pushed the rule",
+            "The canary PoPs were offline that day",
+            "An engineer copied the rule to each server by hand",
+          ],
+          answer: 0,
+          explain: "WAF rules skipped the staged rollout used for software, by design, \"because of the need to respond rapidly to threats\". The emergency fast path became the outage path.",
+        },
+        {
           kind: "read",
           title: "Cloudflare, 12 June 2025",
           body: "Workers KV failed for about two and a half hours. Part of its storage was \"backed by a third-party cloud provider\" that had an outage. Products built on KV, including Access and WARP, failed with it.\n\nCloudflare wrote: \"we are ultimately responsible for our chosen dependencies.\" It built tooling to re-enable services **progressively**, so refilling caches would not overload storage.",
@@ -602,6 +632,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Something that breaks and heals on a fixed rhythm is usually tied to something else that runs on the same rhythm.",
           prompt: "Errors come and go on a fixed five-minute cycle. What should you suspect first?",
           options: [
             "A periodic job that rebuilds or pushes something",
@@ -615,7 +646,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Cloudflare, 5 December 2025",
-          body: "A change went through Cloudflare's global configuration system, which has **no gradual rollout**. It hit a latent Lua bug in the older FL1 proxy. About 28% of Cloudflare's HTTP traffic failed for about 25 minutes.\n\nCloudflare committed to staged rollouts with health validation for rapid-response data, better break-glass access, and fail-open handling of bad config.",
+          body: "A change went through Cloudflare's global configuration system, which has **no gradual rollout**. It hit a latent Lua bug in the older FL1 proxy. About 28% of Cloudflare's HTTP traffic failed for about 25 minutes.\n\nCloudflare committed to staged rollouts with health validation for rapid-response data, better break-glass access (emergency access for engineers), and fail-open handling of bad config.",
         },
         {
           kind: "reveal",
@@ -625,41 +656,27 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "AWS us-east-1, 19-20 October 2025",
-          body: "DynamoDB manages its endpoint DNS with a **DNS Planner** that creates plans, and redundant **DNS Enactors** that apply them to Route 53. A race let a delayed Enactor apply a much older plan over a newer one. Cleanup then deleted that plan, and \"all IP addresses for the regional endpoint were immediately removed.\"\n\nDNS was restored at 2:25 AM PDT. DynamoDB errors ended at 2:40 AM, as cached records expired.",
+          body: "DynamoDB manages its endpoint DNS with a **DNS Planner** that creates plans, and redundant **DNS Enactors** that apply them to Route 53. A race (two workers acting in an unsafe order) let a delayed Enactor apply a much older plan over a newer one. Cleanup then deleted that plan, and \"all IP addresses for the regional endpoint were immediately removed.\"\n\nDNS was restored at 2:25 AM PDT. DynamoDB errors ended at 2:40 AM, as cached records expired.",
         },
         {
           kind: "read",
           title: "AWS: recovery was harder",
-          body: "EC2's DropletWorkflow Manager depends on DynamoDB. It tried to re-establish leases with the whole fleet at once, and entered \"a state of congestive collapse.\"\n\nThen a network-configuration backlog made new instances fail Network Load Balancer health checks. Results flapped: nodes were \"removed from DNS, only to be returned to service when the next health check succeeded.\" Automatic AZ failover removed capacity.",
+          body: "EC2's DropletWorkflow Manager depends on DynamoDB. It tried to re-establish leases with the whole fleet at once, and entered \"a state of congestive collapse.\"\n\nThen a network-configuration backlog made new instances fail Network Load Balancer health checks. Results **flapped** (switched back and forth): nodes were \"removed from DNS, only to be returned to service when the next health check succeeded.\" Automatic AZ failover removed capacity.",
         },
         {
-          kind: "quiz",
-          prompt: "Health checks were flapping, and automatic failover kept removing capacity. What did AWS do at 9:36 AM?",
-          options: [
-            "Disabled automatic health-check failover",
-            "Added more health checkers",
-            "Moved all traffic to another region",
-            "Made the health-check interval shorter",
-          ],
-          answer: 0,
-          explain: "AWS disabled automatic health-check failover at 9:36 AM. The last services recovered at 2:20 PM, about 14.5 hours after the start. Remediations include a \"velocity control mechanism to limit the capacity a single NLB can remove\", scale tests for recovery, and rate limiting work by queue size. **Lessons:** recovery is a load test you never ran. Automated failover without a speed limit can remove healthy capacity. Cached DNS both helped and delayed recovery.",
+          kind: "reveal",
+          prompt: "Health checks were flapping, and automatic failover kept removing capacity. What would you do? Think about it, then tap to see what AWS did at 9:36 AM.",
+          answer: "AWS **disabled automatic health-check failover** at 9:36 AM. The last services recovered at 2:20 PM, about 14.5 hours after the start.\n\nRemediations include a \"velocity control mechanism to limit the capacity a single NLB can remove\", scale tests for recovery, and rate limiting work by queue size.\n\n**Lessons:** recovery is a load test you never ran. Automated failover without a speed limit can remove healthy capacity. Cached DNS both helped and delayed recovery.",
         },
         {
           kind: "read",
           title: "Google Cloud, 12 June 2025",
-          body: "On 29 May Google added quota checks to Service Control, the system that checks API requests. The code \"did not have appropriate error handling nor was it feature flag protected.\"\n\nOn 12 June a policy with blank fields was written to Spanner and **replicated globally within seconds**. Binaries hit a null pointer and crash-looped in every region. A \"red-button\" fix was rolled out within about 40 minutes.",
+          body: "On 29 May Google added quota checks to Service Control, the system that checks API requests. The code \"did not have appropriate error handling nor was it feature flag protected.\"\n\nOn 12 June a policy with blank fields was written to Spanner (Google's global database) and **replicated globally within seconds**. Binaries hit a null pointer and crash-looped in every region. A \"red-button\" fix was rolled out within about 40 minutes.",
         },
         {
-          kind: "quiz",
-          prompt: "The red-button fix was out in about 40 minutes. But in us-central1, restarting tasks overloaded Spanner, and recovery there took up to about 2 hours 40 minutes. What was missing?",
-          options: [
-            "Randomized exponential backoff in Service Control",
-            "More Spanner replicas",
-            "A second status page",
-            "A faster red button",
-          ],
-          answer: 0,
-          explain: "Service Control lacked randomized exponential backoff, so tasks restarted together. The status page lists the incident from 10:51 to 18:18 PDT. Remediations: fail open, propagate replicated data incrementally \"with sufficient time to validate and detect issues\", feature flags on critical binaries, and keep monitoring working when the cloud is down. **Lessons:** global data replication is a global deploy. Restart storms need backoff with jitter. Decide fail-open or fail-closed for each check in advance.",
+          kind: "reveal",
+          prompt: "The red-button fix was out in about 40 minutes. But in us-central1, thousands of tasks restarted at the same moment, overloaded Spanner, and recovery there took up to about 2 hours 40 minutes. What was missing?",
+          answer: "Service Control lacked **randomized exponential backoff**: waiting longer after each failure, by a random amount, so tasks do not all restart together. The status page lists the incident from 10:51 to 18:18 PDT.\n\nRemediations: fail open, propagate replicated data incrementally \"with sufficient time to validate and detect issues\", feature flags on critical binaries, and keep monitoring working when the cloud is down.\n\n**Lessons:** global data replication is a global deploy. Restart storms need backoff with jitter. Decide fail-open or fail-closed for each check in advance.",
         },
         {
           kind: "reveal",
@@ -696,6 +713,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Use the \"Trigger\" column of the common-thread table: each incident started with one specific change.",
           prompt: "Match each incident to its trigger.",
           pairs: [
             ["Fastly 2021", "A valid customer config"],
@@ -724,11 +742,17 @@ const chapter: Chapter = {
       id: "ch12-l4",
       title: "Redundancy that really works",
       goal: "Find hidden single points of failure, layer failover from player to origin, and size static capacity for losing your largest CDN.",
-      minutes: 12,
+      minutes: 13,
       steps: [
         {
+          kind: "read",
+          title: "Three CDNs, still down?",
+          body: "Many teams buy a second CDN and a second cloud, and feel safe. Then one event takes everything down anyway.\n\nRedundancy only helps when the copies can fail **separately**. By the end of this lesson you can find hidden single points of failure, layer failover from the player down to the origin, and size spare capacity for losing your largest CDN.",
+        },
+        {
           kind: "quiz",
-          prompt: "You use three CDNs for playback. Which single event could still take all three down at once?",
+          guess: true,
+          prompt: "You use three CDNs for playback. Which single event would you guess could still take all three down at once?",
           options: [
             "A PoP failure in Tokyo on one CDN",
             "An outage at the one DNS provider that hosts your playback hostnames",
@@ -736,17 +760,12 @@ const chapter: Chapter = {
             "A traffic spike in one country",
           ],
           answer: 1,
-          explain: "If all playback hostnames live at **one DNS provider**, its outage hides all three CDNs. This is a **hidden single point of failure**. The others affect one CDN or one area.",
+          explain: "Players find every CDN through your playback hostnames. If all of those names live at **one DNS provider**, its outage hides all three CDNs. This is a **hidden single point of failure**. The other events affect one CDN or one area.",
         },
         {
           kind: "read",
           title: "Hidden single points of failure",
-          body: "A **single point of failure (SPOF)** is anything whose failure alone stops the service. One CDN or one origin bucket is obvious. The dangerous SPOFs are hidden:\n\n- **One DNS provider** for playback hostnames, even with three CDNs.\n- **One steering service.** If it fails, which CDN do players get?\n- **One CDN config pipeline** that pushes to all CDNs at once.\n- **One player library** with a failover bug, on every device.\n- **One observability vendor.**\n- **One person** who knows how to fail over.",
-        },
-        {
-          kind: "read",
-          title: "Redundant parts must fail independently",
-          body: "A config pipeline that pushes to all CDNs at once means one bad change breaks all of them together. And Google's 2025 remediation included keeping monitoring working during cloud outages, because the observability vendor can be a SPOF too.",
+          body: "A **single point of failure (SPOF)** is anything whose failure alone stops the service. Obvious ones: one CDN, one origin bucket. Hidden ones are worse:\n\n- **One DNS provider** for playback hostnames, even with three CDNs.\n- **One steering service.** If it fails, where do players go?\n- **One CDN config pipeline** pushing to all CDNs at once.\n- **One player library** with a failover bug, on every device.\n- **One observability vendor.** Google's 2025 fixes guard monitoring against cloud outages.\n- **One person** who knows how to fail over.",
           callout: {
             type: "staff",
             text: "Redundancy only helps if the parts fail independently. Two CDNs configured by the same pipeline in the same minute share fate for config bugs. Two origins fed by one replicator share fate for replication bugs. Ask \"what single event takes out both?\" and stagger changes until the answer is \"nothing\".",
@@ -754,6 +773,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "Two parts **share fate** when one single event, such as one bad push or one broken replicator, can break both of them.",
           prompt: "Which of these pairs **share fate**? Select all that apply.",
           options: [
             "Two CDNs configured by the same pipeline in the same minute",
@@ -779,7 +799,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Layers 3 and 4: DNS and the edge",
-          body: "**Layer 3, DNS,** shifts new lookups, slowly.\n\n**Layer 4, the edge,** serves what it has. RFC 5861 defines [[stale-if-error|stale-if-error / stale-while-revalidate]], which lets a cache serve a stale response when the origin errors. VOD segments never change, so stale is safe. Fastly can serve stale content when all backends are unhealthy, instead of returning 503.",
+          body: "**Layer 3, DNS,** shifts new lookups, slowly.\n\n**Layer 4, the edge,** serves what it has. RFC 5861 defines [[stale-if-error|stale-if-error / stale-while-revalidate]], which lets a cache serve a stale (older) response when the origin errors. VOD segments never change, so stale is safe. Fastly can serve stale content when all backends are unhealthy, instead of returning 503.",
           visual: { kind: "flow", spec: layers(["l3", "l4", "l3>l4"]) },
         },
         {
@@ -789,17 +809,9 @@ const chapter: Chapter = {
           visual: { kind: "flow", spec: layers(["l5", "l6", "l5>l6"]) },
         },
         {
-          kind: "number",
-          prompt: "By default, CloudFront makes **3** connection attempts to the primary origin, each with a **10-second** timeout. How long can it keep trying the primary before failing over?",
-          answer: 30,
-          tolerance: 1,
-          unit: "s",
-          explain: "3 × 10 s = **30 seconds**. For a player with a 20-30 second buffer, that can use the whole failover budget on one miss.",
-        },
-        {
           kind: "read",
           title: "Tune the origin group for video",
-          body: "The defaults are a trap. AWS notes that for streaming video you may want to fail over faster, by lowering the connection timeout (1-10 s) and the attempts (1-3). This illustrative sketch uses one attempt of 2 seconds.",
+          body: "The defaults are a trap. By default CloudFront makes **3** connection attempts to the primary, each with a **10-second** timeout:\n\n- 3 × 10 = **30 seconds** before it tries the secondary.\n\nFor a player with a 20-30 second buffer, one miss can use the whole failover budget. AWS notes that for streaming video you may want to lower the timeout (1-10 s) and the attempts (1-3). This illustrative sketch uses one attempt of 2 seconds.",
           visual: {
             kind: "code",
             lang: "hcl",
@@ -807,7 +819,17 @@ const chapter: Chapter = {
           },
         },
         {
+          kind: "number",
+          teach: "The worst-case wait is the number of connection attempts times the timeout of each attempt.",
+          prompt: "You tune the primary origin to **2** connection attempts with a **3-second** timeout each. In the worst case, how long does CloudFront keep trying the primary before it tries the secondary?",
+          answer: 6,
+          tolerance: 0.5,
+          unit: "s",
+          explain: "2 × 3 s = **6 seconds**, well inside a 20-30 second buffer. The default was 3 × 10 s = **30 seconds**, which can use the whole failover budget on one miss.",
+        },
+        {
           kind: "quiz",
+          teach: "Recall replication lag from the failure map: a new object can exist in one cloud's bucket before it reaches the other.",
           prompt: "The failover codes include **404**. Why does 404 matter for a multi-cloud origin?",
           options: [
             "A 404 on the primary may mean replication has not arrived yet, and the secondary has the object",
@@ -821,7 +843,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Static stability",
-          body: "**[[Static stability]]** means the system keeps working in its current state when a dependency fails, without needing new actions. AWS: \"In a statically stable design, the overall system keeps working even when a dependency becomes impaired.\"\n\nEC2's **[[data plane]]** keeps routing packets during a **[[control plane]]** problem, because each server already holds its state. AWS also runs stateless services across three zones at about 66% of tested load each, so losing a zone needs no scaling at all.",
+          body: "**[[Static stability]]** means the system keeps working in its current state when a dependency fails, without needing new actions. AWS: \"In a statically stable design, the overall system keeps working even when a dependency becomes impaired.\"\n\nEC2's **[[data plane]]** (the part that moves packets) keeps working during a **[[control plane]]** problem (the part that makes changes), because each server already holds its state. AWS also runs stateless services across three zones at about 66% of tested load each, so losing a zone needs no scaling.",
         },
         {
           kind: "widget",
@@ -836,15 +858,13 @@ const chapter: Chapter = {
           body: "- **Failover capacity is pre-provisioned and contracted,** not requested during the incident.\n- **Last-known-good steering.** If the steering service loses its RUM data, it keeps the last good decision, instead of \"send everything to CDN A\".\n- **Cached control-plane answers:** URL tokens, entitlement for active sessions, and license durations long enough to ride out a short control-plane outage (Chapter 8).\n- **No per-request dependency on a config database.** Edge config is compiled and pushed.",
         },
         {
-          kind: "number",
-          prompt: "Three CDNs share an 8 Tbps peak equally (about 2.67 Tbps each). One fails. How much does **each** survivor now carry?",
-          answer: 4,
-          tolerance: 0.1,
-          unit: "Tbps",
-          explain: "8 Tbps / 2 = **4 Tbps** each, which is 1.5 times their normal 2.67 Tbps (assumed numbers).",
+          kind: "read",
+          title: "Losing a CDN: the math",
+          body: "When a CDN fails, its traffic lands on the survivors. Example with an **equal** split: three CDNs share an 8 Tbps peak, about 2.67 Tbps each. One fails:\n\n- The two survivors carry all 8 Tbps: 8 / 2 = **4 Tbps** each.\n- Multiplier = total peak / what the survivors normally carry together = 8 / 5.33 = **1.5×**.\n\nUneven splits are harder, because the largest CDN leaves the biggest hole.",
         },
         {
           kind: "number",
+          teach: "The survivors must carry the whole peak. Divide it by what they normally carry together.",
           prompt: "Now the split is **50/30/20** of 8 Tbps. The largest CDN fails. The other two normally carry 4 Tbps together. How many times their normal load must they now carry?",
           answer: 2,
           tolerance: 0.1,
@@ -863,25 +883,27 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Cells",
-          body: "A **[[cell]]-based architecture** splits a system into independent copies called **cells**. Each cell serves part of the traffic, with no shared state, behind a thin **cell router**.\n\nIf one of ten cells fails, 90% of requests are unaffected. Bad deployments or \"poison pill\" requests stay inside one cell.",
+          body: "A **[[cell]]-based architecture** splits a system into independent copies called **cells**. Each cell serves part of the traffic, with no shared state, behind a thin **cell router**.\n\nIf one of ten cells fails, 90% of requests are unaffected. Bad deployments or \"poison pill\" requests stay inside one cell.\n\nIn delivery, a cell can be one CDN, one set of PoPs, one regional origin, or one regional playback API.",
           visual: { kind: "flow", spec: cells },
-        },
-        {
-          kind: "number",
-          prompt: "**Shuffle sharding** gives each customer a random combination of workers. With **8 workers** and **2 per customer**, how many unique pairs are there?",
-          answer: 28,
-          tolerance: 0.5,
-          unit: "pairs",
-          hint: "Choose 2 from 8: 8 × 7 / 2.",
-          explain: "8 × 7 / 2 = **28** unique pairs.",
         },
         {
           kind: "read",
           title: "Shuffle sharding",
-          body: "With 28 pairs, a bad customer damages only its own two workers. Any other customer shares **at most one** of them, so it can retry on the other.\n\nAWS calls this \"7 times better than regular sharding\" into four shards.",
+          body: "**Shuffle sharding** gives each customer a random combination of workers, instead of a fixed group. Count the combinations with \"choose 2 from N\" = N × (N − 1) / 2.\n\nExample: 6 workers, 2 per customer: 6 × 5 / 2 = **15** unique pairs.\n\nA bad customer damages only its own two workers. Any other customer has a different pair, so it shares **at most one** of them, and can retry on the other.",
+        },
+        {
+          kind: "number",
+          teach: "Use \"choose 2 from N\": N × (N − 1) / 2.",
+          prompt: "With **8 workers** and **2 per customer**, how many unique pairs are there?",
+          answer: 28,
+          tolerance: 0.5,
+          unit: "pairs",
+          hint: "Choose 2 from 8: 8 × 7 / 2.",
+          explain: "8 × 7 / 2 = **28** unique pairs. AWS calls this \"7 times better than regular sharding\" into four shards.",
         },
         {
           kind: "match",
+          teach: "Each kind of cell keeps one kind of failure inside a small part of the system. Match by what is being split up: config pushes, origins, regional APIs or new software.",
           prompt: "Cells in delivery. Match each kind of cell to what it looks like.",
           pairs: [
             ["Change cells", "Push edge config to one CDN, watch, then the next"],
@@ -909,11 +931,17 @@ const chapter: Chapter = {
       id: "ch12-l5",
       title: "Health checks, self-healing and retries",
       goal: "Design an automated failover rule that does not flap, keep self-healing safe, and stop retries from becoming a storm.",
-      minutes: 12,
+      minutes: 13,
       steps: [
         {
+          kind: "read",
+          title: "Robots that move traffic",
+          body: "At 2M viewers, no human is fast enough to fail over by hand. So software watches health and moves traffic by itself.\n\nThat software can also make things worse. It can flip traffic back and forth, remove healthy capacity, or start a storm of retries.\n\nBy the end of this lesson you can design a failover rule that does not flap, keep self-healing safe, and stop retries from becoming a storm.",
+        },
+        {
           kind: "quiz",
-          prompt: "A CDN is borderline: healthy for 40 s, then failing for 20 s, every minute. Your controller marks it down after **one** failed check and up after **one** passing check. What happens?",
+          guess: true,
+          prompt: "A CDN is borderline: healthy for 40 s, then failing for 20 s, every minute. Your controller marks it down after **one** failed check and up after **one** passing check. What would you expect to happen?",
           options: [
             "Traffic stays on the CDN, because it is mostly healthy",
             "Traffic flips back and forth, and every flip moves viewers and cold-starts caches",
@@ -921,45 +949,22 @@ const chapter: Chapter = {
             "Nothing, because health checks average over an hour",
           ],
           answer: 1,
-          explain: "With no gap between the down rule and the up rule, the target **flaps**. Every flap moves traffic and cold-starts caches. The fix is **hysteresis**, coming up in this lesson.",
-        },
-        {
-          kind: "order",
-          prompt: "Automated failover needs a **health signal**. Rank these signals from the **weakest** to the **strongest**.",
-          items: [
-            "Vendor synthetic checks (Route 53 checkers, Fastly backend checks)",
-            "Your own synthetic probes from many networks",
-            "CDN log metrics: 5xx rate and TTFB per CDN and region",
-            "RUM and QoE: session start failures and rebuffering per CDN, region and ASN",
-          ],
-          explain: "The closer a signal is to real viewers, the stronger it is. Vendor checks are fast but see only the check URL. RUM sees users but needs volume. Use several.",
+          explain: "Traffic **flaps**: it flips back and forth with the CDN's health. Every flip moves viewers and cold-starts caches (the other CDN does not hold the content yet). The fix is **hysteresis**: make it harder to come back than to leave. It is coming up in this lesson.",
         },
         {
           kind: "read",
           title: "Signal plus decision rule",
-          body: "Automated failover needs a **health signal** and a **decision rule**. Signals, from weakest to strongest:\n\n- Vendor synthetic checks.\n- Your own [[synthetic probes|Synthetic probe]] from many networks.\n- CDN log metrics: 5xx rate and [[TTFB|Time to first byte (TTFB)]] per CDN and region.\n- **[[RUM]] and QoE:** session start failures and rebuffering per CDN, region and [[ASN]].\n\nVendor checks are fast but see only the check URL. RUM sees users but needs volume. Use several.",
+          body: "Automated failover needs a **health signal** and a **decision rule**. Signals, from weakest to strongest:\n\n- Vendor synthetic checks.\n- Your own [[synthetic probes|Synthetic probe]] (scheduled test requests) from many networks.\n- CDN log metrics: 5xx rate and [[TTFB|Time to first byte (TTFB)]] per CDN and region.\n- **[[RUM]] and QoE:** session start failures and rebuffering per CDN, region and [[ASN]].\n\nVendor checks are fast but see only the check URL. RUM sees users but needs volume. Use several.",
         },
         {
           kind: "read",
           title: "Two vendor details",
-          body: "**Route 53** checks every 10 or 30 seconds from many locations. It calls an endpoint healthy if more than 18% of its checkers say so.\n\n**Fastly** uses a threshold over a window, for example 3 of the last 5 checks.",
-        },
-        {
-          kind: "quiz",
-          prompt: "Route 53 calls an endpoint healthy if **more than 18%** of its checkers say so. Why such a low bar?",
-          options: [
-            "So a network problem near a few checkers does not mark a healthy endpoint down",
-            "Because 82% of checks are always lost",
-            "To save money on health checks",
-            "Because Route 53 checks only once an hour",
-          ],
-          answer: 0,
-          explain: "Checkers sit in many locations. If a network problem cuts off a few of them, the endpoint should not be marked down. A low bar means only a broad failure flips it.",
+          body: "**Route 53** checks every 10 or 30 seconds from many locations. It calls an endpoint healthy if more than 18% of its checkers say so. The bar is low on purpose: a network problem near a few checkers should not mark a healthy endpoint down. Only a broad failure flips it.\n\n**Fastly** uses a threshold over a window, for example 3 of the last 5 checks.",
         },
         {
           kind: "read",
           title: "Hysteresis",
-          body: "The decision rule needs **[[hysteresis]]**: different thresholds to go down and to come back, plus a minimum time in each state.\n\nWithout it, a borderline target **flaps**. Every flap moves traffic and cold-starts caches. The AWS NLB flapping in October 2025 is the textbook case.",
+          body: "The decision rule needs **[[hysteresis]]**: different thresholds to go down and to come back, plus a minimum time in each state. A home heater does the same: on at 19°C, off at 21°C, so it does not click on and off all day.\n\nWithout it, a borderline target **flaps**. Every flap moves traffic and cold-starts caches. The AWS NLB flapping in October 2025 is the textbook case.",
           visual: { kind: "flow", spec: hyst(["h", "d", "h>d", "d>h"], ["h>d"]) },
         },
         {
@@ -991,6 +996,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Compare CDN A with its peers. A problem that hits every CDN at once is not caused by any one CDN.",
           prompt: "Which pattern should make the controller drain CDN A?",
           options: [
             "Errors rise on all three CDNs in one country at the same time",
@@ -1007,26 +1013,24 @@ const chapter: Chapter = {
           body: "**Self-healing** means the system fixes common problems without a human: restart a packager, replace an instance, re-run replication, drain a bad CDN, renew a certificate. At scale it is required.\n\nBut automation acts fast, without judgment. AWS's lease manager tried to recover the whole fleet at once and collapsed. Google's tasks restarted together and overloaded Spanner. Facebook's DNS healed itself off the internet.",
         },
         {
-          kind: "multi",
-          prompt: "Which rules keep self-healing safe? Select all that apply.",
-          options: [
-            "Rate-limit every automatic action, and add jitter to timers and restarts",
-            "Stop when it is not working: after three failed restarts, page a human",
-            "Keep a global \"pause automation\" switch",
-            "Log every automatic action where on-call can see it",
-            "Let automation retry forever, because humans are slower",
-          ],
-          answers: [0, 1, 2, 3],
-          explain: "All four rules come from real incidents. AWS disabled automatic NLB failover mid-incident, which is a pause switch. And \"what changed?\" includes robots, so log every automatic action. Automation that retries forever is how fleets collapse.",
+          kind: "read",
+          title: "Rules for safe self-healing",
+          body: "Four rules come from those incidents:\n\n- **Rate-limit every automatic action,** and add **jitter** (a small random delay) to timers and restarts, so they do not all fire together.\n- **Stop when it is not working.** After three failed restarts, page a human.\n- **Keep a global \"pause automation\" switch.** AWS disabled automatic NLB failover mid-incident.\n- **Log every automatic action** where on-call can see it. \"What changed?\" includes robots. Automation that retries forever is how fleets collapse.",
+        },
+        {
+          kind: "read",
+          title: "Retries multiply",
+          body: "Retries are the most common way a small failure becomes a big one. When every layer of a system retries, the attempts **multiply**: each layer repeats everything below it.\n\nGoogle's SRE book example: three layers, each making 4 attempts.\n\n- 4 × 4 × 4 = 4^3 = **64** attempts on the bottom layer, for one user request.\n\nThe fix: retry at **one layer only**, usually the one closest to the user.",
         },
         {
           kind: "number",
-          prompt: "Retries are the most common way a small failure becomes a big one. Five layers each retry **3 times**. What is the worst-case multiplier on the bottom layer?",
+          teach: "Each layer multiplies the load by its number of tries. Multiply once per layer.",
+          prompt: "AWS's example: five layers each retry **3 times**. What is the worst-case multiplier on the bottom layer?",
           answer: 243,
           tolerance: 1,
           unit: "×",
-          hint: "Each layer multiplies the load by 3.",
-          explain: "3^5 = **243**. Google's SRE book shows 64 attempts from three layers of four (4^3). The fix: retry at **one layer only**, usually the one closest to the user.",
+          hint: "Each layer multiplies the load by 3, five times.",
+          explain: "3^5 = 3 × 3 × 3 × 3 × 3 = **243**. Compare Google's 4^3 = 64. The fix: retry at **one layer only**, usually the one closest to the user.",
         },
         {
           kind: "read",
@@ -1034,7 +1038,19 @@ const chapter: Chapter = {
           body: "**Assumed numbers.** About 1M segment requests per second come from 2M players. A CDN starts failing half of them.\n\nIf every player retries immediately three times, the failing CDN gets far more traffic at its weakest moment. If players all jump to the backup in the same second, the backup sees a step of hundreds of thousands of extra requests per second. They are mostly misses at first, so its shield and your origin take the herd.",
         },
         {
+          kind: "read",
+          title: "Tools against retry storms",
+          body: "- **Exponential backoff with jitter:** wait longer after each failure (for example 1 s, 2 s, 4 s), plus a random amount, so clients do not retry in step.\n- **Retry budget:** a token bucket per client caps how many retries it sends. Each retry spends a token; when they run out, stop retrying.\n- **No retry on most 4xx:** an expired-token 403 or a bad-URL 404 will not change. Retry 5xx and timeouts.",
+        },
+        {
+          kind: "read",
+          title: "Circuit breakers",
+          body: "A **[[circuit breaker]]** watches calls to one dependency. After repeated failures it **opens**: calls fail fast, or use a fallback, for a cool-down. Then it lets a few test requests through (**half-open**). If they succeed, it **closes** again.\n\nIn a player, keep one breaker per CDN host.",
+          visual: { kind: "flow", spec: breaker },
+        },
+        {
           kind: "match",
+          teach: "Each tool limits retries in a different way: in time, in count, by error type, or by stopping calls for a while.",
           prompt: "Match each tool against [[retry storms|Retry storm]] to what it does.",
           pairs: [
             ["Exponential backoff with jitter", "Spreads retries around in time"],
@@ -1043,12 +1059,6 @@ const chapter: Chapter = {
             ["Circuit breaker", "After repeated failures, fail fast or use a fallback for a cool-down"],
           ],
           explain: "AWS: \"Jitter adds some amount of randomness to the backoff to spread the retries around in time.\" Google: \"Always use randomized exponential backoff when scheduling retries.\" AWS added a token-bucket [[retry budget]] to its SDKs in 2016; Google describes a per-process budget, for example 60 retries per minute. Retry 5xx and timeouts, not most 4xx.",
-        },
-        {
-          kind: "read",
-          title: "Circuit breakers",
-          body: "A **[[circuit breaker]]** watches calls to one dependency. After repeated failures it **opens**: calls fail fast, or use a fallback, for a cool-down. Then it lets a few test requests through (**half-open**). If they succeed, it **closes** again.\n\nIn a player, keep one breaker per CDN host.",
-          visual: { kind: "flow", spec: breaker },
         },
         {
           kind: "read",
@@ -1066,6 +1076,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Remember lesson 1: the buffer is the failover budget. Compare the wait with the seconds of video the player has left.",
           prompt: "The player has **10 seconds** of buffer, and CDN A is failing. An API-style retry policy says back off up to 8 seconds. What should the player do?",
           options: [
             "Wait the full 8 seconds on CDN A, then retry",
@@ -1101,20 +1112,30 @@ const chapter: Chapter = {
       id: "ch12-l6",
       title: "Degrade, change safely, drill, learn",
       goal: "Plan a degradation ladder, apply safe-change rules, run failover drills and write a postmortem with class-level fixes.",
-      minutes: 11,
+      minutes: 12,
       steps: [
         {
-          kind: "number",
-          prompt: "A 2M-stream event runs at about 8 Tbps. The manifest service drops the top bitrate rungs, so the average bitrate falls from about 4 to about 3 Mbps (assumed). What is the new egress?",
-          answer: 6,
-          tolerance: 0.2,
-          unit: "Tbps",
-          explain: "2M × 3 Mbps = **6 Tbps**. About a quarter of egress is freed, and nobody stopped watching.",
+          kind: "read",
+          title: "Bend, don't break",
+          body: "Not every failure is sudden. Often the system is just overloaded, or a risky change is about to go out, or nobody has tested the backup in months.\n\nThis lesson covers four habits: **degrade** gently instead of failing, **change** things safely, **drill** your failover on purpose, and **learn** from each incident in writing. By the end you can plan each one for a delivery platform.",
+        },
+        {
+          kind: "quiz",
+          guess: true,
+          prompt: "Your CDNs are close to full during a huge premiere. What would you expect is the least painful thing to give up first?",
+          options: [
+            "A little picture sharpness: drop the highest quality levels",
+            "Let no new viewers start",
+            "Turn off login checks",
+            "Stop every stream for a minute",
+          ],
+          answer: 0,
+          explain: "Give up the cheapest thing first. Viewers barely notice slightly softer video, but they always notice a spinner or an error. This idea is **graceful degradation**, and video has an unusually good first step.",
         },
         {
           kind: "read",
           title: "Graceful degradation",
-          body: "**[[Graceful degradation]]** means a reduced experience instead of none. Google's SRE book warns that \"the code path you never use is the code path that (often) doesn't work,\" so degraded modes must be exercised.\n\nHere is a **degradation ladder** for streaming. Climb it one step at a time.",
+          body: "**[[Graceful degradation]]** means a reduced experience instead of none. Google's SRE book warns that \"the code path you never use is the code path that (often) doesn't work,\" so degraded modes must be exercised.\n\nHere is a **degradation ladder** for streaming. Climb it one step at a time, from the top row down: give up the cheapest thing first.",
           visual: {
             kind: "table",
             headers: ["Step", "Give up", "Protect", "Mechanism"],
@@ -1130,27 +1151,25 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Step 1 is special in video",
-          body: "Dropping the average from about 4 to about 3 Mbps takes a 2M-stream event from about 8 Tbps to about 6 Tbps, **without stopping anyone**.\n\n[[ABR]] already handles the change, so viewers see slightly softer video instead of a spinner. That freed capacity may be exactly what the surviving CDNs need.",
+          body: "Egress = streams × average bitrate. Worked example: a 2M-stream event at about 4 Mbps is about 8 Tbps. Drop the top rungs so the average falls to about 3 Mbps (assumed):\n\n- 2M × 3 Mbps = about **6 Tbps**, **without stopping anyone**.\n\n[[ABR]] (the player picking a quality level that fits) already handles the change, so viewers see slightly softer video instead of a spinner. That freed capacity may be exactly what the surviving CDNs need.",
         },
         {
-          kind: "order",
-          prompt: "Put the degradation ladder in order: what you give up first, to what you give up last.",
-          items: [
-            "Top bitrate rungs",
-            "Non-essential API features",
-            "Freshness of non-critical data",
-            "New starts in one region",
-            "Strict checks (pre-decided fail-open)",
-          ],
-          explain: "Give up the cheapest thing first. Top rungs protect egress headroom. API features protect playback API capacity. Freshness protects origin and database load. Refusing new starts in one region protects running sessions. Fail-open rules protect availability, and come last because they need the most care.",
+          kind: "number",
+          teach: "Egress = number of streams × average bitrate. Only the bitrate changes.",
+          prompt: "A smaller event has **1.5M** streams at about 4 Mbps, so about 6 Tbps. You trim the top rungs, and the average falls to about **3 Mbps** (assumed). What is the new egress?",
+          answer: 4.5,
+          tolerance: 0.2,
+          unit: "Tbps",
+          explain: "1.5M × 3 Mbps = **4.5 Tbps**. About a quarter of egress is freed, and nobody stopped watching.",
         },
         {
           kind: "read",
           title: "Step 5 needs care",
-          body: "Failing open on a quota check, as Google chose in 2025, is reasonable.\n\nFailing open on [[DRM]] or geo-licensing is a **business and legal decision**, owned with Content Protection (Chapter 8). Get it written down **before** the incident.",
+          body: "Failing open (letting requests through when a check cannot run) on a quota check, as Google chose in 2025, is reasonable.\n\nFailing open on [[DRM]] or geo-licensing is a **business and legal decision**, owned with Content Protection (Chapter 8). Get it written down **before** the incident.",
         },
         {
           kind: "quiz",
+          teach: "Some checks protect only system load. Others protect content rights, which are a business and legal matter.",
           prompt: "During an incident, which fail-open choice must already be agreed with Content Protection, and written down?",
           options: [
             "Failing open on a quota check",
@@ -1163,11 +1182,17 @@ const chapter: Chapter = {
         },
         {
           kind: "read",
-          title: "Safe change",
-          body: "Most outages in this chapter started with a change. CI/CD for edge config is Chapter 14. The reliability rules:\n\n- **Every change is staged:** code, CDN config, steering rules, generated files, certificates, DNS. Emergency global paths need their own guardrails.\n- **One CDN at a time.**\n- **Automatic health gates** on real metrics, with automatic rollback.\n- **Feature flags, off by default,** and tested **kill switches**.\n- **Validate generated config at the consumer;** keep last-known-good.\n- **Change freezes** around big premieres (Chapter 13).\n- **One \"what changed?\" timeline.**",
+          title: "Safe change, part 1",
+          body: "Most outages in this chapter started with a change, so the rules for changing things matter most. (CI/CD for edge config is Chapter 14.)\n\n- **Every change is staged:** code, CDN config, steering rules, generated files, certificates, DNS. It reaches a small part first, then more. Emergency global paths need their own guardrails.\n- **One CDN at a time,** so the CDNs never share fate.\n- **Automatic health gates** on real metrics, with automatic rollback when the numbers get worse.",
+        },
+        {
+          kind: "read",
+          title: "Safe change, part 2",
+          body: "- **Feature flags, off by default:** new code ships switched off and is turned on later. Test your **kill switches** (one action that turns a feature off everywhere).\n- **Validate generated config at the consumer,** and keep last-known-good. Generated data is input.\n- **Change freezes** around big premieres: no non-urgent changes in those hours (Chapter 13).\n- **One \"what changed?\" timeline** for people and robots.",
         },
         {
           kind: "multi",
+          teach: "Check each plan against the rules: staged, one CDN at a time, flags off by default, validated generated config, freezes around premieres.",
           prompt: "Which of next week's plans follow the safe-change rules? Select all that apply.",
           options: [
             "Push a new config to CDN A behind health gates, then to CDN B the next day",
@@ -1187,7 +1212,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Drills a delivery team should run",
-          body: "Why do unused paths break? Configs [[drift|Drift (config)]], capacity changes, the backup's certificate expires, someone deletes the secondary origin from a module. The frequencies below are suggestions.",
+          body: "Why do unused paths break? Configs [[drift|Drift (config)]], capacity changes, the backup's certificate expires, someone deletes the secondary origin from a module.\n\nEach drill breaks one thing on purpose. A **game day** is a planned practice incident with the real on-call team. The frequencies below are suggestions.",
           visual: {
             kind: "table",
             headers: ["Drill", "Verify", "Frequency"],
@@ -1202,6 +1227,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Each drill breaks one thing on purpose. Ask what the system would prove by surviving that break.",
           prompt: "Match each drill to what it verifies.",
           pairs: [
             ["Drain one CDN in one region", "Others absorb load, QoE flat, origin load OK"],
@@ -1215,7 +1241,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Rules for safe chaos",
-          body: "Start small and off-peak. Define an **abort condition** and a one-step rollback. Tell vendors before large drills. Record results even when nothing broke.\n\nAfter 2021, Facebook added a simulated global backbone outage to its \"storm\" exercises. **Drill the scary scenario, not only the comfortable one.**",
+          body: "Start small and off-peak. Define an **abort condition** (a signal that means \"stop the drill now\") and a one-step rollback. Tell vendors before large drills. Record results even when nothing broke.\n\nAfter 2021, Facebook added a simulated global backbone outage to its \"storm\" exercises. **Drill the scary scenario, not only the comfortable one.**",
           callout: {
             type: "crunchyroll",
             text: "A team in this position would likely want a pre-premiere drill: days before a major simulcast, drain each CDN in turn in one region at normal evening load, and fix what breaks. This is an assumption about good practice, not a published Crunchyroll process.",
@@ -1233,6 +1259,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall the two extra postmortem triggers that delivery teams add to the usual list.",
           prompt: "A premiere ran. No human intervened and nothing went down, but rebuffering was above the premiere's QoE target. Do you write a postmortem?",
           options: [
             "No: nothing was down",
@@ -1263,6 +1290,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "A class-level fix changes the system so a whole kind of incident cannot happen again, without relying on people remembering.",
           prompt: "An origin outage made the controller fail over between CDNs, which made things worse. Which action item fixes the **class** of problem?",
           options: [
             "Lower the alert threshold on origin errors",
@@ -1291,11 +1319,17 @@ const chapter: Chapter = {
       id: "ch12-l7",
       title: "Incident day: a CDN fails at a premiere",
       goal: "Run an incident with clear roles, work with vendors, read Crunchyroll's public outages carefully, and walk through a premiere failover.",
-      minutes: 12,
+      minutes: 13,
       steps: [
         {
+          kind: "read",
+          title: "When it happens for real",
+          body: "Good design makes failures rarer. It never removes them. One evening a CDN will fail during a premiere, and your team will have minutes to act.\n\nThis lesson is about people and process: on-call, runbooks, incident roles, and working with vendors. Then it reads Crunchyroll's public outages carefully, and walks through a premiere failover step by step.",
+        },
+        {
           kind: "quiz",
-          prompt: "CDN A starts failing in Europe during a premiere. Five engineers join the call, and each starts changing things. What is the main risk now?",
+          guess: true,
+          prompt: "CDN A starts failing in Europe during a premiere. Five engineers join the call, and each starts changing things. What would you expect the biggest risk to be?",
           options: [
             "Too few people are working on it",
             "Confusion: conflicting changes, nobody talking to support, and no record",
@@ -1303,12 +1337,12 @@ const chapter: Chapter = {
             "The postmortem will be too long",
           ],
           answer: 1,
-          explain: "In a real incident the main risk is **confusion**: five engineers changing things at once, nobody talking to support, no record. Clear roles fix this.",
+          explain: "In a real incident the main risk is **confusion**: five engineers changing things at once, nobody talking to support, no record. **Clear roles** fix this, as the next steps show.",
         },
         {
           kind: "read",
           title: "A healthy on-call rotation",
-          body: "- **Pages only for user-visible symptoms** that need action now. Cause alerts go to tickets (Chapter 11).\n- **Primary and secondary,** with escalation to partner teams: Playback, Content Pipeline, Content Protection, Security.\n- **Tested vendor escalation:** each CDN's emergency line, account team and severity definitions.\n- **Access that works when things are broken:** break-glass credentials and a status channel that do not depend on your platform. Cloudflare in 2019 and Facebook in 2021 both struggled to reach their own tools.",
+          body: "**On-call** means being ready to answer alerts at any hour. A healthy rotation has:\n\n- **Pages only for user-visible symptoms** that need action now. Cause alerts go to tickets (Chapter 11).\n- **Primary and secondary,** with escalation to partner teams such as Playback and Content Protection.\n- **Tested vendor escalation:** each CDN's emergency line, account team and severity definitions.\n- **Break-glass access** (emergency credentials) and a status channel independent of your platform. Cloudflare in 2019 and Facebook in 2021 both struggled to reach their own tools.",
         },
         {
           kind: "read",
@@ -1318,10 +1352,11 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Incident command",
-          body: "The **Incident Command System** assigns roles. Google's SRE book describes four:\n\n- **Incident Commander (IC):** holds the overall state, assigns work, decides. The IC does not debug.\n- **Operations lead:** \"The operations team should be the only group modifying the system during an incident.\"\n- **Communications lead:** \"the public face of the incident response task force\".\n- **Planning lead:** tracks follow-ups, handoffs and temporary changes to revert.",
+          body: "The **Incident Command System** assigns roles. Google's SRE book describes four:\n\n- **Incident Commander (IC):** holds the overall state, assigns work, decides. The IC does not debug.\n- **Operations lead:** \"The operations team should be the only group modifying the system during an incident.\"\n- **Communications lead:** \"the public face of the incident response task force\", updating status, support, leadership and partner teams on a fixed rhythm.\n- **Planning lead:** tracks follow-ups, handoffs and temporary changes to revert.",
         },
         {
           kind: "match",
+          teach: "Recall the four Incident Command roles, and the one rule about who may change the system.",
           prompt: "Match each incident role to its job.",
           pairs: [
             ["Incident Commander", "Holds the overall state, assigns work, decides; does not debug"],
@@ -1334,24 +1369,25 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Keep a record, declare early",
-          body: "The IC keeps a **living incident document**: a shared timeline of what was seen, decided and done. Handoffs are explicit: the outgoing IC stays until the new one confirms.\n\n**Declare early.** \"It is better to declare an incident early and then find a simple fix and close out the incident.\"",
+          body: "The IC keeps a **living incident document**: a shared timeline of what was seen, decided and done. Handoffs are explicit: the outgoing IC stays until the new one confirms.\n\n**Declare early.** The SRE book's criteria: a second team is needed, customers can see it, or it is unsolved after an hour of focused work. Any one is enough. \"It is better to declare an incident early and then find a simple fix and close out the incident.\"",
         },
         {
           kind: "quiz",
-          prompt: "Which of these is one of the SRE book's criteria for declaring an incident?",
+          teach: "Recall the SRE book's three criteria for declaring an incident. You need only one of them.",
+          prompt: "You have worked alone for 70 minutes on slow video starts in one region. Customers have not noticed yet, and no other team is involved. Should you declare an incident?",
           options: [
-            "A second team is needed to fix it",
-            "The fix needs a code change",
-            "The problem started at night",
-            "A vendor is involved",
+            "No: no customer can see it yet",
+            "Yes: it is unsolved after an hour of focused work",
+            "No: only vendor problems are incidents",
+            "Only if it is happening at night",
           ],
-          answer: 0,
-          explain: "The SRE book's criteria: **a second team is needed**, **customers can see it**, or it is **unsolved after an hour of focused work**. When in doubt, declare early.",
+          answer: 1,
+          explain: "Any one of the three criteria is enough: **a second team is needed**, **customers can see it**, or it is **unsolved after an hour of focused work**. When in doubt, declare early.",
         },
         {
           kind: "read",
           title: "Mitigate first",
-          body: "Here is a CDN problem run with roles. Monitoring pages the IC. The IC does not debug: the IC tells Operations to **mitigate first** by draining CDN A in Europe. Comms starts a fixed rhythm of updates. Operations opens a sev-1 with the vendor, with evidence.",
+          body: "Here is a CDN problem run with roles. Monitoring pages the IC. The IC does not debug: the IC tells Operations to **mitigate first** (reduce the harm now) by draining CDN A in Europe. Comms starts a fixed rhythm of updates. Operations opens a sev-1 with the vendor, with evidence.",
           visual: { kind: "sequence", spec: icSeq(3) },
         },
         {
@@ -1361,19 +1397,23 @@ const chapter: Chapter = {
           visual: { kind: "sequence", spec: icSeq() },
         },
         {
-          kind: "match",
-          prompt: "**Severity levels** give a shared language. Each level defines who is paged, how often comms go out, and whether a postmortem is required. Match each level to its meaning.",
-          pairs: [
-            ["Sev-1", "Broad impact: many regions, or a big premiere"],
-            ["Sev-2", "Partial impact: one region, one CDN or one device family"],
-            ["Sev-3", "Degraded, but within SLO"],
-          ],
-          explain: "Sev-1 is broad impact, sev-2 is partial impact, sev-3 is degraded but within SLO. The level decides who is paged, the comms rhythm, and whether a postmortem is required.",
+          kind: "read",
+          title: "Severity levels",
+          body: "**Severity levels** give everyone a shared language. Each level defines who is paged, how often comms go out, and whether a postmortem is required.",
+          visual: {
+            kind: "table",
+            headers: ["Level", "Meaning"],
+            rows: [
+              ["Sev-1", "Broad impact: many regions, or a big premiere"],
+              ["Sev-2", "Partial impact: one region, one CDN or one device family"],
+              ["Sev-3", "Degraded, but within SLO"],
+            ],
+          },
         },
         {
           kind: "read",
           title: "Communicate what users see",
-          body: "On 30 June 2026, while Downdetector showed thousands of Crunchyroll reports, the platform status page reportedly said all services were running normally.\n\nStatus driven by component health can disagree with users. Drive status from user-facing [[SLIs|SLI / SLO / SLA]], such as **session start success by region**.",
+          body: "On 30 June 2026, while Downdetector showed thousands of Crunchyroll reports, the platform status page reportedly said all services were running normally.\n\nStatus driven by component health can disagree with users. Drive status from user-facing [[SLIs|SLI / SLO / SLA]] (measures of what users experience), such as **session start success by region**.",
         },
         {
           kind: "read",
@@ -1382,6 +1422,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall the first rule for working with vendors: whose data sees the impact first, yours or the vendor's?",
           prompt: "Your RUM shows session start failures on CDN A in Japan. CDN A's status page is green. What do you do first?",
           options: [
             "Wait until the vendor's status page confirms a problem",
@@ -1411,6 +1452,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "Public reports show symptoms, not causes. Keep only inferences that follow from the symptoms (logouts, many continents, a green status page), and drop claims nobody confirmed.",
           prompt: "From these public reports only, what can you **carefully** infer? Select all that apply.",
           options: [
             "Logouts and wrong subscription status point toward identity and entitlement, not the bytes path",
@@ -1425,12 +1467,13 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Worked scenario: a CDN fails at a premiere",
-          body: "Use the assumed model. A popular episode premieres, and concurrency ramps to about 2M streams. Three CDNs split traffic **45/35/20** (assumed).\n\nFive minutes after release, CDN A returns 5xx everywhere because of a vendor-side bug, like Fastly 2021.",
+          body: "Use the assumed model. A popular episode premieres, and concurrency ramps to about 2M streams at about 4 Mbps. Three CDNs split traffic **45/35/20** (assumed). Five minutes after release, CDN A returns 5xx everywhere because of a vendor-side bug, like Fastly 2021.\n\nRecall the method from lesson 1. A CDN with 40% of 2M streams has 0.4 × 2M = 800,000 sessions, and 800,000 × 4 Mbps = **3.2 Tbps**.",
           visual: { kind: "sequence", spec: premiereSeq(0) },
         },
         {
           kind: "number",
-          prompt: "CDN A carried 45% of 2M streams at about 4 Mbps. How much traffic must move to B and C?",
+          teach: "Sessions on A = its share × total streams. Traffic = those sessions × the average bitrate.",
+          prompt: "CDN A carried **45%** of 2M streams at about 4 Mbps. How much traffic must move to B and C?",
           answer: 3.6,
           tolerance: 0.2,
           unit: "Tbps",
@@ -1449,18 +1492,6 @@ const chapter: Chapter = {
           visual: { kind: "sequence", spec: premiereSeq() },
         },
         {
-          kind: "order",
-          prompt: "Put the premiere failover in the order it happens.",
-          items: [
-            "Players retry segments on an alternate CDN host",
-            "B and C absorb demand; shields collapse requests",
-            "Steering drains CDN A at its velocity limit",
-            "The IC trims top bitrate rungs to fit contracted capacity",
-            "CDN A returns on probation, at a small weight",
-          ],
-          explain: "Seconds 0-10: players. Seconds 10-60: edges. Minutes 1-3: steering. Then capacity and humans (minutes 3-15). Recovery comes last, through probation.",
-        },
-        {
           kind: "reveal",
           prompt: "Before the next premiere, what three questions does this scenario force your team to answer?",
           answer: "- Is burst capacity **contracted**, or hoped for?\n- Is \"trim top rendition\" a **tested switch**, or an idea?\n- When was each step **last drilled**?",
@@ -1469,10 +1500,10 @@ const chapter: Chapter = {
           kind: "summary",
           points: [
             "On-call pages on user-visible symptoms, has tested vendor escalation, and break-glass access that does not depend on the platform.",
-            "Incident command: IC, operations, comms and planning roles; a living document; declare early; mitigate first, debug later.",
+            "Incident command: IC, operations, comms and planning roles; a living document; severity levels; declare early; mitigate first, debug later.",
             "Drive status pages from user-facing SLIs. With vendors: move traffic first, give evidence, return on probation.",
             "Crunchyroll's public outages show impact, not cause. Logouts and wrong subscription status point toward entitlement, not the bytes path.",
-            "A premiere failover is layered: players, edges, steering, capacity ladder, humans, then probation.",
+            "A premiere failover is layered: players (seconds 0-10), edges (10-60 s), steering (minutes 1-3), capacity ladder and humans (minutes 3-15), then probation.",
           ],
         },
       ],
@@ -1486,7 +1517,13 @@ const chapter: Chapter = {
       minutes: 10,
       steps: [
         {
+          kind: "read",
+          title: "Here is what this chapter covered",
+          body: "- **The buffer is the failover budget.** Only player failover saves running sessions; DNS moves new traffic.\n- **Most outages start with a change** that reached everything at once.\n- **Redundancy helps only if parts fail independently.** Size capacity for losing your largest CDN.\n- **Automated failover needs** relative signals, hysteresis, velocity limits and a floor. Retry at one layer, with backoff and jitter.\n- **Degrade before failing,** and run incidents with clear roles: mitigate first, debug later.",
+        },
+        {
           kind: "quiz",
+          teach: "Think about how long DNS answers stay cached, and how often a running player looks up the name again.",
           prompt: "Why can DNS failover **not** protect sessions that are already playing?",
           options: [
             "Resolvers cache answers and running players do not re-resolve for every segment, so a change takes a minute or more, longer than a typical buffer",
@@ -1504,6 +1541,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "When the largest CDN fails, its traffic does not disappear. It lands on the survivors.",
           prompt: "Three CDNs split an 8 Tbps peak **50/30/20**. The largest fails. What must the other two carry together?",
           answer: 8,
           tolerance: 0.2,
@@ -1512,6 +1550,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Egress = streams × average bitrate. Scale the total by the new bitrate over the old one.",
           prompt: "To reduce that need without stopping playback, you trim the top bitrate rungs, so the average falls from 4 to 3 Mbps. What is total demand now?",
           answer: 6,
           tolerance: 0.2,
@@ -1520,6 +1559,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Freed share = (old egress − new egress) / old egress.",
           prompt: "What share of egress did trimming the top rungs free?",
           answer: 25,
           tolerance: 3,
@@ -1528,6 +1568,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Look at how each change reached the fleet: slowly in stages, or everywhere at once.",
           prompt: "Cloudflare 2019, Cloudflare December 2025 and Google Cloud June 2025 share one spread mechanism. What is it?",
           options: [
             "A fast global push path for config or data, with no staged rollout",
@@ -1545,6 +1586,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Compare the CDNs with each other. What does it mean when they all get worse together?",
           prompt: "Errors rise on all three CDNs in Brazil at the same time. Should the controller fail over between CDNs?",
           options: [
             "Yes: move Brazil to the CDN with the lowest errors",
@@ -1562,6 +1604,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Each layer multiplies the load by its number of tries. Multiply once per layer.",
           prompt: "Five layers each retry three times. What is the worst-case multiplier on the bottom layer?",
           answer: 243,
           tolerance: 1,
@@ -1570,6 +1613,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "The problem is multiplication across layers, all retrying at once. A fix must remove the multiplication and spread retries out.",
           prompt: "What is the fix for that retry multiplication?",
           options: [
             "Retry at one layer, with backoff, jitter and a retry budget",
@@ -1582,6 +1626,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall CloudFront's default connection attempts and timeout, and compare the total with a 20-30 second buffer.",
           prompt: "Why might a default CloudFront origin group be too slow for video?",
           options: [
             "By default it tries the primary for up to 30 seconds (three 10-second attempts) before failing over",
@@ -1594,6 +1639,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Logouts and subscription status are about accounts, not bytes. Think about which systems decide who may play.",
           prompt: "Users report connection errors and wrong subscription status, but CDN dashboards look normal. What do you suspect?",
           options: [
             "Identity, entitlement or the playback API",
@@ -1606,6 +1652,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "Recall the guards that stop a failover controller from flapping, or from removing too much capacity at once.",
           prompt: "Automated failover needs which of these, or it flaps and removes healthy capacity? Select all that apply.",
           options: [
             "Relative signals",

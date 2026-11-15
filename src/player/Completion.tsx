@@ -1,7 +1,7 @@
 /** Lesson complete: three count-up stats, a short particle burst, and the review offer. */
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { IconBolt, IconClock, IconRetry, IconTarget, DrawCheck } from "./icons";
+import { IconBolt, IconBulb, IconClock, IconRetry, IconTarget, DrawCheck } from "./icons";
 
 function useCountUp(target: number, ms: number, delay: number, reduced: boolean) {
   const [v, setV] = useState(reduced ? target : 0);
@@ -57,6 +57,8 @@ export interface CompletionProps {
   xp: number;
   accuracy: number | null;   // 0..1, null when the lesson had no questions
   timeMs: number;
+  /** how many questions the reader asked to be taught (main pass) */
+  taught: number;
   missed: number;
   review: { right: number; total: number } | null; // set after a review round
   partColor: string;
@@ -86,6 +88,12 @@ export function Completion(p: CompletionProps) {
         <p className="lc-review-note">
           {p.review.right} of {p.review.total} right this time.{" "}
           {p.missed === 0 ? "Nothing left to review." : `${p.missed} still to practise.`}
+        </p>
+      )}
+      {p.taught > 0 && !p.review && (
+        <p className="lc-taught">
+          <IconBulb size={16} />
+          <span>You asked for help {p.taught === 1 ? "once" : `${p.taught} times`}. That is how learning works.</span>
         </p>
       )}
       <div className="lc-stats">

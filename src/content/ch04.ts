@@ -181,20 +181,14 @@ const chapter: Chapter = {
       minutes: 10,
       steps: [
         {
-          kind: "quiz",
-          prompt: "A player asks a CDN edge for a video segment. What does the edge actually know about this request?",
-          options: [
-            "The episode, the user and their subscription plan",
-            "Only the URL, the request headers and its own cache rules",
-            "The viewer's QoE and which PoP is closest to them",
-          ],
-          answer: 1,
-          explain: "The CDN does not know what an episode is. It only sees a cache key, a freshness lifetime and a validator. The player does not know about PoPs or shields either. It only sees URLs, status codes and headers.",
+          kind: "read",
+          title: "Every byte rides on HTTP",
+          body: "A new episode premieres and 2M people press play. Every manifest, every segment and every subtitle reaches them as an **HTTP response**, over an encrypted connection, through caches.\n\nA few lines of text on each response, the **headers**, decide whether a segment comes from a nearby cache or costs a trip to the origin.\n\nBy the end of this lesson you can explain why headers are the real delivery API, size the request rate of a premiere, and compare HTTP/1.1, HTTP/2 and HTTP/3 for video.",
         },
         {
           kind: "read",
           title: "Three parties, one contract",
-          body: "Every byte of video travels inside an HTTP response, over a TLS connection, through one or more caches.\n\nThree parties take part: the **[[origin]]** (where the bytes live), the **cache** (CDN [[edge]] and [[shield]]) and the **client** (the player). None of them sees the others' internals. So **HTTP headers are the real contract** between them. This chapter teaches that contract at the protocol layer. How a CDN implements caching inside (eviction, collapsing, purge) comes in Chapter 5.",
+          body: "Three parties take part: the **[[origin]]** (where the bytes live), the **cache** (CDN [[edge]] and [[shield]]) and the **client** (the player).\n\nNone of them sees the others' internals. The CDN does not know what an episode is; it sees a cache key, a freshness lifetime and a validator. The player does not know about PoPs or shields; it sees URLs, status codes and headers. So **HTTP headers are the real contract**. How a CDN caches inside (eviction, collapsing, purge) comes in Chapter 5.",
           visual: { kind: "flow", spec: { ...CONTRACT, flow: ["client>cache", "cache>origin"] }, caption: "Each party sees only URLs, status codes and headers." },
         },
         {
@@ -222,12 +216,13 @@ const chapter: Chapter = {
             "HTTP/3 ignores `max-age` and uses its own TTL",
           ],
           answer: 0,
+          teach: "RFC 9110 and RFC 9111 define what headers mean. The wire version (HTTP/1.1, 2 or 3) only changes how the bytes travel.",
           explain: "Semantics (RFC 9110) and caching (RFC 9111) are separate from the wire version. Moving to HTTP/3 changes latency and loss behaviour, not the caching contract.",
         },
         {
           kind: "read",
           title: "The request rate you design for",
-          body: "Use the book's assumed model: a [[simulcast]] spike of about 2M concurrent streams, with segments of about 5 seconds.\n\n- Video: 2,000,000 / 5 = 400,000 segment requests per second.\n- Separate audio segments (common with CMAF and multiple dubs) add another 400,000.\n- With playlists, subtitles, init segments and retries, plan for about 1M requests per second at the edge (assumed).",
+          body: "Each viewer asks for one segment every segment-length seconds. So **requests per second = viewers / segment seconds**.\n\nThe book's assumed [[simulcast]] spike is about 2M concurrent streams with 5-second segments:\n\n- Video: 2,000,000 / 5 = 400,000 segment requests per second.\n- Separate audio segments (common with CMAF and multiple dubs) add another 400,000.\n- With playlists, subtitles, init segments and retries, plan for about 1M requests per second at the edge (assumed).",
           visual: {
             kind: "stats",
             items: [
@@ -239,22 +234,29 @@ const chapter: Chapter = {
           },
         },
         {
-          kind: "number",
-          prompt: "2M viewers watch with 5-second video segments. How many video segment requests per second reach the edge?",
-          answer: 400000,
-          tolerance: 20000,
-          unit: "req/s",
-          hint: "Each viewer asks for one segment every 5 seconds.",
-          explain: "2,000,000 / 5 = 400,000 requests per second. Separate audio doubles it to 800,000, and playlists, subtitles, init segments and retries take it to about 1M (assumed).",
+          kind: "read",
+          title: "How big is one segment?",
+          body: "Bitrate is in megabits per second, so **size in megabits = bitrate x seconds**. Divide by 8 to get megabytes, because 1 byte is 8 bits.\n\nWorked example with the book's numbers: 4 Mbps x 5 s = 20 megabits. 20 / 8 = **2.5 MB** per segment.\n\nAt 400,000 requests per second, that is why the edge moves terabits, not gigabits.",
         },
         {
           kind: "number",
-          prompt: "How big is one 5-second segment at 4 Mbps, in megabytes?",
-          answer: 2.5,
-          tolerance: 0.1,
+          prompt: "A smaller premiere: 600,000 viewers watch with 6-second video segments. How many video segment requests per second reach the edge?",
+          answer: 100000,
+          tolerance: 5000,
+          unit: "req/s",
+          hint: "Each viewer asks for one segment every 6 seconds.",
+          teach: "Requests per second is viewers divided by segment length in seconds. Audio and playlists would add more, but count only video here.",
+          explain: "600,000 / 6 = 100,000 requests per second. For the book's 2M viewers and 5-second segments it is 2,000,000 / 5 = 400,000. Separate audio doubles that to 800,000, and playlists, subtitles, init segments and retries take it to about 1M (assumed).",
+        },
+        {
+          kind: "number",
+          prompt: "How big is one 6-second segment at 8 Mbps, in megabytes?",
+          answer: 6,
+          tolerance: 0.2,
           unit: "MB",
           hint: "Megabits = rate x seconds. Divide by 8 for megabytes.",
-          explain: "4 Mbps x 5 s = 20 megabits. 20 / 8 = about 2.5 MB.",
+          teach: "Multiply bitrate by duration to get megabits, then divide by 8 to get megabytes.",
+          explain: "8 Mbps x 6 s = 48 megabits. 48 / 8 = 6 MB. The book's 5-second segment at 4 Mbps is 20 / 8 = 2.5 MB.",
         },
         {
           kind: "read",
@@ -277,25 +279,27 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
-          prompt: "Over HTTP/2 on a lossy mobile link, one TCP packet of the video segment is lost. What happens to the audio segment on the same connection?",
+          guess: true,
+          prompt: "Over HTTP/2, the video and audio streams share one TCP connection. TCP hands bytes over strictly in order, like one queue. On a lossy mobile link, one packet of the video is lost. What would you expect to happen to the audio?",
           options: [
             "Nothing, because the audio is on a different stream",
-            "It stalls too, because TCP delivers bytes strictly in order",
+            "It waits too, because everything behind the lost packet waits",
             "It is switched to a new connection automatically",
           ],
           answer: 1,
-          explain: "TCP delivers bytes strictly in order, so one lost packet stalls every stream on the connection. This is **transport-level HOL blocking**. Under heavy loss, HTTP/2 can be worse than several HTTP/1.1 connections.",
+          explain: "TCP delivers bytes strictly in order, so one lost packet stalls every stream on the connection until it is resent. This is **transport-level HOL blocking**. Under heavy loss, HTTP/2 can be worse than several HTTP/1.1 connections.",
         },
         {
           kind: "read",
           title: "HTTP/3: independent streams over QUIC",
-          body: "**[[HTTP/3]]** (RFC 9114, 2022) runs over **[[QUIC]]** (RFC 9000, 2021). What matters for video:\n\n- Streams are independent. A lost packet only stalls its own stream.\n- [[TLS 1.3]] is built in: one round trip for a new connection, and 0-RTT for a resumed one.\n- **Connection migration**: a connection is identified by a connection ID, so it survives a network change.\n- It uses UDP, which some networks block, so clients must fall back to HTTP/2.",
+          body: "**[[HTTP/3]]** (RFC 9114, 2022) runs over **[[QUIC]]** (RFC 9000, 2021). What matters for video:\n\n- Streams are independent. Unlike HTTP/2 over TCP, a lost packet only stalls its own stream.\n- [[TLS 1.3]] is built in: one round trip for a new connection, and 0-RTT for a resumed one.\n- **Connection migration**: a connection is identified by a connection ID, so it survives a network change.\n- It uses UDP, which some networks block, so clients must fall back to HTTP/2.",
         },
         {
           kind: "quiz",
           prompt: "A viewer walks out of the house mid-episode and the phone moves from Wi-Fi to cellular. Which version can keep the same connection?",
           options: ["HTTP/1.1", "HTTP/2", "HTTP/3"],
           answer: 2,
+          teach: "A TCP connection is tied to the IP address and port. QUIC names its connection a different way.",
           explain: "HTTP/3 (QUIC) identifies a connection by a connection ID, not by IP and port, so it can migrate. HTTP/1.1 and HTTP/2 run on TCP and need a new connection.",
         },
         {
@@ -307,6 +311,7 @@ const chapter: Chapter = {
         {
           kind: "match",
           prompt: "Match each item to what it does.",
+          teach: "Think about how many requests each version can carry at once, and what one lost packet does to it. One TLS extension negotiates the version; one response header advertises HTTP/3.",
           pairs: [
             ["HTTP/1.1", "One request at a time per connection"],
             ["HTTP/2", "Many streams; one lost packet stalls all"],
@@ -342,7 +347,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "The three versions side by side",
-          body: "Each version has a main risk. HTTP/1.1 needs many connections. HTTP/2 lets one loss stall all streams. HTTP/3 can be blocked on UDP and uses more CPU.",
+          body: "In the table, **RTT** (round-trip time) is the time for one message to go to the server and an answer to come back.\n\nEach version has a main risk. HTTP/1.1 needs many connections. HTTP/2 lets one loss stall all streams. HTTP/3 can be blocked on UDP and uses more CPU.",
           visual: {
             kind: "table",
             headers: ["Property", "HTTP/1.1", "HTTP/2", "HTTP/3"],
@@ -363,6 +368,7 @@ const chapter: Chapter = {
         {
           kind: "multi",
           prompt: "You enabled HTTP/3 on one CDN. Which evidence would show it really helped viewers? Select all that apply.",
+          teach: "Logs tell you which protocol was used. Viewers feel startup time and rebuffering, and these must be compared across protocols and devices.",
           options: [
             "Server logs show 40% of requests now use h3",
             "Startup time per protocol and device family",
@@ -393,15 +399,21 @@ const chapter: Chapter = {
       minutes: 8,
       steps: [
         {
+          kind: "read",
+          title: "Three digits decide the session",
+          body: "Every HTTP response starts with a **status code**: three digits that say how the request went. 200 means \"here it is\". 404 means \"not found\". 503 means \"the server cannot answer right now\".\n\nA player reacts to these codes. Some make it retry, some make it switch CDN, and some end the session.\n\nBy the end of this lesson you can read the codes a player cares about, and stop a cached \"not yet\" 404 from taking down a premiere.",
+        },
+        {
           kind: "quiz",
-          prompt: "An episode goes live at 17:00 UTC. At 16:59:58 a few eager clients request segment 1 before the file reaches one origin. That origin returns 404. What might thousands of viewers see at 17:00:30?",
+          guess: true,
+          prompt: "A CDN edge remembers answers so it does not ask the origin again. An episode goes live at 17:00 UTC. At 16:59:58 a few eager clients ask for segment 1 before the file reaches one origin, and that origin answers 404. What would you expect thousands of viewers to see at 17:00:30?",
           options: [
             "Segment 1, because the file exists by now",
-            "A cached 404 for a file that now exists",
+            "A remembered 404 for a file that now exists",
             "A 503 while the origin catches up",
           ],
           answer: 1,
-          explain: "CDNs cache errors, and 404 is cacheable. The edge stored the early 404 and keeps serving it to everyone, even though the file now exists. This lesson shows why and how to stop it.",
+          explain: "CDNs remember (cache) error answers too, and 404 is cacheable. The edge stored the early 404 and keeps serving it to everyone, even though the file now exists. This lesson shows why and how to stop it.",
         },
         {
           kind: "read",
@@ -417,6 +429,7 @@ const chapter: Chapter = {
             "Licenses are always served from cache",
           ],
           answer: 0,
+          teach: "A retry is only safe when sending the request twice has the same effect as sending it once.",
           explain: "Repeating a GET has the same effect as sending it once, so a retry is harmless. A license or playback POST may count streams or change state, so it is not blindly replayed.",
         },
         {
@@ -455,6 +468,7 @@ const chapter: Chapter = {
         {
           kind: "match",
           prompt: "Match each status code to its most likely delivery cause.",
+          teach: "Look back at the two tables. 4xx codes are about the request; 5xx codes say something behind the CDN failed or was slow.",
           pairs: [
             ["504", "Shield or origin too slow during a herd"],
             ["416", "Range outside the file"],
@@ -474,6 +488,7 @@ const chapter: Chapter = {
           prompt: "A player gets one of these on a segment. Which one most likely triggers a retry or CDN switch instead of ending the session?",
           options: ["403", "404", "503", "410"],
           answer: 2,
+          teach: "Players treat server-side failures differently from \"not allowed\" or \"not here\" answers. Which family of codes says the server side failed?",
           explain: "A 5xx says \"the server side failed, try again or elsewhere\". A 403 or 404 on a segment may end the session, and a 410 means the content was removed on purpose.",
         },
         {
@@ -483,27 +498,23 @@ const chapter: Chapter = {
           visual: { kind: "flow", spec: { ...TRAP, focus: ["early", "edge", "oa", "early>edge", "edge>oa"], flow: ["early>edge", "edge>oa"] }, caption: "The early request misses, and the origin answers 404." },
         },
         {
+          kind: "multi",
+          prompt: "Which of these status codes may a cache store heuristically, with no freshness headers, under RFC 9110? Select all that apply.",
+          options: ["404", "206", "503", "410", "302"],
+          answers: [0, 1, 3],
+          teach: "RFC 9110 names an exact list of codes a cache may store even without freshness headers. Check each option against that list from the previous step.",
+          explain: "The RFC 9110 list is 200, 203, 204, 206, 300, 301, 308, 404, 405, 410, 414 and 501. 503 and 302 are not on it. Note that 404 is: a \"not found\" can be cached even if the origin says nothing about freshness.",
+        },
+        {
           kind: "read",
           title: "The premiere 404 trap",
           body: "At a premiere it is dangerous. The episode goes live at 17:00 UTC. A few eager clients request segment 1 at 16:59:58, before the file reaches one origin. The origin returns 404 and the edge caches it.\n\nNow thousands of viewers get a cached 404 for a file that now exists. A segment 404 often ends the session, so this is an outage.",
           visual: { kind: "flow", spec: { ...TRAP, focus: ["late", "edge", "late>edge"], flow: ["late>edge"] }, caption: "Later viewers hit the cached 404, not the origin." },
         },
         {
-          kind: "order",
-          prompt: "Put the fixes for the premiere 404 trap in order, best first.",
-          items: [
-            "Do not publish URLs before content is in every origin (staged publish)",
-            "Give segment 404s a short life (`max-age=1` or `no-store`) and a small error-caching time",
-            "On a 404 from one origin, try the other origin before answering",
-          ],
-          explain: "Best is to never expose the URL early (staged publish, Chapter 13). Next, make segment 404s live for about a second with a matching small error-caching time on segment paths. Last, retry the other origin on 404 (Chapter 6).",
-        },
-        {
-          kind: "multi",
-          prompt: "Which of these status codes may a cache store heuristically, with no freshness headers, under RFC 9110? Select all that apply.",
-          options: ["404", "206", "503", "410", "302"],
-          answers: [0, 1, 3],
-          explain: "The RFC 9110 list is 200, 203, 204, 206, 300, 301, 308, 404, 405, 410, 414 and 501. 503 and 302 are not on it. Note that 404 is: a \"not found\" can be cached even if the origin says nothing about freshness.",
+          kind: "read",
+          title: "Three fixes, best first",
+          body: "1. **Staged publish** (Chapter 13): never publish a URL before the content is in every origin. Then no one can ask too early. This is the best fix.\n2. **Short-lived segment 404s**: send `max-age=1` or `no-store` on segment 404s, and set a matching small error-caching time on segment paths. A bad answer then lives about a second.\n3. **Try the other origin** (Chapter 6): on a 404 from one origin, ask the other before answering.",
         },
         {
           kind: "read",
@@ -514,6 +525,17 @@ const chapter: Chapter = {
             type: "mistake",
             text: "Leaving negative caching at vendor defaults on segment paths. Defaults are tuned for websites, where a 404 stays a 404. In VOD publishing a 404 often means \"not yet\", not \"never\".",
           },
+        },
+        {
+          kind: "order",
+          prompt: "Put the fixes for the premiere 404 trap in order, best first.",
+          teach: "The best fix stops the bad 404 from ever existing. The next limits how long it lives. The last works around it at request time.",
+          items: [
+            "Do not publish URLs before content is in every origin (staged publish)",
+            "Give segment 404s a short life (`max-age=1` or `no-store`) and a small error-caching time",
+            "On a 404 from one origin, try the other origin before answering",
+          ],
+          explain: "Best is to never expose the URL early (staged publish, Chapter 13). Next, make segment 404s live for about a second with a matching small error-caching time on segment paths. Last, retry the other origin on 404 (Chapter 6).",
         },
         {
           kind: "summary",
@@ -536,11 +558,20 @@ const chapter: Chapter = {
       minutes: 11,
       steps: [
         {
+          kind: "read",
+          title: "How long may a cache reuse it?",
+          body: "A cache keeps a copy of a playlist. Every time a viewer asks, it must decide: hand out the copy, or check with the origin first? The origin's headers answer that question.\n\nGet it right and the origin barely notices a premiere. Get it wrong and viewers see old content, or the origin is flooded.\n\nBy the end of this lesson you can work out how long each cache may reuse a response, and use two headers as outage insurance.",
+        },
+        {
           kind: "quiz",
-          prompt: "A shield stored a playlist 300 seconds ago. It sends it to the edge with `Cache-Control: max-age=600` and `Age: 300`. How long may the edge treat it as fresh?",
-          options: ["600 seconds", "300 seconds", "900 seconds"],
-          answer: 1,
-          explain: "The `Age` header carries how old the response already is. 600 - 300 = 300 seconds remain. TTLs do not add up across tiers when caches honour `Age`.",
+          guess: true,
+          prompt: "The origin goes down for 10 minutes. The edge holds a copy of the playlist that is a little past its planned lifetime. What would you expect is better for viewers?",
+          options: [
+            "Keep serving the slightly old copy until the origin is back",
+            "Return an error, because the copy is past its lifetime",
+          ],
+          answer: 0,
+          explain: "For most video objects an old copy that plays beats an error. Serving an out-of-date copy is called **stale serving**. HTTP has headers that allow it, for a set window, and this lesson teaches them along with their limits.",
         },
         {
           kind: "read",
@@ -551,7 +582,20 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "The Age header",
-          body: "The **Age** header says how old a response already is. If the shield held an object for 300 seconds and sends `Age: 300` with `max-age=600`, the edge knows only 300 seconds remain.\n\nSo TTLs do not add up across tiers when caches honour `Age`. Without an explicit lifetime, a cache may use a **heuristic**. RFC 9111 suggests 10% of the time since `Last-Modified`.",
+          body: "The **Age** header says how old a response already is. Time left fresh = `max-age` minus `Age`.\n\nWorked example: the shield held an object for 300 seconds and sends `Age: 300` with `max-age=600`. The edge computes 600 - 300 = 300 seconds left.\n\nSo TTLs (time to live, the freshness lifetime) do not add up across tiers when caches honour `Age`.",
+        },
+        {
+          kind: "quiz",
+          prompt: "A shield sends a playlist to the edge with `Cache-Control: max-age=3600` and `Age: 1000`. How long may the edge treat it as fresh?",
+          options: ["3,600 seconds", "2,600 seconds", "4,600 seconds"],
+          answer: 1,
+          teach: "`Age` says how much of the lifetime is already used up. The edge only gets what is left.",
+          explain: "3,600 - 1,000 = 2,600 seconds remain. The `Age` header carries how old the response already is, so TTLs do not add up across tiers when caches honour it.",
+        },
+        {
+          kind: "read",
+          title: "No lifetime? The cache guesses",
+          body: "Without an explicit lifetime (no `max-age`, no `Expires`), a cache may use a **heuristic**: its own guess. RFC 9111 suggests **10% of the time since `Last-Modified`**.\n\nWorked example: `Last-Modified` was 30 days ago. 10% of 30 days = **3 days** fresh.\n\nThat is a guess the cache makes for you, which is why you should always send an explicit lifetime.",
         },
         {
           kind: "number",
@@ -560,12 +604,13 @@ const chapter: Chapter = {
           tolerance: 0.1,
           unit: "days",
           hint: "10% of the time since Last-Modified.",
+          teach: "The suggested heuristic is a fixed share of the time since the object last changed.",
           explain: "10% of 10 days = 1 day. That is a guess the cache makes for you, which is why you should always send an explicit lifetime.",
         },
         {
           kind: "read",
           title: "Defaults differ by 720 times",
-          body: "Vendors pick their own defaults. Fastly caches a 200 with no freshness headers for **2 minutes**. CloudFront's default TTL without a cache policy is **24 hours**.\n\nThat is a factor of 720 between two CDNs for the same response. In a [[multi-CDN]] setup (Chapter 9), never rely on defaults. Send explicit freshness headers.",
+          body: "Vendors pick their own defaults. Fastly caches a 200 with no freshness headers for **2 minutes**. CloudFront's default TTL without a cache policy is **24 hours**.\n\n24 hours = 1,440 minutes, and 1,440 / 2 = **720**. The same response can live 720 times longer on one CDN than on the other. In a [[multi-CDN]] setup (Chapter 9), never rely on defaults. Send explicit freshness headers.",
           visual: {
             kind: "stats",
             items: [
@@ -574,15 +619,6 @@ const chapter: Chapter = {
               { value: "720x", label: "Difference for the same response" },
             ],
           },
-        },
-        {
-          kind: "number",
-          prompt: "Fastly's default is 2 minutes and CloudFront's is 24 hours. By what factor do they differ?",
-          answer: 720,
-          tolerance: 1,
-          unit: "x",
-          hint: "Convert 24 hours to minutes first.",
-          explain: "24 hours = 1,440 minutes. 1,440 / 2 = 720. The same response can live 720 times longer on one CDN than on the other.",
         },
         {
           kind: "read",
@@ -625,6 +661,7 @@ const chapter: Chapter = {
             "Only browsers may store it, not CDNs",
           ],
           answer: 1,
+          teach: "Look at the directives table: one directive forbids storing, another allows storing but adds a condition on every reuse.",
           explain: "`no-cache` does not mean \"do not cache\". It allows storing but requires revalidation before each reuse. \"Do not store\" is `no-store`.",
         },
         {
@@ -642,6 +679,7 @@ const chapter: Chapter = {
           prompt: "Which of these quietly hurt delivery when an origin puts them on a media segment? Select all that apply.",
           options: ["private", "must-revalidate", "immutable", "no-store", "max-age=31536000"],
           answers: [0, 1, 3],
+          teach: "A media segment never changes and is the same for every viewer. Anything that stops a CDN storing it, or stops stale serving during an outage, hurts.",
           explain: "`private` stops shared caches storing it, `no-store` stops everyone storing it, and `must-revalidate` blocks stale serving when the origin is down. `immutable` and a year-long `max-age` are exactly what immutable segments want.",
         },
         {
@@ -659,31 +697,33 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "stale-if-error",
-          body: "**`stale-if-error`** lets a cache serve stale if revalidation returns 500, 502, 503 or 504.\n\nRFC 5861's example: `max-age=600, stale-if-error=1200`. At 900 seconds the origin returns 500, so the cache serves the stored 200 with `Age: 900`. Past 1,800 seconds the error passes through to the client.",
+          body: "**`stale-if-error`** lets a cache serve stale if revalidation returns 500, 502, 503 or 504. The stale window starts when freshness ends, so **last safe age = max-age + stale-if-error**.\n\nRFC 5861's example: `max-age=600, stale-if-error=1200`. At 900 seconds the origin returns 500, so the cache serves the stored 200 with `Age: 900`. Past 600 + 1,200 = 1,800 seconds the error passes through to the client.",
           visual: { kind: "flow", spec: { ...STALE, focus: ["reval", "sie", "keep", "err", "reval>sie", "sie>keep", "sie>err"], flow: ["reval>sie", "sie>keep"] }, caption: "Upstream failed: serve the old copy while the window lasts." },
         },
         {
           kind: "number",
-          prompt: "`Cache-Control: max-age=600, stale-if-error=1200`. The origin is down. After what age, in seconds, do clients start getting the error?",
-          answer: 1800,
+          prompt: "`Cache-Control: max-age=300, stale-if-error=3600`. The origin is down. After what age, in seconds, do clients start getting the error?",
+          answer: 3900,
           tolerance: 1,
           unit: "s",
           hint: "The stale window starts when freshness ends.",
-          explain: "Fresh for 600 s, then stale-if-error covers 1,200 s more: 600 + 1,200 = 1,800 s. At 900 s the cache still serves the stored 200 with `Age: 900`.",
+          teach: "First the response is fresh for max-age seconds. Only then does the stale-if-error window begin.",
+          explain: "Fresh for 300 s, then stale-if-error covers 3,600 s more: 300 + 3,600 = 3,900 s. In RFC 5861's example (`max-age=600, stale-if-error=1200`) the answer is 600 + 1,200 = 1,800 s.",
         },
         {
           kind: "read",
           title: "Vendors differ here too",
-          body: "Fastly reads both stale directives from `Surrogate-Control` first, then `Cache-Control`, defaulting to 0.\n\nCloudFront supports both, but caps the stale window at the behaviour's **maximum TTL**. A one-day maximum TTL with `stale-if-error=604800` gives one day of protection, not seven.",
+          body: "Fastly reads both stale directives from `Surrogate-Control` first, then `Cache-Control`, defaulting to 0.\n\nCloudFront supports both, but caps the stale window at the behaviour's **maximum TTL** (the longest it will ever cache an object on that path). Protection = the smaller of the two.\n\nWorked example: a one-day maximum TTL with `stale-if-error=604800` (7 days) gives one day of protection, not seven.",
         },
         {
           kind: "number",
-          prompt: "A CloudFront behaviour has a maximum TTL of 1 day. The origin sends `stale-if-error=604800`. How many days of outage protection do you really get?",
-          answer: 1,
+          prompt: "A CloudFront behaviour has a maximum TTL of 2 days. The origin sends `stale-if-error=2592000` (30 days). How many days of outage protection do you really get?",
+          answer: 2,
           tolerance: 0.1,
           unit: "days",
           hint: "CloudFront caps the stale window at the maximum TTL.",
-          explain: "604,800 seconds is 7 days, but CloudFront caps it at the behaviour's maximum TTL of 1 day. You get one day, not seven.",
+          teach: "On CloudFront the stale window can never be longer than one setting on the cache behaviour.",
+          explain: "2,592,000 seconds is 30 days, but CloudFront caps it at the behaviour's maximum TTL of 2 days. You get two days, not thirty. Likewise, a 1-day maximum TTL with `stale-if-error=604800` gives one day, not seven.",
         },
         {
           kind: "read",
@@ -722,15 +762,21 @@ const chapter: Chapter = {
       minutes: 10,
       steps: [
         {
+          kind: "read",
+          title: "Two caches, two lifetimes",
+          body: "A response is cached in two kinds of places: the CDN, which you control, and the viewer's device, which you do not. One `max-age` gives both the same lifetime. That is often wrong.\n\nBy the end of this lesson you can give the CDN its own lifetime, avoid CloudFront's TTL traps, and write a header policy for every VOD object type.",
+        },
+        {
           kind: "quiz",
-          prompt: "A VOD master playlist will be purged at the CDN whenever it changes. How long should a phone keep it, compared with the CDN?",
+          guess: true,
+          prompt: "When a VOD master playlist changes, you can tell the CDN to delete its copy at once. You cannot reach into a viewer's phone to do the same. How long would you expect the phone to keep the playlist, compared with the CDN?",
           options: [
             "The same as the CDN, for example a day",
-            "Much shorter, because you cannot purge a phone",
+            "Much shorter, because you cannot clear a phone's copy",
             "Longer, because phones have spare storage",
           ],
           answer: 1,
-          explain: "A VOD master playlist can live a day at the CDN because you will [[purge]] it on change, but only a minute on a phone, because you cannot purge a phone. So the CDN needs its own lifetime.",
+          explain: "Telling a CDN to delete a cached copy now is called a **[[purge]]**. A VOD master playlist can live a day at the CDN because you will purge it on change, but only a minute on a phone, because you cannot purge a phone. So the CDN needs its own lifetime.",
         },
         {
           kind: "read",
@@ -744,12 +790,6 @@ const chapter: Chapter = {
           visual: { kind: "code", lang: "text", code: "1. Surrogate-Control: max-age\n2. Cache-Control: s-maxage\n3. Cache-Control: max-age\n4. Expires", caption: "Fastly's freshness lookup order" },
         },
         {
-          kind: "order",
-          prompt: "Put Fastly's freshness lookup in order, first checked first.",
-          items: ["Surrogate-Control: max-age", "Cache-Control: s-maxage", "Cache-Control: max-age", "Expires"],
-          explain: "Fastly checks `Surrogate-Control: max-age`, then `Cache-Control: s-maxage`, then `max-age`, then `Expires`.",
-        },
-        {
           kind: "read",
           title: "Targeted cache control (RFC 9213)",
           body: "A **targeted field** uses `Cache-Control` syntax but applies only to a named class of cache. A CDN checks its list of targeted fields, most specific first. If one is valid, it uses it and ignores `Cache-Control` and `Expires` for itself.\n\nRFC 9213's example below gives CDNs 600 s, other shared caches 120 s and browsers 60 s.",
@@ -757,15 +797,23 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
-          prompt: "With RFC 9213's example (`Cache-Control: max-age=60, s-maxage=120` and `CDN-Cache-Control: max-age=600`), how long does a shared proxy that is not a CDN cache the response?",
-          options: ["60 seconds", "120 seconds", "600 seconds"],
+          prompt: "An origin sends `Cache-Control: max-age=30, s-maxage=300` and `CDN-Cache-Control: max-age=3600`. How long does a shared proxy that is not a CDN cache the response?",
+          options: ["30 seconds", "300 seconds", "3,600 seconds"],
           answer: 1,
-          explain: "Only CDNs read `CDN-Cache-Control` (600 s). Other shared caches use `s-maxage` (120 s). Browsers use `max-age` (60 s).",
+          teach: "Each header has its own audience: one for CDNs only, one for all shared caches, one for everyone. A cache uses the most specific header meant for it.",
+          explain: "Only CDNs read `CDN-Cache-Control` (3,600 s). Other shared caches use `s-maxage` (300 s). Browsers use `max-age` (30 s). In RFC 9213's own example that is 600 s, 120 s and 60 s.",
         },
         {
           kind: "read",
           title: "In multi-CDN",
           body: "Send `Cache-Control` that is correct for clients. Add a CDN-targeted lifetime. Then verify, per vendor, which header each CDN really honours.\n\nDo it with a **conformance test** that fetches through every CDN and checks `Age` and hit or miss (Chapter 14). Same headers do not guarantee the same behaviour.",
+        },
+        {
+          kind: "order",
+          prompt: "Put Fastly's freshness lookup in order, first checked first.",
+          teach: "Fastly is built around the header from the W3C Edge Architecture spec. Ask which header speaks only to CDNs, which to all shared caches, which to everyone, and which is the oldest.",
+          items: ["Surrogate-Control: max-age", "Cache-Control: s-maxage", "Cache-Control: max-age", "Expires"],
+          explain: "Fastly checks `Surrogate-Control: max-age`, then `Cache-Control: s-maxage`, then `max-age`, then `Expires`.",
         },
         {
           kind: "read",
@@ -781,6 +829,21 @@ const chapter: Chapter = {
               ["No freshness header", "The default TTL"],
             ],
           },
+        },
+        {
+          kind: "read",
+          title: "Clamping, worked out",
+          body: "**Clamp** means \"push the value back inside the range\". Cached time = the header value, but never below the minimum and never above the maximum.\n\nWorked example: a behaviour has minimum TTL 60 s and maximum TTL 86,400 s (one day).\n\n- Origin sends `max-age=604800` (7 days): above the maximum, so CloudFront caches **86,400 s**.\n- Origin sends `max-age=10`: below the minimum, so it caches **60 s**.\n- Origin sends `max-age=600`: inside the range, so **600 s**.",
+        },
+        {
+          kind: "number",
+          prompt: "A CloudFront behaviour has a maximum TTL of 3,600 s. The origin sends `s-maxage=86400`. How many seconds does CloudFront cache the object?",
+          answer: 3600,
+          tolerance: 1,
+          unit: "s",
+          hint: "The header value is clamped between minimum and maximum.",
+          teach: "Compare the header value with the behaviour's range. A value outside the range is pushed back to the nearest edge of it.",
+          explain: "86,400 is above the maximum, so it is clamped down to the maximum TTL: 3,600 s.",
         },
         {
           kind: "read",
@@ -800,16 +863,8 @@ const chapter: Chapter = {
             "CloudFront returns 502 because the headers conflict",
           ],
           answer: 1,
+          teach: "Recall the dangerous rule: what does a non-zero minimum TTL do when the origin says not to store?",
           explain: "With a minimum TTL above 0, CloudFront caches for at least the minimum even with `private`, `no-cache` or `no-store`. Use a separate behaviour with minimum TTL 0 and caching disabled for personalized paths.",
-        },
-        {
-          kind: "number",
-          prompt: "A CloudFront behaviour has a maximum TTL of 3,600 s. The origin sends `s-maxage=86400`. How many seconds does CloudFront cache the object?",
-          answer: 3600,
-          tolerance: 1,
-          unit: "s",
-          hint: "The header value is clamped between minimum and maximum.",
-          explain: "86,400 is above the maximum, so it is clamped down to the maximum TTL: 3,600 s.",
         },
         {
           kind: "read",
@@ -838,6 +893,7 @@ const chapter: Chapter = {
         {
           kind: "match",
           prompt: "Match each object to its suggested headers (assumed policy).",
+          teach: "Bytes that never change get the longest life. Anything per-user is never stored. Errors live about a second. Playlists are long at the CDN but short on the client.",
           pairs: [
             ["Media segment", "public, max-age=31536000, immutable"],
             ["Personalized manifest", "private, no-store"],
@@ -850,7 +906,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Live playlists differ",
-          body: "Live playlists change all the time. RFC 8216 says a live playlist must be updated no earlier than **half** and no later than **1.5 times** the target duration.\n\nSo live TTLs follow the segment cadence, not a fixed long lifetime (Chapter 13).",
+          body: "Live playlists change all the time. The **target duration** is the longest segment length the playlist promises. RFC 8216 says a live playlist must be updated no earlier than **half** and no later than **1.5 times** the target duration.\n\nWorked example: a 4-second target duration. Earliest: 0.5 x 4 = **2 s**. Latest: 1.5 x 4 = **6 s**.\n\nSo live TTLs follow the segment cadence, not a fixed long lifetime (Chapter 13).",
         },
         {
           kind: "number",
@@ -859,6 +915,7 @@ const chapter: Chapter = {
           tolerance: 0.5,
           unit: "s",
           hint: "No later than 1.5 times the target duration.",
+          teach: "RFC 8216 gives a window for playlist updates as multiples of the target duration. The latest point is the larger multiple.",
           explain: "1.5 x 6 = 9 seconds. The earliest is half: 3 seconds. Playlist TTLs must fit inside that cadence.",
         },
         {
@@ -898,15 +955,21 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "Ask, do not re-download",
+          body: "A cache's copy goes stale, but the bytes upstream have often not changed. Downloading 2.5 MB again to learn nothing new is waste. And when the cache looks up a copy, it needs a name for it: that name decides whether 2M viewers share one copy or need 2M.\n\nBy the end of this lesson you can revalidate cheaply with ETags across origins, design cache keys that keep the hit ratio high, and keep `Vary` off segments.",
+        },
+        {
           kind: "quiz",
-          prompt: "The edge's copy of `master.m3u8` is stale, but the origin has not changed it. What is the cheapest correct move?",
+          guess: true,
+          prompt: "The edge's copy of `master.m3u8` is past its lifetime, but the origin has not changed the file. What would you expect is the cheapest correct move?",
           options: [
             "Download the whole file again",
-            "Ask the upstream \"has it changed?\" and get a 304 with no body",
+            "Ask the upstream \"has it changed?\" and get a short \"no\" with no body",
             "Keep serving it forever without asking",
           ],
           answer: 1,
-          explain: "A stale response need not be downloaded again. The cache sends a conditional request with a validator, and an unchanged object comes back as **304 Not Modified** with no body.",
+          explain: "A stale response need not be downloaded again. The cache sends a **conditional request** with a validator, and an unchanged object comes back as **304 Not Modified** with no body. The next steps show how.",
         },
         {
           kind: "read",
@@ -933,6 +996,7 @@ const chapter: Chapter = {
         {
           kind: "match",
           prompt: "Match each header or response to its role.",
+          teach: "Two request headers carry a validator (one an ETag, one a timestamp). One protects ranged fetches. One response means \"unchanged\". A `W/` prefix changes what an ETag promises.",
           pairs: [
             ["If-None-Match", "Sends the ETag to check"],
             ["If-Modified-Since", "Sends the timestamp to check"],
@@ -957,6 +1021,7 @@ const chapter: Chapter = {
             "The shield stopped sending If-None-Match",
           ],
           answer: 1,
+          teach: "Who creates an ETag? Think about whether two different storage systems would create the same one for the same bytes.",
           explain: "Each storage system generates its own ETag and Last-Modified, so `If-None-Match: A` matches nothing at GCS. Every revalidation becomes a full download, and every `If-Range` falls back to the whole object.",
         },
         {
@@ -971,18 +1036,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "What a cache key is",
-          body: "The **[[cache key]]** is the identity a cache uses to look up a stored response. RFC 9111 says it is at least the method and target URI. CDNs add the host. Everything else is configuration: query strings, headers, cookies, device class.\n\nTwo requests for the same bytes with different keys are two misses and two stored copies. Two requests for different bytes with the same key are a correctness bug.",
-        },
-        {
-          kind: "quiz",
-          prompt: "Two requests for different bytes end up with the same cache key. What do you have?",
-          options: [
-            "A lower hit ratio",
-            "A correctness bug: some viewers get the wrong bytes",
-            "Nothing harmful; the CDN detects it",
-          ],
-          answer: 1,
-          explain: "Different keys for the same bytes waste cache (two misses, two copies). The same key for different bytes is worse: the cache serves one response for the other.",
+          body: "The **[[cache key]]** is the identity a cache uses to look up a stored response. RFC 9111 says it is at least the method and target URI. CDNs add the host. Everything else is configuration: query strings, headers, cookies, device class.\n\nTwo requests for the same bytes with different keys are two misses and two stored copies: a cost bug. Two requests for different bytes with the same key are worse, a **correctness bug**: the cache serves one response for the other.",
         },
         {
           kind: "read",
@@ -990,11 +1044,17 @@ const chapter: Chapter = {
           body: "Video URLs collect query parameters:\n\n- **auth tokens** per user or session (Chapter 8);\n- analytics from player SDKs;\n- **[[CMCD]]** (Common Media Client Data, CTA-5004), which can be sent as a query parameter with a session ID and buffer state that change every request (Chapter 10);\n- cache-busters like `?t=1731600000`.\n\nIf the full query string is in the cache key, every request is unique.",
         },
         {
+          kind: "read",
+          title: "What a token in the key costs",
+          body: "If a value that is different for every session stays in the cache key, every session gets its own key. **Copies needed = number of sessions**, and every first request from each session is a miss.\n\nWorked example: a smaller show has 50,000 viewers, each with their own token in the URL. The cache needs **50,000 copies** of the same segment instead of 1. The edge hit ratio falls near zero, and almost every request travels on to the shield and origin.",
+        },
+        {
           kind: "number",
           prompt: "2M viewers watch one simulcast episode, and a per-session token stays in the cache key. How many copies of each segment does the cache need?",
           answer: 2000000,
           tolerance: 100000,
           unit: "copies",
+          teach: "Each distinct key is a separate stored copy. Count how many distinct keys the token creates.",
           explain: "One per session: 2M copies instead of one. Edge hit ratio falls near zero, and shield and origin receive roughly the full 1M requests per second and 8 Tbps, instead of a few thousand requests per second.",
         },
         {
@@ -1023,23 +1083,13 @@ const chapter: Chapter = {
             "Only parameters that select different bytes, often none",
           ],
           answer: 3,
+          teach: "Recall the rules: allowlist, validate, strip. A parameter belongs in the key only if it changes which bytes come back.",
           explain: "Allowlist only parameters that really change the bytes. For segments that is often none. Validate tokens and log CMCD, then strip them from the key.",
         },
         {
           kind: "read",
           title: "Vary: a hidden second cache key",
           body: "The **[[Vary]]** response header says the response depends on certain request headers. A cache must not reuse it unless those headers match. So the origin adds request headers to the key at response time.\n\n- `Vary: Accept-Encoding` is normal for compressible text. Caches should normalize `Accept-Encoding` to a few values. CloudFront adds it to the key when compression is on, and strips unknown values.\n- `Vary: Origin` comes from CORS and splits the cache by web host.",
-        },
-        {
-          kind: "match",
-          prompt: "Match each Vary value to its effect on caching.",
-          pairs: [
-            ["Vary: Accept-Encoding", "Normal for compressible text"],
-            ["Vary: User-Agent", "Effectively disables sharing"],
-            ["Vary: *", "Never matches"],
-            ["Vary: Origin", "Splits the cache per web host"],
-          ],
-          explain: "`Accept-Encoding` is fine on text when normalized. `User-Agent` and `Cookie` make nearly every request different. `Vary: *` never matches. `Origin` comes from CORS. Segments should have no `Vary` at all: they are not compressed, localized or personalized.",
         },
         {
           kind: "read",
@@ -1049,6 +1099,18 @@ const chapter: Chapter = {
             type: "mistake",
             text: "An origin framework adds `Vary: Origin, Accept-Encoding, User-Agent` to every response, including segments. Testing with one browser looks fine. In production the hit ratio drops, and nobody finds the cause in CDN config, because it is in the origin's headers. Check `Vary` on segments with `curl -I`.",
           },
+        },
+        {
+          kind: "match",
+          prompt: "Match each Vary value to its effect on caching.",
+          teach: "Vary adds request headers to the cache key. Ask how many different values each header has across real viewers.",
+          pairs: [
+            ["Vary: Accept-Encoding", "Normal for compressible text"],
+            ["Vary: User-Agent", "Effectively disables sharing"],
+            ["Vary: *", "Never matches"],
+            ["Vary: Origin", "Splits the cache per web host"],
+          ],
+          explain: "`Accept-Encoding` is fine on text when normalized. `User-Agent` and `Cookie` make nearly every request different. `Vary: *` never matches. `Origin` comes from CORS. Segments should have no `Vary` at all: they are not compressed, localized or personalized.",
         },
         {
           kind: "widget",
@@ -1078,11 +1140,20 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "Parts of files, other sites, smaller bytes",
+          body: "Three HTTP features shape how video bytes travel. **Byte ranges** let a player fetch part of a file. **CORS** decides whether a web page may read bytes from another site. **Compression** makes text smaller, but can hurt video.\n\nEach one has CDN traps that look fine in testing and break in production.\n\nBy the end of this lesson you can cache byte ranges correctly on every CDN, keep CORS cheap for web players, and compress only what should be compressed.",
+        },
+        {
           kind: "quiz",
-          prompt: "A player sends `Range: bytes=1000000-1999999` for a 52,428,800-byte file. What status comes back?",
-          options: ["200 OK", "206 Partial Content", "416 Range Not Satisfiable"],
+          guess: true,
+          prompt: "An episode is stored as one big file. The viewer jumps to minute 20. What would you expect the player to do?",
+          options: [
+            "Download the whole file from the start until it reaches minute 20",
+            "Ask for just the bytes it needs from the middle of the file",
+          ],
           answer: 1,
-          explain: "The range is inside the file, so the server answers **206** with `Content-Range: bytes 1000000-1999999/52428800`. A range outside the file would get 416.",
+          explain: "HTTP lets a client ask for part of a file: a **byte-range request**. The player asks for exactly the bytes around minute 20 and gets back only those. The next step shows the headers.",
         },
         {
           kind: "read",
@@ -1101,6 +1172,14 @@ const chapter: Chapter = {
           },
         },
         {
+          kind: "quiz",
+          prompt: "A player sends `Range: bytes=3000000-3999999` for a file that is 2,000,000 bytes long. What status comes back?",
+          options: ["200 OK", "206 Partial Content", "416 Range Not Satisfiable"],
+          answer: 2,
+          teach: "Compare the requested range with the file size. A range inside the file gets one code; a range outside it gets another.",
+          explain: "The file ends at byte 1,999,999, so the range is outside it: **416 Range Not Satisfiable**. A range inside the file, such as `bytes=1000000-1999999` on a 52,428,800-byte file, gets **206** with `Content-Range: bytes 1000000-1999999/52428800`.",
+        },
+        {
           kind: "read",
           title: "How CDNs cache ranges",
           body: "RFC 9111 lets a cache store a 206 as an incomplete response. It may serve a later range from it only if that range lies fully inside what it holds. Stored ranges may be combined only if they share the same **strong** validator.\n\n**CloudFront**: on a range miss it \"might request a larger range\". If the origin supports ranges (S3 does), it caches the returned range; if not, it caches the whole object and serves ranges from it.",
@@ -1111,20 +1190,9 @@ const chapter: Chapter = {
           body: "**CloudFront**: if the origin sends `Transfer-Encoding: chunked`, it returns the whole object instead of the range. Malformed ranges get a 200 with the full object. It will not cache objects over 50 GB, but range requests can cache parts of larger ones.\n\n**Fastly**: without **Segmented Caching**, accounts created on or after 17 June 2020 have a 20 MB maximum cacheable object size. Segmented Caching stores large resources as pieces, fetches only missing ones, and serves any range. It needs `Content-Length` and is incompatible with compression and ESI.",
         },
         {
-          kind: "number",
-          prompt: "A single-file rendition holds a 24-minute episode at 8 Mbps. About how big is the file, in GB?",
-          answer: 1.44,
-          tolerance: 0.1,
-          unit: "GB",
-          hint: "Seconds x Mbps / 8 gives megabytes.",
-          explain: "24 x 60 = 1,440 s. 1,440 x 8 = 11,520 megabits, / 8 = 1,440 MB, about 1.4 GB. That is far above Fastly's 20 MB limit, so it needs range-aware caching on every CDN. A 2.5 MB segment file fits everywhere.",
-        },
-        {
-          kind: "quiz",
-          prompt: "A CloudFront origin answers a range request with `Transfer-Encoding: chunked`. What does CloudFront return to the player?",
-          options: ["The requested range", "The whole object", "416 Range Not Satisfiable"],
-          answer: 1,
-          explain: "With a chunked origin response, CloudFront returns the whole object instead of the range. That is why \"does any origin send chunked responses?\" is on the design-review checklist.",
+          kind: "read",
+          title: "How big is a single-file rendition?",
+          body: "Size in megabytes = seconds x Mbps / 8.\n\nWorked example: a 24-minute episode at 8 Mbps. 24 x 60 = 1,440 s. 1,440 x 8 = 11,520 megabits, / 8 = 1,440 MB, about **1.4 GB**.\n\nThat is far above Fastly's 20 MB limit, so single-file renditions need range-aware caching on every CDN. A 2.5 MB segment file fits everywhere. Also check whether any origin sends chunked responses: CloudFront would then return the whole object instead of the range.",
         },
         {
           kind: "read",
@@ -1146,13 +1214,14 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Why CORS shows up in video",
-          body: "A web player on `www.example-streaming.com` downloads segments from `cdn.example-streaming.net` with `fetch()` and feeds them to Media Source Extensions. That is a **cross-origin** request.\n\nThe browser lets the page read the response only if the server allows it through **[[CORS]]** (Cross-Origin Resource Sharing), defined in the WHATWG Fetch standard. The key response header is **`Access-Control-Allow-Origin`** (ACAO): `*` or one exact origin.",
+          body: "A web player on `www.example-streaming.com` downloads segments from `cdn.example-streaming.net` with `fetch()` and feeds them to Media Source Extensions. That is a **cross-origin** request.\n\nThe browser lets the page read the response only if the server allows it through **[[CORS]]** (Cross-Origin Resource Sharing), defined in the WHATWG Fetch standard. The key response header is **`Access-Control-Allow-Origin`** (ACAO): `*` or one exact origin.\n\nOnly browsers enforce CORS. Native iOS and Android apps do not.",
         },
         {
           kind: "quiz",
           prompt: "After a release, web rebuffering rises, but the iOS and Android apps are fine. Which is the first suspect?",
           options: ["A BGP route change", "CORS", "A DRM key rotation"],
           answer: 1,
+          teach: "Look for the cause that only browsers would feel. Network and DRM problems would hit the apps too.",
           explain: "Native apps do not enforce CORS; browsers do. So CORS bugs look like \"web broken, apps fine\".",
         },
         {
@@ -1171,6 +1240,7 @@ const chapter: Chapter = {
             "GET with CMCD in the query string",
           ],
           answers: [1, 2],
+          teach: "Only request headers matter for preflights. A safelisted header goes straight through; a custom header needs approval first. The query string is part of the URL, not a header.",
           explain: "A simple Range header is safelisted, and query strings do not affect preflights. Custom headers, including CMCD sent as headers, force an `OPTIONS` preflight: extra latency and up to double the edge request count.",
         },
         {
@@ -1193,15 +1263,9 @@ const chapter: Chapter = {
           },
         },
         {
-          kind: "quiz",
-          prompt: "Segments use [[signed cookies]], so requests are sent with credentials. Which CORS answer does the browser accept?",
-          options: [
-            "`Access-Control-Allow-Origin: *`",
-            "The exact origin plus `Access-Control-Allow-Credentials: true`",
-            "No CORS headers at all",
-          ],
-          answer: 1,
-          explain: "With credentials (cookies, such as signed cookies, Chapter 8), the browser requires an exact origin plus `Access-Control-Allow-Credentials: true`; `*` is not allowed. That is one reason players prefer URL tokens for segments.",
+          kind: "reveal",
+          prompt: "Segments use [[signed cookies]], so the browser sends requests with **credentials** (cookies). Can the edge still answer with `Access-Control-Allow-Origin: *`? Think, then reveal.",
+          answer: "No. With credentials (cookies, such as signed cookies, Chapter 8), the browser requires the exact origin plus `Access-Control-Allow-Credentials: true`; `*` is not allowed. That is one reason players prefer URL tokens for segments: they keep the simple `*` answer.",
         },
         {
           kind: "read",
@@ -1213,22 +1277,9 @@ const chapter: Chapter = {
           },
         },
         {
-          kind: "multi",
-          prompt: "Which problems does gzip cause on fMP4 media segments? Select all that apply.",
-          options: [
-            "It changes `Content-Length`",
-            "Byte ranges then refer to compressed bytes",
-            "It weakens validators (ETags)",
-            "It cuts segment size by about half",
-            "It disables Fastly Segmented Caching",
-          ],
-          answers: [0, 1, 2, 4],
-          explain: "Media is already codec-compressed, so gzip saves almost nothing. It only adds CPU cost, changes `Content-Length`, shifts ranges onto compressed bytes, weakens ETags and conflicts with Segmented Caching.",
-        },
-        {
           kind: "read",
           title: "Manifests and subtitles compress well",
-          body: "Manifests and subtitles are repetitive text or XML. A DASH [[MPD]] with 8 video renditions, 6 audio dubs and 12 subtitle languages repeats long, similar elements and URLs.\n\nIllustration (assumed sizes): a 150 KB MPD compressed to 20 KB saves 130 KB per playback start. RFC 8216 says HLS servers SHOULD send playlists and WebVTT segments with gzip when the client accepts it. For live, where playlists reload every few seconds, the saving repeats constantly.",
+          body: "Manifests and subtitles are repetitive text or XML. A DASH [[MPD]] with 8 video renditions, 6 audio dubs and 12 subtitle languages repeats long, similar elements and URLs. RFC 8216 says HLS servers SHOULD send playlists and WebVTT segments with gzip when the client accepts it.\n\nWorked example (assumed sizes): a 150 KB MPD compressed to 20 KB saves 130 KB per playback start. For 100,000 starts: 130 x 100,000 = 13,000,000 KB = **13 GB**. For live, playlists reload every few seconds, so the saving repeats constantly.",
         },
         {
           kind: "number",
@@ -1236,6 +1287,7 @@ const chapter: Chapter = {
           answer: 260,
           tolerance: 10,
           unit: "GB",
+          teach: "Saving per start is the size before minus the size after. Multiply by the number of starts, then convert KB to GB.",
           explain: "150 - 20 = 130 KB per start. 130 KB x 2,000,000 = 260,000,000 KB = about 260 GB. More importantly, viewers on slow mobile links get the first manifest faster.",
         },
         {
@@ -1252,6 +1304,7 @@ const chapter: Chapter = {
             "CloudFront returns 415 Unsupported Media Type",
           ],
           answer: 1,
+          teach: "CloudFront compresses only a fixed list of content types. Check whether this Content-Type is on that list.",
           explain: "CloudFront only compresses listed content types, and `application/octet-stream` is not a playlist type. RFC 8216 requires a `.m3u8` or `.m3u` path or the right Content-Type, so players may also be confused.",
         },
         {
@@ -1275,8 +1328,14 @@ const chapter: Chapter = {
       minutes: 11,
       steps: [
         {
+          kind: "read",
+          title: "The lock on every connection",
+          body: "**TLS** (Transport Layer Security) is the encryption behind HTTPS. Every connection from a player to an edge starts with a TLS **handshake**: a few messages that agree on keys and prove the server is who it says it is. A **certificate** is that proof.\n\nHandshakes cost round trips, and certificates expire.\n\nBy the end of this lesson you can count handshake round trips, use resumption and 0-RTT safely, and plan certificate management across many CDNs.",
+        },
+        {
           kind: "quiz",
-          prompt: "Segments are already protected by DRM. Why do streaming services still send them over HTTPS?",
+          guess: true,
+          prompt: "Segments are already locked by DRM, so only paying viewers can play them. Why would you expect streaming services to still send them over HTTPS?",
           options: [
             "DRM needs TLS to decrypt the video",
             "Privacy, integrity, browser rules and token protection",
@@ -1303,12 +1362,18 @@ const chapter: Chapter = {
           visual: { kind: "sequence", spec: TLS },
         },
         {
+          kind: "read",
+          title: "Counting round trips",
+          body: "Before the first response byte, each step costs whole round trips (**RTT**):\n\n- TCP handshake: 1 RTT.\n- TLS 1.2: 2 RTT. TLS 1.3: 1 RTT.\n- QUIC does transport and TLS together: 1 RTT. With 0-RTT resumption the request rides in the first flight.\n- The request and its answer: 1 RTT.\n\nWorked example at 50 ms RTT, DNS ignored: TCP + TLS 1.3 + request = 1 + 1 + 1 = 3 RTT = **150 ms**.",
+        },
+        {
           kind: "number",
           prompt: "RTT is 100 ms (ignore DNS). How many milliseconds before the first response byte for a new TCP + TLS 1.2 connection plus the request?",
           answer: 400,
           tolerance: 10,
           unit: "ms",
           hint: "TCP: 1 RTT. TLS 1.2: 2 RTT. Request: 1 RTT.",
+          teach: "Add up the round trips for each step, then multiply by the RTT.",
           explain: "TCP 1 + TLS 1.2 2 + request 1 = 4 RTT, about 400 ms. TLS 1.3 saves one round trip (300 ms); QUIC folds transport and TLS together (200 ms).",
         },
         {
@@ -1320,6 +1385,7 @@ const chapter: Chapter = {
             "QUIC new connection + request",
             "QUIC with 0-RTT resumption",
           ],
+          teach: "Count the round trips for each setup. Fewer round trips means a faster first byte.",
           explain: "4 RTT, 3 RTT, 2 RTT and about 1 RTT. At 100 ms RTT that is about 400, 300, 200 and 100 ms.",
         },
         {
@@ -1351,6 +1417,7 @@ const chapter: Chapter = {
             "The box does not support HTTP/3",
           ],
           answer: 0,
+          teach: "One edge IP serves thousands of hostnames. Recall how the edge learns which hostname, and so which certificate, the client wants.",
           explain: "Without SNI the edge cannot tell which of thousands of customers the client wants, so it cannot pick the right certificate. Old smart TVs and set-top boxes were the last devices without SNI.",
         },
         {
@@ -1374,6 +1441,7 @@ const chapter: Chapter = {
             "Login host",
           ],
           answers: [0, 1],
+          teach: "Early data can be replayed by an attacker. Allow it only where sending the same request twice does no harm.",
           explain: "Early data can be replayed. Allow it for idempotent GETs on segment and manifest hosts. Refuse it on license, playback API, entitlement and login hosts.",
         },
         {
@@ -1406,17 +1474,6 @@ const chapter: Chapter = {
           },
         },
         {
-          kind: "match",
-          prompt: "Match each date to the maximum public certificate validity under ballot SC-081.",
-          pairs: [
-            ["Before 15 March 2026", "398 days"],
-            ["From 15 March 2026", "200 days"],
-            ["From 15 March 2027", "100 days"],
-            ["From 15 March 2029", "47 days"],
-          ],
-          explain: "398 days, then 200 from 15 March 2026, 100 from 15 March 2027 and 47 from 15 March 2029. Manual renewal does not survive that.",
-        },
-        {
           kind: "read",
           title: "Certificates with many CDNs",
           body: "Each CDN must present a valid certificate for every hostname it serves. Two models exist. Either way, monitor from outside: check the certificate each CDN actually serves, per hostname, and alert well before expiry.\n\nExpired certificates are among the most common self-inflicted delivery outages (Chapters 12 and 15).",
@@ -1431,6 +1488,7 @@ const chapter: Chapter = {
           prompt: "You use CDN-managed certificates on three CDNs. Renewal keeps failing on one CDN. Which DNS record should you check first?",
           options: ["CAA", "MX", "AAAA", "PTR"],
           answer: 0,
+          teach: "With CDN-managed certificates, one DNS record type controls which certificate authorities may issue for your domain.",
           explain: "With CDN-managed certificates, your DNS **CAA** records must allow every CA your CDNs use. If one CDN uses a CA that CAA does not allow, its issuance and renewal fail.",
         },
         {
@@ -1469,6 +1527,11 @@ const chapter: Chapter = {
       steps: [
         {
           kind: "read",
+          title: "What this chapter covered",
+          body: "Here is what this chapter covered:\n\n- **Headers are the contract** between origin, cache and player. HTTP/3 changes speed, not caching rules.\n- **Status codes are failover design.** A cached \"not yet\" 404 at a premiere is an outage.\n- **Freshness**: `max-age`, `Age`, `s-maxage`, `CDN-Cache-Control`, and stale serving as outage insurance.\n- **Cache keys, validators and Vary** decide hit ratio.\n- **Ranges, CORS and compression** each have CDN traps.\n- **TLS 1.3**: fewer round trips, safe 0-RTT, short-lived certificates.\n\nNow test yourself on real-looking responses.",
+        },
+        {
+          kind: "read",
           title: "A segment on the wire",
           body: "These are **illustrative** responses written for this book, not captured from Crunchyroll. First, a media segment from the edge. Read each line before you move on.",
           visual: { kind: "code", lang: "http", code: SEGMENT_RESPONSE, caption: "Illustrative, not captured from Crunchyroll." },
@@ -1476,6 +1539,7 @@ const chapter: Chapter = {
         {
           kind: "quiz",
           prompt: "Which extra line would hurt this segment's hit ratio if the origin added it?",
+          teach: "Which header adds request headers to the cache key? Think about how many different values that request header has across devices.",
           visual: { kind: "code", lang: "http", code: SEGMENT_RESPONSE },
           options: ["`vary: User-Agent`", "`etag: \"sha256-3f1a9c\"`", "`accept-ranges: bytes`", "`age: 412`"],
           answer: 0,
@@ -1490,6 +1554,7 @@ const chapter: Chapter = {
         {
           kind: "quiz",
           prompt: "For this playlist, how long does a browser cache it, and how long does an RFC 9213-aware CDN?",
+          teach: "Browsers read `Cache-Control`. An RFC 9213-aware CDN first looks for a targeted field meant for CDNs and, if it finds a valid one, uses it instead.",
           visual: { kind: "code", lang: "http", code: PLAYLIST_RESPONSE },
           options: [
             "Browser 60 s, CDN 60 s",
@@ -1526,6 +1591,7 @@ const chapter: Chapter = {
         {
           kind: "quiz",
           prompt: "An origin sends `Cache-Control: max-age=60, s-maxage=3600` on a VOD playlist. How long do a browser and a CDN cache it?",
+          teach: "`max-age` is for every cache. `s-maxage` is only for shared caches, and it overrides `max-age` for them.",
           options: [
             "Browser 60 s, CDN 60 s",
             "Browser 60 s, CDN 3,600 s",
@@ -1537,6 +1603,7 @@ const chapter: Chapter = {
         {
           kind: "quiz",
           prompt: "Same playlist, but the origin also sends `CDN-Cache-Control: max-age=86400`. What changes?",
+          teach: "A targeted field speaks only to the class of cache it names. Other caches keep reading `Cache-Control`.",
           options: [
             "Nothing; Cache-Control always wins",
             "An RFC 9213-aware CDN caches 86,400 s; browsers still use 60 s",
@@ -1548,6 +1615,7 @@ const chapter: Chapter = {
         {
           kind: "quiz",
           prompt: "A CloudFront behaviour has minimum TTL 300 s, and the origin sends `Cache-Control: private` on a personalized manifest. What happens, and what is the fix?",
+          teach: "Recall what a non-zero minimum TTL does on CloudFront when the origin says not to store, and how behaviours are split by path.",
           options: [
             "Not cached; no fix needed",
             "Cached at least 300 s, so one user's manifest can reach others; use a separate behaviour with min TTL 0 and caching disabled",
@@ -1559,6 +1627,7 @@ const chapter: Chapter = {
         {
           kind: "number",
           prompt: "Estimate the edge segment request rate for 2M viewers with 5-second segments and separate audio (video + audio only).",
+          teach: "Requests per second for one track is viewers divided by segment seconds. Separate audio is a second track with the same rate.",
           answer: 800000,
           tolerance: 40000,
           unit: "req/s",
@@ -1567,6 +1636,7 @@ const chapter: Chapter = {
         {
           kind: "quiz",
           prompt: "In that same simulcast, a per-session token stays in the cache key. What happens to origin load?",
+          teach: "A per-session value in the key makes every session a different key. Think about what the edge hit ratio becomes, and where the misses go.",
           options: [
             "It doubles from a trickle",
             "Shield and origin see close to the full rate and about 8 Tbps",
@@ -1578,6 +1648,7 @@ const chapter: Chapter = {
         {
           kind: "multi",
           prompt: "`no-cache` allows storing but requires revalidation; `no-store` forbids storing. Which responses should carry `no-store`? Select all that apply.",
+          teach: "`no-store` is for answers that are per-user or sensitive. Shared, unchanging objects want long lifetimes instead.",
           options: [
             "DRM license responses",
             "Personalized playback API responses",
@@ -1596,6 +1667,7 @@ const chapter: Chapter = {
         {
           kind: "multi",
           prompt: "Why compress HLS playlists but not media segments? Select every problem compression causes for segments.",
+          teach: "Video is already compressed by its codec. Think about what gzip changes in the response: its length, what byte offsets mean, its validator, and one Fastly feature.",
           options: [
             "Changes `Content-Length`",
             "Makes byte ranges refer to compressed bytes",

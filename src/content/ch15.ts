@@ -136,11 +136,17 @@ const chapter: Chapter = {
       id: "ch15-l1",
       title: "What are we protecting?",
       goal: "Build a threat model for a delivery platform: its unusual assets, its adversaries and its four trust boundaries.",
-      minutes: 9,
+      minutes: 10,
       steps: [
         {
+          kind: "read",
+          title: "Security, from the delivery seat",
+          body: "Imagine premiere night. Two million fans press play at the same minute. Most of the traffic is real. Some of it is not.\n\nThis chapter is about keeping the video flowing safely while part of the internet works against you.\n\nIn this lesson you will learn to build a **threat model** for a delivery platform: what it must protect, who attacks it, and the four places where you must put a guard.",
+        },
+        {
           kind: "quiz",
-          prompt: "An attacker cannot break into any of your servers. Can they still hurt your streaming platform during a premiere?",
+          guess: true,
+          prompt: "Take a guess. An attacker cannot break into any of your servers. What would you expect: can they still hurt your streaming platform during a premiere?",
           options: [
             "No: without access, they can do nothing",
             "Yes: they can make you serve, or pay for, the wrong traffic",
@@ -148,12 +154,12 @@ const chapter: Chapter = {
             "Only if they know an engineer's password",
           ],
           answer: 1,
-          explain: "A delivery platform pays for every byte it sends and must answer everyone on the internet. An attacker does not need to break in. Flooding you, or making you pay for useless traffic, is enough.",
+          explain: "Yes. Think of a shop: you do not need to rob it to hurt it. A crowd blocking the door is enough. A delivery platform must answer everyone on the internet, and it pays for every byte it sends. So an attacker can flood it, or make it pay for useless traffic, without breaking in.",
         },
         {
           kind: "read",
           title: "A huge attack surface",
-          body: "A video delivery platform is one of the largest attack surfaces a company owns.\n\n- It answers billions of requests a day from anyone on the internet.\n- It holds content that studios paid a lot to license.\n- It holds private keys for the company's most visible hostnames.\n- It pays for every byte it sends.\n\nSo an attacker can hurt you without \"breaking in\". They only need to make you serve, or pay for, the wrong traffic.",
+          body: "A video delivery platform is one of the largest **attack surfaces** (the parts an attacker can reach) a company owns.\n\n- It answers billions of requests a day from anyone on the internet.\n- It holds content that studios paid a lot to license.\n- It holds private keys for the company's most visible hostnames.\n- It pays for every byte it sends.\n\nSo an attacker can hurt you without \"breaking in\". They only need to make you serve, or pay for, the wrong traffic.",
         },
         {
           kind: "read",
@@ -163,10 +169,11 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Start with a threat model",
-          body: "A **threat model** lists four things:\n\n- what you protect (**assets**)\n- who wants to harm it (**adversaries**)\n- how they do it (**attack paths**)\n- what you do about it (**controls**)\n\nEngineers often start with tools: \"we have a [[WAF]]\". That is backwards. A WAF on the wrong hostname protects nothing. A perfect WAF does not help if the origin bucket is public. The threat model tells you where the tools must go.",
+          body: "A **threat model** lists four things:\n\n- what you protect (**assets**)\n- who wants to harm it (**adversaries**)\n- how they do it (**attack paths**)\n- what you do about it (**controls**)\n\nEngineers often start with tools: \"we have a [[WAF]]\" (a **web application firewall**, a filter for bad web requests). That is backwards. A WAF on the wrong hostname protects nothing. A perfect WAF does not help if the origin bucket is public. The threat model tells you where the tools must go.",
         },
         {
           kind: "quiz",
+          teach: "A threat model has four parts, in a set order. Ask whether a tool can protect something before you know what needs protecting and how it is attacked.",
           prompt: "A team says: \"We bought a great WAF, so delivery is secure.\" What is the main problem with this thinking?",
           options: [
             "WAFs are too slow for video",
@@ -180,7 +187,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Delivery assets are unusual",
-          body: "The assets of a delivery platform are not the usual \"user database\". Note the egress bill: **denial of wallet** means an attacker makes you pay for useless traffic.",
+          body: "The assets of a delivery platform are not the usual \"user database\". Note the last rows: the egress bill can be attacked too. **Denial of wallet** means an attacker makes you pay for useless traffic.",
           visual: {
             kind: "table",
             headers: ["Asset", "Why it matters", "Example harm"],
@@ -198,6 +205,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Use the assets table. For each asset, ask: what goes wrong for viewers, or for the company, if this one fails or is misused?",
           prompt: "Match each delivery asset to an example harm.",
           pairs: [
             ["TLS keys and certificates", "An expired cert stops all playback"],
@@ -215,6 +223,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Look at the last line of the adversary list. It is marked as often the most frequent, and it does not need to break in at all.",
           prompt: "Which adversary does the book call often the MOST frequent?",
           options: [
             "DDoS botnets",
@@ -228,17 +237,18 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Trust boundaries",
-          body: "A **trust boundary** is a line where requests move from a less trusted zone to a more trusted one. Every boundary needs a control.\n\nOn the request path there are three:\n\n- **Boundary 1**, internet to edge: TLS, WAF, rate limits, token check.\n- **Boundary 2**, shield to origin: origin auth, [[mTLS]], IP allowlist.\n- **Boundary 3**, origin to storage: IAM role, bucket policy.",
+          body: "A **trust boundary** is a line where requests move from a less trusted zone to a more trusted one, like the door between a shop floor and the stockroom. Every boundary needs a control.\n\nOn the request path there are three:\n\n- **Boundary 1**, internet to edge: TLS, WAF, rate limits, token check.\n- **Boundary 2**, shield to origin: origin auth, [[mTLS]], IP allowlist.\n- **Boundary 3**, origin to storage: **IAM** role (cloud rules for who may do what), bucket policy.",
           visual: { kind: "flow", spec: { ...TRUST, focus: ["u", "e", "s", "o", "b", "u>e", "e>s", "s>o", "o>b"], flow: ["u>e", "e>s", "s>o", "o>b"] } },
         },
         {
           kind: "read",
           title: "Boundary 4: the control plane",
-          body: "**Boundary 4** sits between engineers, CI pipelines and vendor APIs on one side, and the CDN and cloud [[control planes|Control plane]] on the other. Its controls: SSO, MFA, scoped tokens, review.\n\nIt is easy to forget because it is not on the request path. But the control plane can change everything on the request path. An attacker with a CDN API token does not need to DDoS you. They can point your hostname somewhere else.",
+          body: "**Boundary 4** sits between engineers, CI pipelines and vendor APIs on one side, and the CDN and cloud [[control planes|Control plane]] on the other. Its controls: **SSO** (one company login), **MFA** (a second login factor), scoped tokens, review.\n\nIt is easy to forget because it is not on the request path. But the control plane can change everything on the request path. An attacker with a CDN API token does not need to DDoS you. They can point your hostname somewhere else.",
           visual: { kind: "flow", spec: { ...TRUST, focus: ["d", "cp", "e", "b", "d>cp", "cp>e", "cp>b"], flow: ["d>cp", "cp>e"] } },
         },
         {
           kind: "quiz",
+          teach: "Trace a viewer's request from the internet to storage and list the boundaries it crosses. Then ask which boundary can push changes onto that path from outside it.",
           prompt: "Which trust boundary is NOT on the path of a viewer's request, yet can change every request?",
           options: [
             "Boundary 1: internet to edge",
@@ -261,7 +271,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Ask about blast radius",
-          body: "Every secret is \"just a key\". But keys differ in what they can break.\n\nA read-only role scoped to one S3 prefix has a small [[blast radius]]. A CDN API token with global purge and config rights has a blast radius of \"all users, everywhere, instantly\".\n\nBoth need protection, but very different amounts.",
+          body: "Every secret is \"just a key\". But keys differ in what they can break. The **[[blast radius]]** of a credential is how much can break if it is misused.\n\nA read-only role scoped to one S3 prefix has a small blast radius. A CDN API token with global purge and config rights has a blast radius of \"all users, everywhere, instantly\".\n\nBoth need protection, but very different amounts.",
           callout: {
             type: "staff",
             text: "For every secret in a design, ask: \"what is the blast radius of this credential?\" Then protect it in proportion.",
@@ -269,6 +279,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Compare what each credential can change, and for how many users. The wider the reach, the bigger the blast radius.",
           prompt: "Which credential needs the strongest protection?",
           options: [
             "A read-only role for one S3 prefix of subtitles",
@@ -302,35 +313,37 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
-          kind: "quiz",
-          prompt: "Which single request costs YOUR side the most work compared with what it costs the attacker?",
-          options: [
-            "A UDP packet aimed at your load balancer",
-            "A request for a popular segment already in cache",
-            "A well-formed DRM license request",
-            "A ping",
-          ],
-          answer: 2,
-          explain: "A license request is dynamic: it needs real compute, token checks and a call to the license server. A cached segment is cheap to serve. That gap is what makes application-layer attacks dangerous.",
+          kind: "read",
+          title: "When someone wants you offline",
+          body: "A **distributed denial-of-service ([[DDoS]])** attack uses many machines to send so much traffic, or such expensive traffic, that a service cannot serve real users. Think of a crowd blocking a shop door so real customers cannot get in.\n\nModern attacks are bigger than your whole platform. In this lesson you will learn the three kinds of DDoS, how to size one against your own traffic, and the three weak spots of a video CDN.",
         },
         {
-          kind: "read",
-          title: "What DDoS is",
-          body: "A **distributed denial-of-service ([[DDoS]])** attack uses many machines to send so much traffic, or such expensive traffic, that a service cannot serve real users.\n\nThere are three kinds. They attack different layers, and you measure them in different units.",
+          kind: "quiz",
+          guess: true,
+          prompt: "Take a guess. A million bots all request the same popular segment, using its exact real URL. What would you expect to happen?",
+          options: [
+            "The origin collapses under a million requests",
+            "The edge serves almost all of them from cache, which is cheap",
+            "The CDN blocks them because the requests are identical",
+            "The segment is deleted from cache",
+          ],
+          answer: 1,
+          explain: "Video segments are static files that never change, so the edge keeps them in cache. A flood of requests for real segment URLs mostly becomes **cache hits** served from memory, which is cheap. This is video's natural advantage against DDoS. Later in this lesson you will see how attackers try to get around it.",
         },
         {
           kind: "read",
           title: "1. Volumetric (L3/L4)",
-          body: "**Volumetric** attacks fill the pipes. They often use UDP **reflection and amplification**: the attacker sends small requests to open DNS, NTP or memcached servers, with the victim's address spoofed as the sender. Those servers send large responses to the victim.\n\nYou measure volumetric attacks in bits and packets per second.",
+          body: "There are three kinds of DDoS. They attack different layers, and you measure them in different units.\n\n**Volumetric** attacks fill the pipes at **L3/L4**, the network layers that carry packets. They often use UDP **reflection and amplification**: the attacker sends small requests to open DNS, NTP or memcached servers, with the victim's address **spoofed** (faked) as the sender. Those servers send large responses to the victim.\n\nYou measure volumetric attacks in bits and packets per second.",
           visual: { kind: "flow", spec: { ...REFLECT, flow: ["bot>open", "open>vic"] } },
         },
         {
           kind: "read",
           title: "2. Protocol and 3. Application",
-          body: "**Protocol (L4)** attacks exhaust connection state. Example: a **SYN flood** fills a server's table of half-open TCP connections.\n\n**Application (L7)** attacks send real-looking HTTP requests, measured in requests per second (rps). They are dangerous because each request can cost the server far more than it costs the attacker: a cache miss, a TLS handshake, a database query, a license request.",
+          body: "**Protocol (L4)** attacks exhaust connection state. Example: a **SYN flood** sends the first packet (SYN) of many TCP connections and never finishes them. The server's table of half-open connections fills up.\n\n**Application (L7)** attacks send real-looking HTTP requests, measured in **requests per second (rps)**. They are dangerous because each request can cost the server far more than it costs the attacker: a cache miss, a TLS handshake, a database query, a license request.",
         },
         {
           kind: "match",
+          teach: "Each kind attacks a different thing: the pipes, the connection table, or the HTTP work. Each is measured in its own unit.",
           prompt: "Match each DDoS kind to what it attacks or how it is measured.",
           pairs: [
             ["Volumetric (L3/L4)", "Fills the pipes; bits and packets per second"],
@@ -343,7 +356,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "The scale",
-          body: "The scale is hard to imagine. Cloudflare's report for Q4 2025 describes a 31.4 Tbps attack that lasted 35 seconds. It was launched by the Aisuru-Kimwolf botnet, which Cloudflare describes as built mainly from infected Android TVs.\n\nCloudflare counted 47.1 million DDoS attacks in 2025, more than double the year before, and a campaign peaking at 205 million rps.",
+          body: "The scale is hard to imagine. Cloudflare's report for Q4 2025 describes a 31.4 **Tbps** (terabits per second) attack that lasted 35 seconds. It was launched by the Aisuru-Kimwolf botnet, which Cloudflare describes as built mainly from infected Android TVs.\n\nCloudflare counted 47.1 million DDoS attacks in 2025, more than double the year before, and a campaign peaking at 205 million rps.",
           visual: {
             kind: "stats",
             items: [
@@ -368,6 +381,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "In HTTP/2 a client can open many streams on one connection and cancel any of them. Think about who does the work when a stream is opened and then cancelled at once.",
           prompt: "Why did Rapid Reset produce such huge request rates?",
           options: [
             "It used reflection through open DNS servers",
@@ -381,38 +395,27 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Size it against your own traffic",
-          body: "Use the **assumed** Crunchyroll model. Peak legitimate egress during a big simulcast is 2M streams x 4 Mbps = 8 Tbps, with a design target of 12 Tbps.\n\nThe 31.4 Tbps attack is inbound. No origin, cloud load balancer or single region absorbs that. Only a network much larger than any one customer, spread over hundreds of PoPs by [[anycast]], can.\n\n\"Put everything behind the CDN\" is a security decision, not only a performance one.",
-        },
-        {
-          kind: "number",
-          prompt: "The 31.4 Tbps attack versus the assumed 8 Tbps simulcast peak: how many times bigger is the attack?",
-          answer: 3.9,
-          tolerance: 0.4,
-          unit: "x",
-          hint: "Divide attack size by peak egress.",
-          explain: "31.4 / 8 = 3.9, so about four times the platform's entire peak. And it is inbound traffic, aimed at you.",
-        },
-        {
-          kind: "number",
-          prompt: "Assumed: 2M viewers at a premiere, 4-second segments, each player fetches one segment per segment duration. How many segment requests per second at peak?",
-          answer: 500000,
-          tolerance: 25000,
-          unit: "rps",
-          hint: "Viewers divided by segment length.",
-          explain: "2,000,000 / 4 s = 500,000 segment requests per second. With manifests, subtitles and API calls it is maybe about 1M rps (assumption).",
-        },
-        {
-          kind: "number",
-          prompt: "Take about 1M rps as the real total peak (assumed). A 200M rps attack is how many times that?",
-          answer: 200,
-          tolerance: 10,
-          unit: "x",
-          explain: "200M / 1M = 200. A 400M rps attack would be 400 times. Your job: every hostname that matters sits behind CDN-scale protection, and nothing reachable from the internet skips it.",
+          body: "To size an attack, divide it by your own peak.\n\nUse the **assumed** Crunchyroll model. Peak legitimate egress during a big simulcast is 2M streams x 4 Mbps = 8 Tbps, with a design target of 12 Tbps. So the 31.4 Tbps attack is 31.4 / 8 = about **four times the platform's entire peak**, and it is inbound.\n\nNo origin, cloud load balancer or single region absorbs that. Only a network much larger than any one customer, spread over hundreds of PoPs by [[anycast]], can.",
         },
         {
           kind: "read",
-          title: "Video's advantage, and cache-busting",
-          body: "Video has a natural DDoS advantage: segments are static, immutable and cacheable. A flood for real segment URLs mostly becomes **cache hits** served from memory.\n\nWeak spot one is **cache-busting**. The attacker adds a random query string: `seg_00042.m4s?x=83749`. If the [[cache key]] keeps the full query string, every request is a miss that goes to shield and origin.\n\nThe fix is **cache key normalization**: for segment paths, ignore or whitelist query parameters (Chapters 4 and 5).",
+          title: "Count requests per second",
+          body: "For L7, count requests. Each player fetches about one segment per segment length, so **segment rps = viewers / segment seconds**.\n\n**Assumed**: 2M viewers with 4 s segments gives 2,000,000 / 4 = **500,000 segment requests per second**. With manifests, subtitles and API calls, maybe about 1M rps (assumption).\n\nA 200M to 400M rps attack is **200 to 400 times** that real peak. So \"put everything behind the CDN\" is a security decision, not only a performance one.",
+        },
+        {
+          kind: "number",
+          teach: "Each player fetches about one segment per segment length. Use the formula from the last step: viewers divided by segment seconds.",
+          prompt: "A smaller premiere: 900,000 viewers and 6-second segments. How many segment requests per second at peak?",
+          answer: 150000,
+          tolerance: 7500,
+          unit: "rps",
+          hint: "Viewers divided by segment length.",
+          explain: "900,000 / 6 s = 150,000 segment requests per second. The job is the same at any size: every hostname that matters sits behind CDN-scale protection, and nothing reachable from the internet skips it.",
+        },
+        {
+          kind: "read",
+          title: "Weak spot 1: cache-busting",
+          body: "Floods of real segment URLs become cache hits. So attackers try **cache-busting**: they add a random query string, like `seg_00042.m4s?x=83749`.\n\nIf the [[cache key]] keeps the full query string, every request is a new object. Each one is a miss that goes to shield and origin.\n\nThe fix is **cache key normalization**: for segment paths, ignore or whitelist query parameters (Chapters 4 and 5).",
           visual: {
             kind: "compare",
             left: { title: "Full query string in key", points: ["?x=83749 is a new object", "Every request misses", "Shield and origin take the flood"] },
@@ -420,17 +423,24 @@ const chapter: Chapter = {
           },
         },
         {
+          kind: "read",
+          title: "How much does it hurt?",
+          body: "**Origin load = traffic x miss share**, where the miss share is 100% minus the hit ratio.\n\n**Assumed** normal peak: 500k segment rps at a 95% hit ratio. Origin sees 5% x 500k = **25k rps**.\n\nNow a cache-busting flood of only 100k rps arrives, tiny by attack standards. Every request misses. Origin sees 25k + 100k = 125k rps. That is 125 / 25 = **five times** its normal load.",
+        },
+        {
           kind: "number",
-          prompt: "Normal peak: 500k segment rps at a 95% hit ratio, so origin sees 25k rps. A cache-busting flood of only 100k rps arrives, and every one misses. By what factor does origin load grow?",
-          answer: 5,
+          teach: "First find the normal origin load: the miss share times total traffic. Then add the flood, because every flood request misses. Compare the new load with the old one.",
+          prompt: "Another service: 500k segment rps at a 98% hit ratio. A cache-busting flood of 50k rps arrives, and every request misses. By what factor does origin load grow?",
+          answer: 6,
           tolerance: 0.5,
           unit: "x",
-          hint: "Origin goes from 25k rps to 25k + 100k.",
-          explain: "5% of 500k = 25k rps. Add 100k misses: 125k rps, which is five times the normal origin load. 100k rps is tiny by attack standards.",
+          hint: "Normal origin load is 2% of 500k.",
+          explain: "2% of 500k = 10k rps normally. Add 50k misses: 60k rps. 60 / 10 = six times the normal origin load, from a flood one tenth the size of normal traffic.",
         },
         {
           kind: "quiz",
-          prompt: "Does [[request collapsing]] at the shield protect origin from a cache-busting flood?",
+          teach: "[[Request collapsing]] (Chapter 5) merges requests that arrive at the same time for one object into a single origin fetch. Look at what cache-busting does to each URL.",
+          prompt: "Does request collapsing at the shield protect origin from a cache-busting flood?",
           options: [
             "Yes, it merges all the requests into one",
             "No, because every URL is unique, so there is nothing to collapse",
@@ -442,13 +452,13 @@ const chapter: Chapter = {
         },
         {
           kind: "read",
-          title: "The real L7 targets",
-          body: "Weak spot two: **uncacheable control-plane endpoints**. The playback API, [[entitlement]], DRM license, login and search are dynamic. They cost real compute per request.\n\nThese are the true L7 targets. A few hundred thousand well-formed license requests per second can hurt more than a terabit of segment traffic.",
+          title: "Weak spot 2: the real L7 targets",
+          body: "**Uncacheable control-plane endpoints** are the second weak spot. The playback API, [[entitlement]], DRM license, login and search are dynamic. They cost real compute per request.\n\nA cached segment is cheap to serve. A DRM license request needs token checks and a call to the license server. That gap is what makes L7 attacks dangerous.\n\nThese are the true L7 targets. A few hundred thousand well-formed license requests per second can hurt more than a terabit of segment traffic.",
         },
         {
           kind: "read",
-          title: "Denial of wallet",
-          body: "Weak spot three: **denial of wallet**. Even cache hits cost money.\n\n**Assumed** example: 10,000 bots each pull 20 Mbps of real segments. That is 200 Gbps. Nothing is \"down\", but you are bleeding money. It may also raise your [[95th percentile billing]] level for the month.\n\nEdge [[token authentication|Token authentication]] (Chapter 8) stops this. A bot without a valid token gets a cheap 403 instead of a 2 MB segment.",
+          title: "Weak spot 3: denial of wallet",
+          body: "**Denial of wallet**: even cache hits cost money.\n\n**Assumed** example: 10,000 bots each pull 20 Mbps of real segments = 200 Gbps. Over a day: 200 Gbps / 8 = 25 GB/s, x 86,400 s = 2,160,000 GB, about 2.16 PB. At an assumed $0.005 per GB, that is about **$10,800 a day**.\n\nNothing is \"down\", but you are bleeding money. It may also raise your [[95th percentile billing]] level for the month.",
           visual: {
             kind: "stats",
             items: [
@@ -460,11 +470,13 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
-          prompt: "200 Gbps for 24 hours is about 2.16 PB (2,160,000 GB). At an assumed $0.005 per GB, how many dollars of waste per day?",
-          answer: 10800,
-          tolerance: 600,
+          teach: "Follow the same chain as the example: total bits per second, divide by 8 for bytes, multiply by the seconds in a day, then multiply by the price per GB.",
+          prompt: "Assumed: 5,000 bots each pull 16 Mbps of real segments for 24 hours. At $0.005 per GB, about how many dollars of waste per day?",
+          answer: 4320,
+          tolerance: 250,
           unit: "$",
-          explain: "200 Gbps / 8 = 25 GB/s. x 86,400 s = 2,160,000 GB, about 2.16 PB. x $0.005 = about $10,800 per day of waste.",
+          hint: "5,000 x 16 Mbps = 80 Gbps. Divide by 8 for GB/s.",
+          explain: "5,000 x 16 Mbps = 80 Gbps. / 8 = 10 GB/s. x 86,400 s = 864,000 GB. x $0.005 = about $4,320 a day of waste, with nothing down.",
         },
         {
           kind: "read",
@@ -475,7 +487,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "The video-specific layers",
-          body: "Next come layers that video makes cheap. Segment hostnames check tokens and return a cheap 403 if invalid. The cache uses normalized keys, so floods become hits. The [[shield]] collapses requests. Last, the origin is locked to the CDN only.",
+          body: "Next come layers that video makes cheap. Segment hostnames check tokens ([[token authentication|Token authentication]], Chapter 8) and return a cheap 403 if invalid. This is also what stops denial of wallet: a bot without a valid token gets a tiny 403 instead of a 2 MB segment.\n\nThe cache uses normalized keys, so floods become hits. The [[shield]] collapses requests. Last, the origin is locked to the CDN only.",
           visual: { kind: "flow", spec: { ...LAYERS, focus: ["l4", "l5", "l6", "l7", "o", "l4>l5", "l5>l6", "l6>l7", "l7>o"], flow: ["a>l1", "l1>l2", "l2>l3", "l3>l4", "l4>l5", "l5>l6", "l6>l7", "l7>o"] } },
           callout: {
             type: "mistake",
@@ -484,6 +496,7 @@ const chapter: Chapter = {
         },
         {
           kind: "order",
+          teach: "Cheap, broad filters sit first and see the most traffic. Expensive, specific checks come later, on whatever is left.",
           prompt: "Put these defence layers in the order attack traffic meets them.",
           items: [
             "Anycast spreads load across hundreds of PoPs",
@@ -518,26 +531,19 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
-          kind: "quiz",
-          prompt: "You use three CDNs. An attacker probes all three. Which one will they most likely pick?",
-          options: [
-            "The one with the most PoPs",
-            "The one whose WAF and rate rules are weakest",
-            "The cheapest one",
-            "They always attack all three equally",
-          ],
-          answer: 1,
-          explain: "Steering spreads users over all CDNs, so the platform is only as strong as its weakest one. That is why parity of rules across CDNs matters (Chapters 9 and 14).",
+          kind: "read",
+          title: "The tools you can buy",
+          body: "You run several CDNs, and each one sells its own DDoS and firewall products. A premiere is next week.\n\nIn this lesson you will compare what the big vendors offer, decide where a WAF belongs, choose what a rate limit should count, handle bots that are not browsers, and tell a premiere spike from an attack.",
         },
         {
           kind: "read",
           title: "Everyone bundles protection",
-          body: "Every large vendor bundles DDoS protection. They differ in what is automatic, what you configure and what you pay for.\n\nA [[multi-CDN]] platform uses several at once. So **parity** between them matters: the same rule should mean the same thing on every CDN. Chapter 9 covers multi-CDN parity, and Chapter 14 covers managing it as code.",
+          body: "Every large vendor bundles DDoS protection. They differ in what is automatic, what you configure and what you pay for.\n\nA [[multi-CDN]] platform uses several at once. An attacker who probes all of them will pick the one with the weakest rules. So **parity** matters: the same rule should mean the same thing on every CDN. Chapter 9 covers multi-CDN parity, and Chapter 14 covers managing it as code.",
         },
         {
           kind: "read",
           title: "AWS Shield",
-          body: "**Shield Standard** is automatic and free for CloudFront and Route 53.\n\n**Shield Advanced** is a paid layer. AWS documents:\n\n- enhanced detection for EC2, Elastic Load Balancing, CloudFront, Global Accelerator and Route 53\n- **cost protection**: credits for scaling charges caused by DDoS spikes\n- the **Shield Response Team (SRT)**, which needs a Business or Enterprise support plan\n- automatic L7 mitigation using AWS WAF, included up to 50 billion WAF requests a month\n\nThird-party guides quote about $3,000 a month per organization, with a one-year commitment. Check current pricing.",
+          body: "**Shield Standard** is automatic and free for CloudFront and Route 53.\n\n**Shield Advanced** is a paid layer. AWS documents:\n\n- enhanced detection for EC2, Elastic Load Balancing, CloudFront, Global Accelerator and Route 53\n- **cost protection**: credits for scaling charges caused by DDoS spikes\n- the **Shield Response Team (SRT)**, which needs a Business or Enterprise support plan\n- automatic L7 mitigation using AWS WAF, up to 50 billion WAF requests a month\n\nThird-party guides quote about $3,000 a month per organization, with a one-year commitment. Check current pricing.",
         },
         {
           kind: "read",
@@ -556,7 +562,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Fastly, Akamai, Cloudflare",
-          body: "**Fastly** bought Signal Sciences in 2020 and turned it into the [[Next-Gen WAF]]. It tags requests with **signals** (\"SQL injection attempt\", \"many 404s from one client\") and acts on signal thresholds over time, which cuts false positives. An edge deployment option came in February 2022.\n\n**Akamai** splits network DDoS from app security. **Prolexic** protects whole networks: 32 scrubbing centres, 20+ Tbps of dedicated capacity, BGP on-ramping, and a \"zero-second\" mitigation SLA.\n\n**Cloudflare** mitigates on every server of its anycast network.",
+          body: "**Fastly** bought Signal Sciences in 2020 and made it the [[Next-Gen WAF]]. It tags requests with **signals** (\"SQL injection attempt\", \"many 404s from one client\") and acts on signal thresholds over time, which cuts false positives. An edge deployment option came in February 2022.\n\n**Akamai** splits network DDoS from app security. **Prolexic** protects whole networks: 32 scrubbing centres, 20+ Tbps of dedicated capacity, BGP on-ramping, a \"zero-second\" mitigation SLA.\n\n**Cloudflare** mitigates on every server of its anycast network.",
         },
         {
           kind: "read",
@@ -580,6 +586,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Each vendor sells protection under its own product name. Look back at the vendor table, and at the vendor that mitigates on every server of its network.",
           prompt: "Match each vendor to its signature protection product.",
           pairs: [
             ["AWS", "Shield Advanced with cost protection and SRT"],
@@ -593,10 +600,11 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Put the WAF where the risk is",
-          body: "A **web application firewall** ([[WAF]]) inspects HTTP requests and blocks attack patterns: injection, path traversal, protocol abuse, bad IPs, abnormal rates. It is built for dynamic applications. Segments are static files.\n\nSo **split hostnames by function** and give each a security profile:\n\n- **API and web** (login, playback API, entitlement, search): full WAF, bot management, strict per-user and per-token limits.\n- **License** (DRM proxy): per-session and per-device limits, strong token checks.\n- **Segments and manifests**: edge token validation, cache key normalization, geo rules, limits on miss traffic.",
+          body: "A **[[WAF]]** inspects HTTP requests and blocks attack patterns: injection, path traversal, protocol abuse, bad IPs, abnormal rates. It is built for dynamic applications. Segments are static files.\n\nSo **split hostnames by function**, each with its own security profile:\n\n- **API and web** (login, playback API, entitlement, search): full WAF, bot management, strict per-user and per-token limits.\n- **License** (DRM proxy): per-session and per-device limits, strong token checks.\n- **Segments and manifests**: edge tokens, cache key normalization, geo rules, limits on miss traffic. Usually no deep WAF inspection.",
         },
         {
           kind: "match",
+          teach: "Deep inspection belongs where requests are dynamic and expensive. Static files are protected more cheaply. License calls sit in between: tied to a session and a device.",
           prompt: "Match each hostname group to its security profile.",
           pairs: [
             ["API and web hostnames", "Full WAF, bot management, strict per-user limits"],
@@ -606,21 +614,19 @@ const chapter: Chapter = {
           explain: "Deep inspection goes where the dynamic, expensive endpoints are. License storms at premiere time are a real risk (Chapter 13). Segments are protected more cheaply by tokens.",
         },
         {
-          kind: "number",
-          prompt: "Assumed: 540 PB a month, about 2 MB per segment (4 Mbps x 4 s = 16 Mb). How many billion segment requests per month?",
-          answer: 270,
-          tolerance: 15,
-          unit: "billion",
-          hint: "540 PB is 540 x 10^15 bytes; one segment is 2 x 10^6 bytes.",
-          explain: "540 PB / 2 MB = 540 x 10^15 / 2 x 10^6 = 270 x 10^9, about 270 billion segment requests per month.",
+          kind: "read",
+          title: "Why not inspect segments too?",
+          body: "Cost and latency.\n\n**Assumed**: 540 PB a month / about 2 MB per segment (4 Mbps x 4 s = 16 Mb = 2 MB) = 540 x 10^15 / 2 x 10^6 = about **270 billion segment requests a month**.\n\nAt an illustrative $0.60 per million inspected requests (assumed price, check your contract): 270,000 million x $0.60 = about **$162,000 a month**. That money goes on the hottest path in the system for little benefit. Tokens protect segments far more cheaply.",
         },
         {
           kind: "number",
-          prompt: "At an illustrative $0.60 per million inspected requests (assumed price), what would deep WAF inspection of 270 billion segment requests cost per month?",
-          answer: 162000,
-          tolerance: 10000,
+          teach: "Two steps, as in the example: monthly bytes divided by bytes per segment gives requests; requests in millions times the price per million gives the cost.",
+          prompt: "A smaller service delivers 54 PB a month in 2 MB segments. At the same assumed $0.60 per million inspected requests, what would deep WAF inspection of its segment requests cost per month?",
+          answer: 16200,
+          tolerance: 1000,
           unit: "$",
-          explain: "270,000 million x $0.60 = about $162,000 per month, spent on the hottest path in the system for little benefit. Tokens protect segments far more cheaply.",
+          hint: "54 x 10^15 / 2 x 10^6 = 27 billion requests.",
+          explain: "54 PB / 2 MB = 27 billion = 27,000 million requests. x $0.60 = about $16,200 a month, for little benefit on static files.",
         },
         {
           kind: "read",
@@ -629,6 +635,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall what carrier-grade NAT does to the link between people and IP addresses on a mobile network.",
           prompt: "A popular episode premieres. A strict per-IP rate limit on the playback API starts blocking a whole city's mobile users. Why?",
           options: [
             "Mobile phones send more requests than TVs",
@@ -666,6 +673,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Use the bot table: each bot's goal decides the response. Remember which devices cannot show a browser challenge.",
           prompt: "Match each bot type to its typical response.",
           pairs: [
             ["Search and preview crawlers", "Allow on web pages, never on segments"],
@@ -679,7 +687,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Attack or premiere?",
-          body: "15 seconds after a simulcast release, requests are up 20x in a minute. Is it fans or an attack? Both look the same at first. Compare these signals.",
+          body: "15 seconds after a simulcast release, requests are up 20x in a minute. Is it fans or an attack? Both look the same at first. Compare these signals. An **ASN** is the network a request comes from, such as a mobile carrier or a cloud data centre.",
           visual: {
             kind: "table",
             headers: ["Signal", "Popular premiere", "L7 attack"],
@@ -695,6 +703,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "Compare each option with the \"Popular premiere\" column of the table. Anything that does not look like real fans points to an attack.",
           prompt: "Requests jump 20x during a premiere. Which signals point to an ATTACK rather than fans?",
           options: [
             "Cache hit ratio is falling",
@@ -740,8 +749,14 @@ const chapter: Chapter = {
       minutes: 11,
       steps: [
         {
+          kind: "read",
+          title: "The back door",
+          body: "Your edge now has tokens, a WAF and DDoS protection. But all of that guards the front door. What if someone finds the back door: the [[origin]]'s own address?\n\nIn this lesson you will learn four layers that make sure only your CDN can fetch from origin, and why the most common one, an IP allowlist, is not enough on its own.",
+        },
+        {
           kind: "multi",
-          prompt: "Your edge has tokens, a WAF and DDoS protection. An attacker finds the origin's public address. What can they now do?",
+          guess: true,
+          prompt: "Take a guess. An attacker finds the origin's public address and connects to it directly, skipping the edge. What would you expect they can now do?",
           options: [
             "Flood the origin with no cache in front",
             "Scrape segments without tokens",
@@ -750,12 +765,12 @@ const chapter: Chapter = {
             "Nothing: the origin re-checks every edge token",
           ],
           answers: [0, 1, 2, 3],
-          explain: "Token checks live at the edge, so a reachable origin skips them all. Flooding, scraping, pre-release hunting and origin egress (Chapter 16) all become possible.",
+          explain: "Think of a guarded front door and an unlocked back door. Token checks live at the edge, so a request sent straight to origin skips them all. The attacker can flood the origin with no cache in front, scrape segments without tokens, hunt for pre-release episodes and run up origin egress, which costs more than cache hits (Chapter 16).",
         },
         {
           kind: "read",
-          title: "Edge protection can be skipped",
-          body: "Edge protection is useless if an attacker can go around it.\n\n**Origin protection** means only your CDNs and your trusted services can fetch from [[origin]]. Chapter 6 mentioned cloaking in one line. Here we go deep.\n\nGood designs **stack layers**, because each layer alone has a gap.",
+          title: "Stack the layers",
+          body: "Edge protection is useless if an attacker can go around it.\n\n**Origin protection** means only your CDNs and your trusted services can fetch from origin. Chapter 6 mentioned cloaking in one line. Here we go deep.\n\nGood designs **stack layers**, because each layer alone has a gap.",
           visual: {
             kind: "table",
             headers: ["Layer", "What it does", "Its gap"],
@@ -775,10 +790,11 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Layer 2: network allowlists",
-          body: "Allow inbound traffic only from CDN IP ranges.\n\nCloudFront publishes a **managed prefix list**, `com.amazonaws.global.cloudfront.origin-facing` (plus an IPv6 version), with the ranges of its origin-facing servers. You reference it in a security group, and AWS keeps it current. If you remove other inbound rules, non-CloudFront traffic cannot reach the instance.\n\nOther CDNs publish lists that you sync with an automated job.",
+          body: "An **allowlist** lets in only traffic from listed addresses: here, CDN IP ranges.\n\nCloudFront publishes a **managed prefix list**, `com.amazonaws.global.cloudfront.origin-facing` (plus an IPv6 version), with the ranges of its origin-facing servers. You reference it in a **security group** (a cloud firewall for a server), and AWS keeps it current. If you remove other inbound rules, non-CloudFront traffic cannot reach the instance.\n\nOther CDNs publish lists that you sync with an automated job.",
         },
         {
           kind: "quiz",
+          teach: "An allowlist checks only where a request comes from. Ask who else sends requests from those same CDN addresses. The layer table names the gap.",
           prompt: "Your origin accepts only CloudFront's origin-facing IP ranges. What can still reach it?",
           options: [
             "Nothing outside your own distribution",
@@ -792,16 +808,17 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Layer 3: Origin Access Control",
-          body: "CloudFront **Origin Access Control (OAC)** launched in August 2022 to replace Origin Access Identity (OAI). It signs requests to S3 with AWS **Signature Version 4 (SigV4)**. Unlike OAI, it supports objects encrypted with SSE-KMS.\n\nThe bucket policy then admits only one distribution.",
+          body: "Layer 3 makes each request prove it came from **your** configuration.\n\nCloudFront **Origin Access Control (OAC)** launched in August 2022 to replace Origin Access Identity (OAI). It signs requests to S3 with AWS **Signature Version 4 (SigV4)**: a signature made with a secret key, which the receiver can check. Unlike OAI, it supports objects encrypted with **SSE-KMS** (keys held in AWS's key service).\n\nThe bucket policy then admits only one **distribution** (one CloudFront configuration).",
         },
         {
           kind: "read",
           title: "The bucket policy",
-          body: "This policy lets CloudFront read only the `packaged/` prefix, and only for one distribution. The `AWS:SourceArn` condition is the critical line.",
+          body: "This policy lets CloudFront read only the `packaged/` prefix.\n\n- `Principal` says who may read: the CloudFront service.\n- `Condition` narrows that down. Its `AWS:SourceArn` line names one distribution.\n\nThe `AWS:SourceArn` condition is the critical line.",
           visual: { kind: "code", lang: "json", code: BUCKET_POLICY, caption: "S3 bucket policy statement for OAC" },
         },
         {
           kind: "quiz",
+          teach: "The Principal names the whole CloudFront service, which every AWS customer uses. Ask what is left to narrow it once the Condition is gone.",
           prompt: "You delete the `AWS:SourceArn` condition from that policy. Who can now read the bucket?",
           options: [
             "Nobody: the policy becomes invalid",
@@ -820,10 +837,11 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Mutual TLS",
-          body: "In normal TLS only the server proves its identity. In **[[mTLS]]** the client presents a certificate too, and the origin rejects connections without a valid one.\n\nCloudflare's **Authenticated Origin Pulls** has three levels: a global certificate shared by all Cloudflare customers, a zone-level certificate you upload, and per-hostname certificates.\n\nFastly documents origin mTLS by keeping the client certificate in a secret store and attaching it to a backend, currently on dynamic backends in Fastly Compute.",
+          body: "In normal TLS only the server proves its identity. In **[[mTLS]]** (mutual TLS) the client presents a certificate too, and the origin rejects connections without a valid one.\n\nCloudflare's **Authenticated Origin Pulls** has three levels: a global certificate shared by all Cloudflare customers, a zone-level certificate you upload, and per-hostname certificates.\n\nFastly documents origin mTLS by keeping the client certificate in a secret store and attaching it to a backend, currently on dynamic backends in Fastly Compute.",
         },
         {
           kind: "quiz",
+          teach: "Look at who holds the global certificate. A certificate can only prove what is unique to the people who hold it.",
           prompt: "Your origin requires Cloudflare's GLOBAL Authenticated Origin Pulls certificate. What does a valid certificate prove?",
           options: [
             "The request came from your Cloudflare account",
@@ -837,24 +855,12 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Shared secret header",
-          body: "The simplest form: the CDN adds `X-Origin-Auth: <secret>` and the origin checks it.\n\nIt works on every CDN. But the secret is static. It is visible to anyone who reads config or logs. Rotation needs coordination across vendors.\n\nUse it only as an extra layer.",
-        },
-        {
-          kind: "quiz",
-          prompt: "Why should a shared secret header be only an extra layer, not the main lock?",
-          options: [
-            "It does not work on Fastly",
-            "It is static, visible in config and logs, and hard to rotate across vendors",
-            "It doubles the request size",
-            "Origins cannot read custom headers",
-          ],
-          answer: 1,
-          explain: "A secret that never changes and sits in config and logs leaks over time. Rotating it means changing every CDN and the origin together.",
+          body: "The simplest form: the CDN adds `X-Origin-Auth: <secret>` and the origin checks it.\n\nIt works on every CDN. But the secret is static. It is visible to anyone who reads config or logs. Rotation needs coordination across vendors, because every CDN and the origin must change together.\n\nUse it only as an extra layer.",
         },
         {
           kind: "read",
           title: "Layer 4: private connectivity",
-          body: "The strongest form gives the origin **no public address**.\n\nIn November 2024 AWS launched **CloudFront VPC origins**. An Application Load Balancer, Network Load Balancer or EC2 instance sits in a private subnet, reachable only through CloudFront via a service-managed network interface. In November 2025 AWS added cross-account support.\n\nThe trade-off: private paths are usually tied to one CDN-cloud pair. A multi-CDN platform ends up mixing private paths where available with authenticated public paths elsewhere.",
+          body: "The strongest form gives the origin **no public address**.\n\nIn November 2024 AWS launched **CloudFront VPC origins**. An Application Load Balancer, Network Load Balancer or EC2 instance sits in a private subnet, reachable only through CloudFront via a service-managed network interface. In November 2025 AWS added cross-account support.\n\nThe trade-off: private paths are usually tied to one CDN-cloud pair. A multi-CDN platform mixes private paths where available with authenticated public paths elsewhere.",
         },
         {
           kind: "read",
@@ -863,9 +869,21 @@ const chapter: Chapter = {
           visual: { kind: "flow", spec: { ...ORIGIN, focus: ["f", "c", "m", "p", "alb", "s3", "gcs", "f>p", "c>s3", "c>alb", "m>s3", "m>gcs"], flow: ["c>s3", "m>s3"] } },
         },
         {
+          kind: "match",
+          teach: "Each vendor has its own way to prove a request came from your configuration. Look back at the edge labels in the \"one platform, many patterns\" diagram.",
+          prompt: "Match each CDN path to its origin-auth pattern.",
+          pairs: [
+            ["CloudFront to S3", "OAC with SigV4 and an AWS:SourceArn condition"],
+            ["CloudFront to a private packager", "VPC origin, no public IP"],
+            ["Media CDN to an S3 bucket", "Private origin auth with SigV4"],
+            ["Fastly to a public origin", "mTLS client certificate plus allowlist"],
+          ],
+          explain: "Different vendors, different mechanisms, one policy: only our CDNs, read only, only the packaged prefix.",
+        },
+        {
           kind: "read",
           title: "The attacker's view",
-          body: "Without a valid certificate or signature, the public endpoint answers 403. The private load balancer has no route at all.\n\nBut the policy is only as strong as the weakest path to the same bytes.",
+          body: "Without a valid certificate or signature, the public endpoint answers 403. The private load balancer has no route at all.\n\nBut the policy is only as strong as the weakest path to the same bytes. A **second path** is any way to reach the same content that skips the locked CDN path.",
           visual: { kind: "flow", spec: { ...ORIGIN, focus: ["x", "p", "alb", "x>p", "x>alb"], flow: ["x>p"] } },
           callout: {
             type: "mistake",
@@ -874,6 +892,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "A second path reaches the same bytes without going through the locked CDN path. Test each option: does it skip the CDN, or is it the CDN path working as intended?",
           prompt: "The catalog bucket admits only your CloudFront distribution. Which of these are still a \"second path\" to the same bytes?",
           options: [
             "A public JIT packager that reads the bucket with its own role",
@@ -895,18 +914,8 @@ const chapter: Chapter = {
           },
         },
         {
-          kind: "match",
-          prompt: "Match each CDN path to its origin-auth pattern.",
-          pairs: [
-            ["CloudFront to S3", "OAC with SigV4 and an AWS:SourceArn condition"],
-            ["CloudFront to a private packager", "VPC origin, no public IP"],
-            ["Media CDN to an S3 bucket", "Private origin auth with SigV4"],
-            ["Fastly to a public origin", "mTLS client certificate plus allowlist"],
-          ],
-          explain: "Different vendors, different mechanisms, one policy: only our CDNs, read only, only the packaged prefix.",
-        },
-        {
           kind: "order",
+          teach: "Ask of each layer: does it only hide the origin, filter by address, prove your configuration, or remove the public address entirely?",
           prompt: "Order the four origin-protection layers from weakest (hygiene) to strongest.",
           items: [
             "Cloaking: no published address",
@@ -936,11 +945,17 @@ const chapter: Chapter = {
       id: "ch15-l5",
       title: "Certificates that never expire by surprise",
       goal: "Explain why certificate expiry is a delivery outage, do the 47-day renewal math, and choose a multi-CDN ACME pattern with guardrails.",
-      minutes: 10,
+      minutes: 11,
       steps: [
         {
+          kind: "read",
+          title: "A file with an expiry date",
+          body: "Every playback starts with a **TLS handshake** (Chapter 4). To finish it, the server shows a **TLS certificate**: a signed file that proves \"this server really is this hostname\". Every certificate has an expiry date.\n\nIn this lesson you will see why an expired certificate is a full outage, why renewals are about to get much more frequent, and how to automate and monitor certificates across several CDNs.",
+        },
+        {
           kind: "quiz",
-          prompt: "The certificate for a segment hostname expires. What happens to playback on that hostname?",
+          guess: true,
+          prompt: "Take a guess. The certificate for a segment hostname expires. What would you expect to happen to playback on that hostname?",
           options: [
             "Video quality drops to the lowest rendition",
             "It fails totally and instantly: players refuse to connect",
@@ -948,12 +963,12 @@ const chapter: Chapter = {
             "Only old smart TVs are affected",
           ],
           answer: 1,
-          explain: "Every playback starts with a TLS handshake. With an expired certificate, players refuse to connect. There is no graceful degradation.",
+          explain: "Think of an expired passport at a border: there is no partial entry. The TLS handshake fails, players refuse to connect, and playback stops at once for everyone on that hostname. There is no graceful degradation.",
         },
         {
           kind: "read",
           title: "A delivery problem",
-          body: "Every playback starts with a TLS handshake (Chapter 4). Every CDN serving a hostname needs a valid certificate and key for it.\n\nWith [[multi-CDN]], one segment hostname may need certificates on three or four vendors. Add origin certificates, mTLS client certificates and internal ones.\n\nAn expired certificate fails totally and instantly.",
+          body: "Every CDN serving a hostname needs a valid certificate and key for it.\n\nWith [[multi-CDN]], one segment hostname may need certificates on three or four vendors. Add origin certificates, mTLS client certificates and internal ones.\n\nAn expired certificate fails totally and instantly.",
         },
         {
           kind: "read",
@@ -963,7 +978,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Lifetimes are shrinking",
-          body: "Rules for public certificates come from the **CA/Browser Forum**, the body of certificate authorities and browser makers. In April 2025 it passed ballot **SC-081v3**, which cuts maximum lifetimes in steps.\n\nThe ballot also cuts how long domain validation can be reused, to 10 days by 2029.",
+          body: "Public certificates are issued by **certificate authorities (CAs)**. The rules come from the **CA/Browser Forum**, the body of CAs and browser makers. In April 2025 it passed ballot **SC-081v3**, which cuts maximum lifetimes in steps.\n\nThe ballot also cuts how long domain validation can be reused, to 10 days by 2029.",
           visual: {
             kind: "table",
             headers: ["From", "Maximum lifetime"],
@@ -977,6 +992,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Place today's date (late 2026) in the table, and take the newest step that has already started.",
           prompt: "As this book is written (late 2026), what is the maximum lifetime of a new public TLS certificate?",
           options: ["398 days", "200 days", "100 days", "47 days"],
           answer: 1,
@@ -985,31 +1001,31 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Revocation is changing too",
-          body: "Let's Encrypt removed OCSP URLs from new certificates in May 2025. It shut down its OCSP responders on 6 August 2025 and moved to CRLs. It also announced short-lived certificates of about six days that carry no revocation URL at all.\n\nThe direction is clear: **shorter certificates, less revocation, full automation.**",
+          body: "**Revocation** cancels a certificate before it expires. Clients learned about it through **OCSP** (an online \"is this still valid?\" check) or **CRLs** (published lists of revoked certificates).\n\nLet's Encrypt removed OCSP URLs from new certificates in May 2025, shut down its OCSP responders on 6 August 2025 and moved to CRLs. It also announced short-lived certificates of about six days that carry no revocation URL at all.\n\nThe direction is clear: **shorter certificates, less revocation, full automation.**",
+        },
+        {
+          kind: "read",
+          title: "Do the renewal math",
+          body: "**Assumed**: 20 public hostnames (web, API, license, several segment and manifest hostnames) on 3 CDNs = 60 certificates, plus 10 origin and mTLS certificates = **70 certificates**.\n\nWith 47-day certificates renewed around day 30, each one renews every 30 days. So **renewals per day = certificates / days between renewals** = 70 / 30 = about **2.3 renewals every day**, forever.\n\nA ticket-based process will fail.",
         },
         {
           kind: "number",
-          prompt: "Assume 20 public hostnames (web, API, license, segments, manifests) served on 3 CDNs, plus 10 origin and mTLS certificates. How many certificates in total?",
-          answer: 70,
-          tolerance: 1,
-          unit: "certs",
-          explain: "20 x 3 = 60 CDN certificates, plus 10 origin and mTLS certificates = 70.",
-        },
-        {
-          kind: "number",
-          prompt: "With 47-day certificates renewed around day 30, how many renewals happen per day across those 70 certificates?",
-          answer: 2.3,
+          teach: "First count certificates: hostnames times CDNs, plus the extra ones. Then divide by the number of days between renewals.",
+          prompt: "Another platform: 40 public hostnames on 2 CDNs, plus 10 origin and mTLS certificates, each renewed every 30 days. How many renewals per day?",
+          answer: 3,
           tolerance: 0.2,
           unit: "per day",
-          explain: "70 / 30 = about 2.3 renewals every day, forever. A ticket-based process will fail.",
+          hint: "40 x 2 + 10 certificates.",
+          explain: "40 x 2 = 80 CDN certificates, plus 10 = 90. 90 / 30 = 3 renewals every day. Only full automation keeps up.",
         },
         {
           kind: "read",
           title: "Automation with ACME",
-          body: "**[[ACME]]** (RFC 8555) lets a client prove control of a domain and get a certificate automatically. There are three challenge types:\n\n- **HTTP-01**: serve a token at a known path.\n- **DNS-01**: publish a TXT record.\n- **TLS-ALPN-01**.\n\nMulti-CDN complicates HTTP-01, because the challenge request may land on any CDN.",
+          body: "**[[ACME]]** (RFC 8555) lets a client prove control of a domain and get a certificate automatically. The CA sends a **challenge**, a task only the domain owner can do. There are three types:\n\n- **HTTP-01**: serve a token at a known web path. The CA fetches it.\n- **DNS-01**: publish a TXT record. The CA looks it up in DNS.\n- **TLS-ALPN-01**.\n\nMulti-CDN complicates HTTP-01, because the challenge request may land on any CDN.",
         },
         {
           kind: "quiz",
+          teach: "For each challenge, ask what the CA must reach to check it. Steering only decides which CDN answers web requests.",
           prompt: "Your hostname is steered across three CDNs. Which ACME challenge does not care which CDN serves traffic?",
           options: ["HTTP-01", "DNS-01", "TLS-ALPN-01", "None of them"],
           answer: 1,
@@ -1022,6 +1038,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Each pattern puts the work somewhere: with each vendor, in your own pipeline, or a mix. Match each to the cost of that choice.",
           prompt: "Match each certificate pattern to its trade-off.",
           pairs: [
             ["CDN-managed", "Simple per vendor, but N renewal systems to watch"],
@@ -1033,7 +1050,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Old devices, old root stores",
-          body: "Video plays on devices browsers forget: 2016 smart TVs, old Android phones, consoles, set-top boxes. Many never update their trusted roots.\n\nThe classic case: the DST Root CA X3 root expired on 30 September 2021. Let's Encrypt had used it for compatibility. Older clients that did not trust its newer ISRG Root X1 began failing.\n\nOn a streaming service this looks like \"playback broken on one TV family\", not a website outage. It is easy to miss without per-device error monitoring (Chapter 11).",
+          body: "Devices trust a fixed list of **root certificates** (their root store). Video plays on devices browsers forget: 2016 smart TVs, old Android phones, consoles, set-top boxes. Many never update that list.\n\nThe classic case: the DST Root CA X3 root expired on 30 September 2021. Let's Encrypt had used it for compatibility. Older clients that did not trust its newer ISRG Root X1 began failing.\n\nOn a streaming service this looks like \"playback broken on one TV family\". It is easy to miss without per-device error monitoring (Chapter 11).",
         },
         {
           kind: "read",
@@ -1046,11 +1063,17 @@ const chapter: Chapter = {
         },
         {
           kind: "read",
-          title: "Certificate guardrails",
-          body: "- **Inventory** built from each CDN's API, not a spreadsheet: hostname, vendor, issuer, expiry, owner, renewal method.\n- **External expiry checks** that open a real TLS connection to every hostname on **every CDN separately**, alerting at, say, 21, 14 and 7 days.\n- **CAA records** listing the CAs allowed to issue for your domain. Include every CA your vendors use, or their renewals fail.\n- **Certificate Transparency monitoring** for certificates you did not request.\n- **Key protection**: vendor stores or a secret manager, never git or plain Terraform state.",
+          title: "Guardrails 1: inventory and expiry checks",
+          body: "- **Inventory** built from each CDN's API, not a spreadsheet: hostname, vendor, issuer, expiry, owner, renewal method.\n- **External expiry checks** that open a real TLS connection to every hostname on **every CDN separately**, alerting at, say, 21, 14 and 7 days.\n\nWhy separately? A normal check looks up DNS like a viewer does, so it only reaches the CDN that steering picks right now.",
+        },
+        {
+          kind: "read",
+          title: "Guardrails 2: CAA, CT and keys",
+          body: "- **CAA records** list the CAs allowed to issue for your domain. Include every CA your vendors use, or their renewals fail.\n- **Certificate Transparency (CT)** logs are public lists of every certificate issued. Watch them for certificates you did not request. An unexpected one is an early sign of a compromised DNS account or rogue CDN config.\n- **Key protection**: vendor stores or a secret manager, never git or plain Terraform state (Chapter 14).",
         },
         {
           kind: "quiz",
+          teach: "A normal check follows DNS the way a viewer does. Ask what it can and cannot see while steering sends traffic to one CDN.",
           prompt: "Why must expiry checks hit every hostname on every CDN separately?",
           options: [
             "CDNs charge less for direct checks",
@@ -1063,6 +1086,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "Good guardrails are automatic, cover every vendor and keep keys secret. For each option ask: will it drift out of date, or leak a key?",
           prompt: "Which of these are good certificate guardrails for a multi-CDN platform?",
           options: [
             "CAA records that include every CA your vendors use",
@@ -1097,16 +1121,22 @@ const chapter: Chapter = {
       minutes: 11,
       steps: [
         {
+          kind: "read",
+          title: "Abuse with a real key",
+          body: "So far the attackers had no valid access. Now look at abuse by people who DO have it: a real login, a real token, a real URL.\n\nIn this lesson you will learn how shared tokens, stream rippers, restreamers and pre-release leaks show up in delivery, what delivery can do about each, and which account rules belong somewhere else.",
+        },
+        {
           kind: "quiz",
-          prompt: "A fan pastes a valid signed manifest URL into a forum. A stranger opens it. What does the edge do?",
+          guess: true,
+          prompt: "Take a guess. A fan pastes a valid signed manifest URL into a forum. A stranger opens it. What would you expect the edge to do?",
           options: [
-            "Blocks it, because the stranger is a different person",
-            "Serves it, until the URL expires",
-            "Asks the playback API who the stranger is",
-            "Serves it only at the lowest quality",
+            "Block it, because the stranger is a different person",
+            "Serve it, until the URL expires",
+            "Ask the playback API who the stranger is",
+            "Serve it only at the lowest quality",
           ],
           answer: 1,
-          explain: "A [[signed URL]] is a bearer credential: whoever holds it can use it until it expires. The edge checks the signature, not the person.",
+          explain: "It serves it. A [[signed URL]] works like a concert ticket: whoever holds it gets in, until it expires. The edge checks the signature and the expiry time, not the person. This kind of credential is called a **bearer credential**.",
         },
         {
           kind: "read",
@@ -1116,15 +1146,16 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Cheap controls first",
-          body: "Controls, cheapest first:\n\n1. **Short lifetimes.** For VOD, the episode length plus a margin, not days. For live, minutes with renewal.\n2. **Path scoping.** Valid for one title's prefix, not the whole catalog.\n3. **Binding** to a session or device ID.\n4. **Log detection.**",
+          body: "Controls, cheapest first:\n\n1. **Short lifetimes.** For **VOD** (video on demand), the episode length plus a margin, not days. For live, minutes with renewal.\n2. **Path scoping.** Valid for one title's prefix, not the whole catalog.\n3. **Binding** to a session or device ID.\n4. **Log detection.**",
         },
         {
           kind: "read",
           title: "Bind to the session, not the IP",
-          body: "Binding to IP breaks for mobile users who move between Wi-Fi and cellular, and for CGNAT users.\n\nSo many platforms bind to the session and use IP only as a detection signal.",
+          body: "Why not bind the token to the viewer's IP address? It breaks for two groups:\n\n- mobile users who move between Wi-Fi and cellular, because their IP changes mid-episode\n- CGNAT users, who share one IP with many others (Lesson 3)\n\nSo many platforms bind to the session and use IP only as a detection signal.",
         },
         {
           kind: "quiz",
+          teach: "Think about one phone during one episode, and about mobile carriers that put many users on one address.",
           prompt: "Why do many platforms NOT bind tokens strictly to the viewer's IP address?",
           options: [
             "IP binding makes the token too long",
@@ -1138,7 +1169,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Detect sharing in logs",
-          body: "CDN logs (Chapter 11) carry the token or session ID, IP, [[ASN]] and country.\n\nOne token used from 40 ASNs in 3 countries in 10 minutes is shared. Feed that back to revoke the session at the playback API and the [[license server]].",
+          body: "CDN logs (Chapter 11) carry the token or session ID, IP, [[ASN]] (the network the request came from) and country.\n\nOne token used from 40 ASNs in 3 countries in 10 minutes is shared. Feed that back to revoke the session at the playback API and the [[license server]].",
         },
         {
           kind: "widget",
@@ -1149,6 +1180,7 @@ const chapter: Chapter = {
         },
         {
           kind: "order",
+          teach: "Recall the numbered list of controls. Ask how much machinery each needs: a token field, a session ID in the token, or a pipeline from logs back to the playback API.",
           prompt: "Order the token-sharing controls from cheapest to most involved, as the book lists them.",
           items: [
             "Short lifetimes",
@@ -1165,19 +1197,27 @@ const chapter: Chapter = {
         },
         {
           kind: "read",
-          title: "Signals delivery can see",
-          body: "- **Pull speed.** A real player keeps a buffer of tens of seconds, then pulls at real-time pace. A session that downloads a 24-minute episode in 90 seconds is not watching.\n- **Rendition pattern.** Rippers lock on the top rendition, or fetch several.\n- **Network origin.** Data-centre ASNs are rare for viewers and common for restreamers. But VPN and enterprise users look similar, so use it as a signal, not a block.",
+          title: "Signal 1: pull speed",
+          body: "A real player keeps a buffer of tens of seconds, then pulls at real-time pace. A ripper pulls as fast as it can.\n\nMeasure it as **times real time = content length / download time**, both in seconds.\n\nExample: a session downloads a 24-minute episode (24 x 60 = 1,440 s) in 90 seconds. 1,440 / 90 = **16 times real time**. That session is not watching.",
         },
         {
           kind: "number",
-          prompt: "A session downloads a 24-minute episode in 90 seconds. How many times faster than real time is that?",
-          answer: 16,
+          teach: "Put both times in seconds, then divide the content length by the download time.",
+          prompt: "A session downloads a 30-minute episode in 2 minutes. How many times faster than real time is that?",
+          answer: 15,
           tolerance: 1,
           unit: "x",
-          explain: "24 minutes = 1,440 s. 1,440 / 90 = 16 times real time. A real player pulls at about real-time pace after filling its buffer.",
+          hint: "30 minutes is 1,800 s; 2 minutes is 120 s.",
+          explain: "30 minutes = 1,800 s and 2 minutes = 120 s. 1,800 / 120 = 15 times real time. A real player pulls at about real-time pace after filling its buffer.",
+        },
+        {
+          kind: "read",
+          title: "Signals 2 and 3",
+          body: "- **Rendition pattern.** Rippers lock on the top rendition, or fetch several.\n- **Network origin.** Data-centre ASNs are rare for viewers and common for restreamers. But VPN and enterprise users look similar, so use it as a signal, not a block.",
         },
         {
           kind: "match",
+          teach: "Each signal measures one thing: how fast, which renditions, or which network. Match each pattern to the thing it measures.",
           prompt: "Match each signal to the ripping or restreaming pattern it reveals.",
           pairs: [
             ["Pull speed", "Whole episode downloaded far faster than real time"],
@@ -1194,11 +1234,12 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Pre-release leaks",
-          body: "To avoid a cold start at release (Chapter 13), episodes are packaged and staged before public release.\n\nIf segment paths are predictable, like `/show-123/ep-07/1080p/seg_00001.m4s`, someone can guess episode 8 early.",
+          body: "To avoid a cold start at release (Chapter 13), episodes are packaged and staged before public release. Teams also **[[pre-warm|Pre-warming]]** edge caches: they load the episode into cache before viewers ask, so the first fans get cache hits.\n\nIf segment paths are predictable, like `/show-123/ep-07/1080p/seg_00001.m4s`, someone can guess episode 8 early.",
         },
         {
           kind: "quiz",
-          prompt: "The team [[pre-warms|Pre-warming]] edge caches with episode 8 an hour before release, and the warmed objects need no token. What is the risk?",
+          teach: "Pre-warmed objects sit in a hot cache before release. Ask what happens if reading them needs no token and the path can be guessed.",
+          prompt: "The team pre-warms edge caches with episode 8 an hour before release, and the warmed objects need no token. What is the risk?",
           options: [
             "None: the objects are only in cache",
             "Pre-warming makes the leak faster: anyone who guesses the path gets a fast cache hit",
@@ -1225,7 +1266,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Concurrency lives in the control plane",
-          body: "**Concurrency enforcement belongs in the control plane**: the playback API, session and license services. Not the CDN.\n\nDelivery supplies evidence from logs and a reliable revoke path.",
+          body: "**Concurrency enforcement** (\"max N streams at once\") **belongs in the control plane**: the playback API, session and license services. Not the CDN.\n\nWhy? Edge state is per PoP or per vendor. One user on two CDNs in two cities looks like two users there.\n\nDelivery supplies evidence from logs and a reliable revoke path.",
           callout: {
             type: "mistake",
             text: "Enforcing account rules in edge code with per-account counters. Edge state is per PoP or per vendor; one user on two CDNs in two cities looks like two users. Keep account logic in one central service; the edge only validates short-lived tokens it issued.",
@@ -1233,6 +1274,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Edge state lives in one PoP of one vendor. Ask which place can see every stream of an account at the same time.",
           prompt: "Where should a \"max 4 concurrent streams\" rule be enforced?",
           options: [
             "In edge code, with a counter per account in each PoP",
@@ -1265,7 +1307,41 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "Attacks that skip the request path",
+          body: "Attackers do not only come through viewer traffic. They also come through the cloud accounts that hold the catalog, the consoles that configure CDNs, and the code that runs at the edge.\n\nIn this lesson you will learn least privilege and guardrails for cloud accounts, how to lock down a CDN control plane, how supply-chain attacks reach edge code, and how to review a delivery change with the Security team.",
+        },
+        {
           kind: "quiz",
+          guess: true,
+          prompt: "Take a guess. A thief steals one key from an office building. What would you expect decides how much damage they can do?",
+          options: [
+            "How clever the theft was",
+            "Which doors that key opens",
+            "How expensive the lock was",
+            "How old the key is",
+          ],
+          answer: 1,
+          explain: "Which doors it opens. In the cloud, a stolen credential can do exactly what its permissions allow, no more. Giving every key only the doors it needs is called **least privilege**. Next you will see a real breach where the key's reach mattered more than the bug that leaked it.",
+        },
+        {
+          kind: "read",
+          title: "Cloud security posture",
+          body: "**Cloud security posture** is the configuration state of the accounts that hold the catalog and run packagers, steering and URL signing.\n\nIt answers: who can do what, what is exposed, what is encrypted and what is logged.",
+        },
+        {
+          kind: "read",
+          title: "Learning from Capital One",
+          body: "Published analyses of the 2019 Capital One breach describe a misconfigured WAF on EC2 with a **server-side request forgery (SSRF)** flaw: the attacker could make the server send requests of their choice.\n\nThey made it call the EC2 **instance metadata service** (a local address where a server gets its own temporary credentials), took the role's credentials, and used its broad permissions to read S3 data.\n\nAWS later introduced **IMDSv2**. It requires a session token obtained by a PUT request, which defeats simple SSRF where the attacker controls only a URL.",
+        },
+        {
+          kind: "read",
+          title: "Three lessons for delivery",
+          body: "1. **Security boxes are attack surface.** A WAF, proxy or packager that fetches URLs is an SSRF target. Origin services must never fetch arbitrary hostnames from request input.\n2. **The role mattered more than the bug.** Least privilege limits the damage of bugs you have not found yet.\n3. **Defaults matter.** Require IMDSv2 everywhere through organization policy.",
+        },
+        {
+          kind: "quiz",
+          teach: "Recall the three lessons from the breach, especially the second one: what decided how far the stolen credentials could reach.",
           prompt: "In the 2019 Capital One breach, an SSRF bug in a WAF let the attacker get an EC2 role's credentials. What turned that bug into a large data breach?",
           options: [
             "The bug was in the database engine",
@@ -1278,23 +1354,8 @@ const chapter: Chapter = {
         },
         {
           kind: "read",
-          title: "Cloud security posture",
-          body: "**Cloud security posture** is the configuration state of the accounts that hold the catalog and run packagers, steering and URL signing.\n\nIt answers: who can do what, what is exposed, what is encrypted and what is logged.",
-        },
-        {
-          kind: "read",
-          title: "Learning from Capital One",
-          body: "Published analyses of the 2019 Capital One breach describe a misconfigured WAF on EC2 with a **server-side request forgery (SSRF)** flaw. The attacker made it call the EC2 **instance metadata service**, took the instance role's temporary credentials, and used the role's broad permissions to read S3 data.\n\nAWS later introduced **IMDSv2**. It requires a session token obtained by a PUT request, which defeats simple SSRF where the attacker controls only a URL.",
-        },
-        {
-          kind: "read",
-          title: "Three lessons for delivery",
-          body: "1. **Security boxes are attack surface.** A WAF, proxy or packager that fetches URLs is an SSRF target. Origin services must never fetch arbitrary hostnames from request input.\n2. **The role mattered more than the bug.** Least privilege limits the damage of bugs you have not found yet.\n3. **Defaults matter.** Require IMDSv2 everywhere through organization policy.",
-        },
-        {
-          kind: "read",
           title: "Guardrails for catalog accounts",
-          body: "Each guardrail has a concrete delivery form.",
+          body: "A **guardrail** is a default or policy that keeps people safe even when they forget. Each one has a concrete delivery form.",
           visual: {
             kind: "table",
             headers: ["Guardrail", "Delivery example"],
@@ -1312,6 +1373,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Use the guardrail table. Each guardrail has one concrete delivery form; look for the matching key words.",
           prompt: "Match each guardrail to its delivery example.",
           pairs: [
             ["Least-privilege IAM", "CDN reader gets s3:GetObject on packaged/* only"],
@@ -1325,10 +1387,11 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "CDN control-plane security",
-          body: "- **SSO and MFA** for all humans in CDN consoles. No shared logins.\n- **Scoped API tokens**: separate tokens to purge one service, deploy its config, read logs. Very few touch TLS, DNS or all services.\n- **Purge is a weapon.** A purge-all on a hot service drops the hit ratio to near zero and can melt shield and origin in a premiere. Keep it for break-glass roles; prefer [[surrogate key]] purges.\n- **Config change alerts.** Every change on every CDN logs who, what, when; changes outside CI page someone.",
+          body: "- **SSO and MFA** for all humans in CDN consoles. No shared logins.\n- **Scoped API tokens**: separate tokens to purge one service, deploy its config, read logs. Very few touch TLS, DNS or all services.\n- **Purge is a weapon.** A purge-all on a hot service drops the hit ratio to near zero and can melt shield and origin in a premiere. Keep it for **break-glass** (emergency-only) roles; prefer [[surrogate key]] purges.\n- **Config change alerts.** Every change logs who, what, when; changes outside CI page someone.",
         },
         {
           kind: "quiz",
+          teach: "A purge empties cached objects. Think about the hit ratio, and where every request goes, right after a purge-all during a premiere.",
           prompt: "Why does the book call purge \"a weapon\"?",
           options: [
             "Purge requests are expensive API calls",
@@ -1370,7 +1433,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Supply-chain controls",
-          body: "Each control blocks a different step of these attacks.",
+          body: "Each control blocks a different step of these attacks. **OIDC** lets CI get short-lived cloud credentials per job. **SRI** (Subresource Integrity) makes the browser check a script against a known hash.",
           visual: {
             kind: "table",
             headers: ["Control", "Practical form"],
@@ -1388,6 +1451,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "For each attack, find the step it abuses: a stolen long-lived token, a domain that changed owner, a brand-new package version, or an unreviewed deploy. Then pick the control that blocks that step.",
           prompt: "Match each attack to the control that blocks it best.",
           pairs: [
             ["A worm steals long-lived npm and CI tokens", "Short-lived CI credentials via OIDC"],
@@ -1416,6 +1480,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Look at the \"Token abuse\" row of the ownership table. Each team plays a different part: signals, detection, tracing, or action on the session.",
           prompt: "Logs show a token is being shared. In the assumed split, which team actually revokes the session?",
           options: ["Media Delivery", "Security", "Content Protection", "Identity and Playback"],
           answer: 3,
@@ -1427,24 +1492,13 @@ const chapter: Chapter = {
           body: "For every delivery change:\n\n1. **Exposure.** New public hostname, port or path? Behind a CDN's DDoS protection?\n2. **Origin path.** Can anything reach origin without an authenticated CDN path?\n3. **Credentials.** New secrets: storage, readers, blast radius, rotation?\n4. **Access.** Token lifetime, scope or binding changed? Pre-release reachable?\n5. **Certificates.** Renewal automated and monitored per vendor?\n6. **Parity.** Does the rule exist on every CDN?\n7. **Logging and supply chain.** Visible to Security? New dependencies or scripts?\n8. **Failure behaviour.** Fail open or closed, and deliberately?",
         },
         {
-          kind: "multi",
-          prompt: "A change adds a new segment hostname on a newly added CDN. Which review questions clearly apply?",
-          options: [
-            "Exposure: is it behind the CDN's DDoS protection?",
-            "Certificates: is renewal automated and monitored on this vendor?",
-            "Parity: do our token and rate rules exist on the new CDN?",
-            "Origin path: does the new CDN reach origin through an authenticated path?",
-          ],
-          answers: [0, 1, 2, 3],
-          explain: "All four apply. A new hostname on a new vendor touches exposure, certificates, parity and origin authentication at once, which is why the checklist exists.",
-        },
-        {
           kind: "read",
           title: "Fail open or fail closed?",
           body: "The last question is the staff-level one.\n\nFailing **closed** on token validation during a premiere means nobody watches. Failing **open** means anyone can.\n\nA common middle path: if the token service is down, the edge keeps accepting tokens signed with the last known key for a short grace period. But it never accepts requests with no token.",
         },
         {
           kind: "quiz",
+          teach: "Recall the middle path: what the edge keeps accepting for a short time, and what it never accepts.",
           prompt: "The token-signing service goes down during a premiere. What does the common middle path do at the edge?",
           options: [
             "Reject every request until the service returns",
@@ -1478,12 +1532,18 @@ const chapter: Chapter = {
       minutes: 9,
       steps: [
         {
+          kind: "read",
+          title: "What this chapter covered",
+          body: "This chapter covered:\n\n- **Threat model first**: unusual assets, four trust boundaries, blast radius of every secret.\n- **DDoS** dwarfs any platform: anycast CDNs absorb it; normalized cache keys and edge tokens are DDoS controls.\n- **Deep WAF on API and license hostnames**, tokens on segments, rate limits by session, not IP.\n- **Origin protection** in layers: an allowlist alone admits every tenant of the CDN.\n- **Certificates** head to 47 days: automate, monitor per CDN.\n- **Account rules, least privilege and supply chain** live outside the edge.",
+        },
+        {
           kind: "reveal",
           prompt: "Why is an allowlist of CDN IP ranges not enough to protect an origin, and what must be added?",
           answer: "An allowlist proves only that the request came from some server of that CDN; other customers can point the same CDN at your origin. Add authentication tied to your configuration: OAC with an AWS:SourceArn condition, Media CDN SigV4 private origin auth, mTLS with your own client certificate, or private connectivity such as CloudFront VPC origins.",
         },
         {
           kind: "number",
+          teach: "Each player fetches about one segment per segment length. Divide viewers by segment seconds.",
           prompt: "Assumed model: 2M viewers at a premiere with 4 s segments. Estimate segment requests per second.",
           answer: 500000,
           tolerance: 25000,
@@ -1492,6 +1552,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Compare the attack with the real peak of about 1M rps. Then recall what share of traffic the origin sees at a 95% hit ratio.",
           prompt: "Why can a 200M rps attack not be handled at origin?",
           options: [
             "Origins cannot speak HTTP/2",
@@ -1504,6 +1565,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall what makes each request look like a new object to the cache, and which part of the URL the cache key keeps.",
           prompt: "What is a cache-busting attack, and which configuration change turns most of it into cache hits?",
           options: [
             "Purging the cache repeatedly; fix it with longer TTLs",
@@ -1521,6 +1583,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall how mobile carriers in these regions share public IP addresses among their users.",
           prompt: "Why is per-IP rate limiting risky for a service with many mobile viewers in Asia and Latin America?",
           options: [
             "Mobile IPs change every request",
@@ -1538,6 +1601,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "List every way someone could get the bytes before release: guessable paths, tokens issued too early, an origin that skips the edge. Then ask which options would actually open one of those ways.",
           prompt: "The edge requires tokens, yet a simulcast episode leaks before release. Which of these could cause it?",
           options: [
             "Predictable staged paths combined with tokenless pre-warmed cache objects",
@@ -1551,6 +1615,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "Recall the \"Attack or premiere?\" table in Lesson 3 and the signal named in each of its rows.",
           prompt: "During a premiere, request rates jump 20x. Which are signals for deciding whether it is an attack?",
           options: [
             "Token validity rate",
@@ -1565,6 +1630,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall the CA/Browser Forum steps for 2026, 2027 and 2029. Do not mix them up with one CA's own short-lived option.",
           prompt: "Which maximum certificate lifetime does the CA/Browser Forum ballot set for 2029?",
           options: ["200 days", "100 days", "47 days", "6 days"],
           answer: 2,
@@ -1572,6 +1638,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall Lesson 7: attacks also come through cloud accounts, CDN consoles and pipelines, not only through viewer traffic.",
           prompt: "Which of these is delivery security, according to the chapter's takeaways?",
           options: [
             "Only DDoS protection and WAF rules",

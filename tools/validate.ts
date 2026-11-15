@@ -10,6 +10,21 @@ for (const c of CHAPTERS) {
   for (const l of c.lessons) {
     lessons++;
     if (ids.has(l.id)) err(`dup lesson id ${l.id}`); ids.add(l.id);
+    // Teach-first rules (checkpoint lessons are exempt from the pacing rules)
+    const scored = (s: any) => ["quiz", "multi", "number", "order", "match"].includes(s.kind) && !s.guess;
+    const isCheckpoint = /checkpoint/i.test(l.title);
+    if (l.steps[0]?.kind !== "read") err(`${l.id}: first step must be a read step (teach first)`);
+    const guesses = l.steps.filter((s: any) => s.guess).length;
+    if (guesses > 1) err(`${l.id}: ${guesses} guess steps (max 1)`);
+    const firstRead = l.steps.findIndex((s) => s.kind === "read");
+    l.steps.slice(0, firstRead).forEach((s, i) => { if (scored(s)) err(`${l.id} step ${i + 1}: scored question before any teaching`); });
+    if (!isCheckpoint) {
+      let run = 0;
+      l.steps.forEach((s, i) => { run = scored(s) ? run + 1 : 0; if (run > 2) err(`${l.id} step ${i + 1}: more than 2 scored questions in a row`); });
+      const sc = l.steps.filter(scored).length, rd = l.steps.filter((s) => s.kind === "read").length;
+      if (sc > Math.ceil(rd / 2) + 1) err(`${l.id}: ${sc} scored questions for ${rd} read steps (max about 1 per 2)`);
+    }
+    l.steps.forEach((s: any, i) => { if (scored(s) && !s.teach) warn(`${l.id} step ${i + 1}: scored question without teach`); });
     l.steps.forEach((s, i) => {
       steps++; const at = `${l.id} step ${i + 1} (${s.kind})`;
       if (!["read", "summary"].includes(s.kind)) inter++;

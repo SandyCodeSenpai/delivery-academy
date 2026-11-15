@@ -33,8 +33,16 @@
 .lp-keys-btn { margin: 0 -8px 0 -4px; }
 @media (hover: none), (pointer: coarse) { .lp-keys-btn { display: none; } }
 
-.lp-progress { flex: 1; min-width: 0; display: flex; gap: 3px; height: 6px; }
-.lp-seg { flex: 1; min-width: 2px; height: 100%; border-radius: 3px; background: var(--surface-3); overflow: hidden; transition: background-color 200ms var(--ease-color); }
+.lp-progress { flex: 1; min-width: 0; display: flex; align-items: stretch; height: 28px; }
+/* Each segment sits in a taller hit area; visited ones are buttons that jump back. */
+.lp-seg-hit {
+  flex: 1; min-width: 2px; display: flex; align-items: center; padding: 0 1.5px; margin: 0;
+  border: 0; background: transparent; cursor: default; -webkit-tap-highlight-color: transparent;
+}
+.lp-seg-hit:first-child { padding-left: 0; } .lp-seg-hit:last-child { padding-right: 0; }
+.lp-seg-hit.reach { cursor: pointer; }
+.lp-seg-hit.reach:hover .lp-seg { box-shadow: 0 0 0 2px color-mix(in srgb, var(--part) 30%, transparent); }
+.lp-seg { display: block; flex: 1; height: 6px; border-radius: 3px; background: var(--surface-3); overflow: hidden; transition: background-color 200ms var(--ease-color), box-shadow 160ms var(--ease-color); }
 .lp-seg.on { background: color-mix(in srgb, var(--part) 28%, var(--surface-3)); }
 .lp-seg i { display: block; width: 100%; height: 100%; background: var(--part); transform-origin: left center; transform: scaleX(0); }
 
@@ -300,7 +308,7 @@
 .lp.is-wide .lp-bar-inner { max-width: 1000px; }
 .lp.is-split .lp-bar-inner { max-width: 1320px; display: grid; grid-template-columns: minmax(0, 3fr) minmax(360px, 2fr); column-gap: 48px; }
 .lp.is-split .lp-bar-inner > * { grid-column: 2; }
-.lp.is-split .lp-cta.ui-btn { flex: 1 1 auto; width: auto; }
+.lp.is-split .lp-bar-actions { flex: 1 1 auto; width: auto; }
 .lp-fb { overflow: hidden; }
 .lp-fb-inner { padding: 20px 0 2px; max-height: min(52vh, 420px); overflow-y: auto; overscroll-behavior: contain; }
 .lp-fb-head { display: flex; align-items: center; gap: 10px; }
@@ -329,7 +337,19 @@
 }
 .lp-link:hover { text-decoration: underline; text-underline-offset: 3px; }
 
-.lp-cta.ui-btn { flex: 0 1 400px; width: 400px; max-width: 100%; height: 52px; margin-bottom: 3px; gap: 10px; border-radius: var(--radius-m); letter-spacing: -0.016em; }
+.lp-bar-actions { flex: 0 1 462px; width: 462px; max-width: 100%; display: flex; gap: 10px; align-items: flex-start; }
+.lp-cta.ui-btn { flex: 1 1 auto; min-width: 0; height: 52px; margin-bottom: 3px; gap: 10px; border-radius: var(--radius-m); letter-spacing: -0.016em; }
+/* Back: a quiet secondary key with the 2px hairline edge, left of the one primary button. */
+.lp-back {
+  flex: none; width: 52px; height: 52px; margin-bottom: 3px; display: grid; place-items: center; cursor: pointer;
+  border-radius: var(--radius-m); border: 1px solid var(--line); background: var(--surface); color: var(--ink-2);
+  box-shadow: 0 2px 0 var(--tile-edge); -webkit-tap-highlight-color: transparent;
+  transition: transform var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease), background-color var(--dur) var(--ease-color), color var(--dur) var(--ease-color), opacity var(--dur) var(--ease-color);
+}
+.lp-back:hover:not(:disabled) { background: var(--surface-2); color: var(--ink); }
+.lp-back:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 0 0 var(--tile-edge); }
+.lp-back:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.lp-back:disabled { cursor: default; box-shadow: none; border-color: var(--line-soft); background: transparent; color: var(--muted); opacity: .45; }
 .lp-cta.ui-btn:hover:not(:disabled) { filter: brightness(1.05); }
 .lp-cta.ui-btn:disabled { margin-bottom: 3px; }
 .lp-kbd {
@@ -341,7 +361,7 @@
 @media (max-width: 600px) {
   .lp-bar-row { flex-direction: column; align-items: stretch; gap: 8px; padding: 12px 0 14px; }
   .lp-bar-side { justify-content: center; text-align: center; }
-  .lp-cta.ui-btn { flex: none; width: 100%; }
+  .lp-bar-actions { flex: none; width: 100%; }
   .lp-fb-inner { padding-top: 18px; max-height: 50vh; }
 }
 
@@ -432,3 +452,89 @@
 }
 @media (max-width: 600px) { .lp-vmodal-root { padding: 8px; } .lp-vmodal { padding: 52px 10px 12px; max-height: calc(100dvh - 16px); } }
 .lp-step.is-wide .lp-task, .lp-step.is-wide .lp-title { max-width: var(--lp-col); }
+
+/* ---------------- Teach first: lesson opener, looking back ---------------- */
+.lp-goal { margin: 0 0 20px; padding: 0 0 14px; border-bottom: 1px solid var(--line-soft); }
+.lp-goal-label { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; font-size: 13px; line-height: 18px; font-weight: 600; color: var(--muted); }
+.lp-goal-label::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--part); flex: none; }
+.lp-goal-text { margin: 0; font-size: 15px; line-height: 22px; color: var(--ink-2); text-wrap: pretty; }
+.lp.is-split .lp-goal { max-width: var(--lp-col); }
+.lp-seg.here { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px color-mix(in srgb, var(--part) 55%, transparent); }
+.lp-past {
+  display: table; margin: 0 0 12px; padding: 4px 10px; border-radius: var(--radius-pill);
+  background: var(--surface-2); color: var(--muted); font-size: 13px; line-height: 18px; font-weight: 500;
+}
+
+/* ---------------- Guess steps: calm accent, no exam look ---------------- */
+.lp-guess { margin-bottom: 10px; }
+.lp-guess-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.lp-guess-pill {
+  display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 11px 0 9px; border-radius: var(--radius-pill);
+  background: var(--accent-soft); color: var(--accent-text); font-size: 13px; line-height: 18px; font-weight: 600;
+}
+.lp-guess-kind { font-size: 13px; line-height: 18px; font-weight: 600; color: var(--muted); }
+.lp-guess-note { margin: 6px 0 0; font-size: 14px; line-height: 20px; color: var(--muted); }
+
+.lp-tile.st-ans { --edge: color-mix(in srgb, var(--accent) 45%, var(--accent-soft)); border-color: var(--accent); background: var(--accent-soft); }
+.lp-tile.st-ans .lp-tile-badge.key { border-color: var(--accent); color: var(--accent-text); }
+.lp-tile.st-ans .lp-box { background: var(--accent); border-color: var(--accent); }
+.lp-tile.st-ans .lp-tile-tag { background: var(--surface); color: var(--accent-text); }
+.lp-tile-mark.ans { background: var(--accent); }
+.lp-tile.st-picked { --edge: var(--tile-edge); background: var(--surface-2); border-color: var(--line); }
+.lp-tile.st-picked .lp-box { background: var(--muted); border-color: var(--muted); }
+.lp-tile.st-nope { --edge: var(--tile-edge); background: var(--surface-3); border-color: var(--line); }
+.lp-tile.st-ans:disabled, .lp-tile.st-picked:disabled { opacity: 1; }
+.lp-num.st-guess { border-color: var(--accent); background: var(--accent-soft); }
+.lp-num-answer.guess { color: var(--accent-text); }
+.lp-subnote.guess { color: var(--accent-text); }
+
+/* Guess feedback sheet: accent, never red; the explanation is a teaching card. */
+.lp-bar.tone-guess { background: var(--accent-soft); border-top-color: transparent; }
+.lp-fb-icon.tone-guess { background: var(--accent); }
+.tone-guess .lp-fb-title { color: var(--accent-text); }
+.lp-fb-teach {
+  margin-top: 12px; padding: 14px 16px; border-radius: var(--radius-m); background: var(--surface);
+  box-shadow: var(--shadow-1), var(--highlight); font-size: 16px; line-height: 24px; color: var(--ink);
+}
+.lp-fb-teach-label { font-size: 13px; line-height: 18px; font-weight: 600; color: var(--accent-text); margin-bottom: 4px; }
+
+/* ---------------- "I'm not sure, teach me" ---------------- */
+.lp-teach-slot { margin: -10px 0 18px; }
+.lp-teach-link {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 12px 0 8px; margin-left: -8px;
+  border: 0; border-radius: var(--radius-s); background: transparent; cursor: pointer;
+  font-size: 15px; line-height: 20px; font-weight: 600; color: var(--accent-text); -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--dur-fast) var(--ease-color);
+}
+.lp-teach-link:hover { background: var(--accent-soft); }
+.lp-teach-link:active { transform: scale(.97); }
+.lp-teach-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.lp-teach-kbd {
+  font-family: var(--font-mono); font-size: 11px; line-height: 16px; font-weight: 500; padding: 1px 6px; border-radius: 5px;
+  background: color-mix(in srgb, currentColor 14%, transparent); opacity: .8;
+}
+@media (hover: none), (pointer: coarse) { .lp-teach-kbd { display: none; } }
+.lp-teach {
+  padding: 14px 16px 16px; border-radius: var(--radius-m); background: var(--surface-2);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.lp-teach-label { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; font-size: 13px; line-height: 18px; font-weight: 600; color: var(--accent-text); }
+.lp-teach-body, .lp-teach-body .tx { margin: 0; font-size: var(--fs-callout); line-height: var(--lh-callout); color: var(--ink); }
+.lp-teach-back {
+  display: inline-flex; align-items: center; gap: 4px; min-height: 40px; margin: 8px 0 -6px -6px; padding: 0 12px 0 6px;
+  border: 0; border-radius: var(--radius-s); background: transparent; cursor: pointer;
+  font-size: 15px; font-weight: 600; color: var(--accent-text);
+}
+.lp-teach-back:hover { background: var(--accent-soft); }
+.lp-teach-back:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------------- Completion: help taken ---------------- */
+.lc-taught {
+  display: inline-flex; align-items: center; gap: 8px; margin: 14px auto 0; padding: 8px 14px; border-radius: var(--radius-m);
+  background: var(--accent-soft); color: var(--accent-text); font-size: 14px; line-height: 20px; font-weight: 500; max-width: 100%; text-align: left;
+}
+.lc-taught svg { flex: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-back, .lp-teach-link, .lp-seg { transition: none; }
+}

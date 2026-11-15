@@ -170,11 +170,17 @@ const chapter: Chapter = {
       id: "ch06-l1",
       title: "Where the bytes really live",
       goal: "Explain what a VOD origin is, its two shapes, the limits of object storage, and how big Crunchyroll's origin likely is.",
-      minutes: 9,
+      minutes: 11,
       steps: [
         {
+          kind: "read",
+          title: "Behind every cache",
+          body: "A viewer in Paris plays a 3-year-old episode. The CDN server near Paris does not have segment 57 in its cache. Somewhere, something must have the real file.\n\nThis lesson is about that something. By the end you will be able to say what an origin is, name its two common shapes, list the limits of object storage, and estimate how big Crunchyroll's origin likely is.",
+        },
+        {
           kind: "quiz",
-          prompt: "A viewer in Paris plays a 3-year-old episode. The edge cache does not have segment 57. Where does the CDN get it?",
+          guess: true,
+          prompt: "Take a guess. The CDN server near Paris does not have segment 57. Where would you expect the CDN to get it?",
           options: [
             "From the player's buffer on another device",
             "From the origin, the source of truth behind the cache",
@@ -182,12 +188,12 @@ const chapter: Chapter = {
             "Nowhere: the viewer gets an error",
           ],
           answer: 1,
-          explain: "A CDN is a cache, and every cache needs a source of truth behind it. On a miss, the CDN fetches the object from the **origin**.",
+          explain: "A CDN is a cache: fast copies of files kept close to viewers. Every cache needs a **source of truth** behind it, a place that always has every file. When the cache does not have a file (a **miss**), the CDN fetches it from that place, the **origin**, and keeps a copy for the next viewer.",
         },
         {
           kind: "read",
           title: "The source of truth",
-          body: "An **[[origin]]** is where a CDN fetches content it does not have in cache. On a miss, the origin decides whether the viewer gets a segment in 80 milliseconds, in 3 seconds, or never.\n\nAt a 95% edge hit ratio, the origin still sees 5% of a very large number. With three CDNs it can see that 5% three times. And when a big episode goes live in 200 countries at once, it sees it all in the same minute.",
+          body: "An **[[origin]]** is where a CDN fetches content it does not have in cache. On a miss, the origin decides whether the viewer gets a segment in 80 milliseconds, in 3 seconds, or never.\n\nThe **hit ratio** is the share of requests a cache serves itself. At a 95% edge hit ratio, the origin still sees 5% of a huge number. With three CDNs, it can see that 5% three times. When a big episode goes live in 200 countries at once, it sees it all in the same minute.",
         },
         {
           kind: "read",
@@ -197,7 +203,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Two shapes of origin",
-          body: "1. **Static object-store origin.** Packaging writes every segment and manifest into object storage such as **Amazon S3** or **Google Cloud Storage (GCS)**. The CDN fetches the files directly. The origin does no computing.\n\n2. **Origin service in front of storage.** Usually a **[[just-in-time (JIT) packager|just-in-time packaging (JIT)]]** such as AWS Elemental MediaPackage or Unified Origin. Storage holds one set of encoded files, and the packager builds HLS or DASH segments and manifests on request.",
+          body: "1. **Static object-store origin.** Packaging writes every segment and manifest into object storage such as **Amazon S3** or **Google Cloud Storage (GCS)**. The CDN fetches the files directly. The origin does no computing.\n\n2. **Origin service in front of storage.** Usually a **[[just-in-time (JIT) packager|just-in-time packaging (JIT)]]** such as AWS Elemental MediaPackage or Unified Origin. Storage holds one set of encoded files, and the packager builds HLS or DASH (the two common streaming formats) segments and manifests on request.",
           visual: {
             kind: "compare",
             left: { title: "Static object store", points: ["Just reads bytes", "Every format stored", "S3 or GCS bucket"] },
@@ -207,7 +213,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "The cost of one miss",
-          body: "The two shapes fail in different ways. A bucket can throttle or miss an object. A packager can run out of CPU, hit a bug or start cold.\n\nSo the more work the origin does per request, the more it needs a shield in front of it.",
+          body: "The two shapes fail in different ways. A bucket can throttle (slow down requests) or miss an object. A packager can run out of CPU, hit a bug or start cold.\n\nSo the more work the origin does per request, the more it needs a **shield**: an extra cache layer in front of it that absorbs misses (lesson 3).",
           visual: {
             kind: "table",
             headers: ["Property", "Static object store", "Origin service (JIT)"],
@@ -222,6 +228,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Compare the work each origin does for one cache miss, then imagine thousands of misses arriving at once.",
           prompt: "Which origin most needs a shield in front of it?",
           options: [
             "A static S3 bucket of pre-packaged segments",
@@ -234,7 +241,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Why object storage is the default",
-          body: "Object storage is the default VOD origin. It is very durable (GCS is designed for at least eleven nines of annual durability), it scales without servers, and it is strongly consistent.\n\nBut it has three limits that matter for delivery: **latency**, **request rate per prefix**, and **no caching logic**.",
+          body: "Object storage is the default VOD origin. It is very **durable** (it almost never loses data: GCS is designed for at least eleven nines of annual durability). It scales without servers. And it is **strongly consistent**: after a write, every read sees the new version.\n\nBut it has three limits that matter for delivery: **latency**, **request rate per prefix**, and **no caching logic**.",
           visual: {
             kind: "stats",
             items: [
@@ -248,10 +255,11 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "The three limits",
-          body: "- **Latency.** AWS cites about 100–200 ms first-byte latency for S3. Fine for a cache fill, far too slow for every segment.\n- **Request rate per prefix.** At least 3,500 writes and 5,500 GET/HEAD per second per partitioned prefix. Scaling beyond that “happens gradually”, with temporary **503 Slow Down** errors meanwhile. A flood of misses on a brand-new episode prefix is exactly this pattern.\n- **No caching logic.** If 500 CDN servers ask for one object at once, the bucket serves and bills 500 reads.",
+          body: "- **Latency.** AWS cites about 100–200 ms to the first byte for S3. Fine for a cache fill, far too slow for every segment.\n- **Request rate per prefix.** A **prefix** is the start of an object's path, like a folder. S3 handles at least 3,500 writes and 5,500 GET/HEAD per second per prefix. Beyond that, scaling “happens gradually”, with temporary **503 Slow Down** errors meanwhile.\n- **No caching logic.** If 500 CDN servers ask for one object at once, the bucket serves and bills 500 reads.",
         },
         {
           kind: "multi",
+          teach: "Go back over the three limits: speed, requests per prefix, and caching. Also recall the two things object storage is very good at.",
           prompt: "Which of these are real limits of S3 as a delivery origin? Select all that apply.",
           options: [
             "About 100–200 ms to first byte",
@@ -261,12 +269,12 @@ const chapter: Chapter = {
             "It serves stale versions because it is only eventually consistent",
           ],
           answers: [0, 1, 2],
-          explain: "Latency, per-prefix request limits and no caching logic are the real limits. Object storage is extremely durable and strongly consistent, so the last two are wrong.",
+          explain: "Latency, per-prefix request limits and no caching logic are the real limits. A flood of misses on a brand-new episode prefix is exactly the 503 pattern. Object storage is extremely durable and strongly consistent, so the last two are wrong.",
         },
         {
           kind: "read",
           title: "Never reuse a path",
-          body: "Design paths so that **a path is never reused for different bytes**. A re-encode goes under a new version path (for example `/v3/`) with a new manifest.\n\nCaches then never mix old and new segments, replication never resolves “which write wins”, and purges become rare.\n\nStart the key with a high-[[cardinality]] content ID. That spreads load across S3's partitions instead of one hot date prefix.",
+          body: "Design paths so that **a path is never reused for different bytes**. A **re-encode** (making the files again, for example with a better quality ladder) goes under a new version path such as `/v3/`, with a new manifest.\n\nCaches then never mix old and new segments, replication never resolves “which write wins”, and purges become rare.\n\nStart the key with a high-[[cardinality]] content ID (one with many different values). That spreads load across S3's partitions instead of one hot date prefix.",
           visual: {
             kind: "code",
             lang: "text",
@@ -276,6 +284,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall the rule about paths and bytes, and what decides how S3 spreads load across its partitions.",
           prompt: "An episode is re-encoded with a better ladder. What is the safest way to ship it?",
           options: [
             "Overwrite the old segments in place and purge every CDN",
@@ -288,12 +297,23 @@ const chapter: Chapter = {
         },
         {
           kind: "read",
+          title: "Words for sizing",
+          body: "To size the origin you need three words:\n\n- A **rendition** is one quality level of the video: one resolution at one bitrate, for example 1080p at 6 Mbps.\n- The **ladder** is the full set of renditions, from low to high quality. The player climbs up and down it as the network changes.\n- A **codec** is the compression format, such as H.264, HEVC or AV1. Each codec needs its own set of files.",
+        },
+        {
+          kind: "read",
           title: "How big is the origin? (assumed)",
           body: "Use the book's assumed model plus these extra assumptions:\n\n- A 24-minute episode = 1,440 seconds. With 6-second segments that is **240 segments per rendition**.\n- 7 video renditions, 4 audio dubs, 10 subtitle languages.\n- About 10 subtitle files and about 20 manifests per episode.\n- The ladder's bitrates add up to about 20 Mbps across all 7 renditions.",
         },
         {
+          kind: "read",
+          title: "Worked example: counting objects",
+          body: "Take a shorter, made-up show: a 12-minute episode = 720 seconds. With 6-second segments: 720 ÷ 6 = **120 segments** per rendition.\n\n- Video: 120 × 5 renditions = 600\n- Audio: 120 × 2 dubs = 240\n- Subtitles and manifests: about 10 + 20 = 30\n\nTotal: 600 + 240 + 30 = **870 objects** per episode per codec.",
+        },
+        {
           kind: "number",
-          prompt: "How many objects per episode per codec? (240 segments × 7 video renditions, plus 240 × 4 audio dubs, plus about 10 subtitle files and 20 manifests.)",
+          teach: "Objects = segments per rendition × video renditions, plus segments × audio dubs, plus the small files (subtitles and manifests).",
+          prompt: "Now the assumed Crunchyroll episode. How many objects per episode per codec? (240 segments × 7 video renditions, plus 240 × 4 audio dubs, plus about 10 subtitle files and 20 manifests.)",
           answer: 2700,
           tolerance: 150,
           unit: "objects",
@@ -301,8 +321,14 @@ const chapter: Chapter = {
           explain: "Video: 240 × 7 = 1,680. Audio: 240 × 4 = 960. Plus about 10 subtitles and about 20 manifests. Total: roughly **2,700 objects per episode per codec**.",
         },
         {
+          kind: "read",
+          title: "Worked example: megabits to gigabytes",
+          body: "Bitrate is in **megabits per second (Mb/s)**. Storage is in **bytes**, and 1 byte = 8 bits.\n\nExample: a ladder whose bitrates add up to 10 Mb/s, for a 720-second episode.\n\n- Bits: 10 Mb/s × 720 s = 7,200 Mb\n- Bytes: 7,200 ÷ 8 = 900 MB\n- 900 MB ÷ 1,000 = **0.9 GB**",
+        },
+        {
           kind: "number",
-          prompt: "The ladder adds up to about 20 Mbps across all renditions, and the episode is 1,440 seconds. How many GB of video per episode per codec?",
+          teach: "Multiply the total bitrate by the seconds to get megabits. Divide by 8 for megabytes, then by 1,000 for gigabytes.",
+          prompt: "The assumed ladder adds up to about 20 Mbps across all renditions, and the episode is 1,440 seconds. How many GB of video per episode per codec?",
           answer: 3.6,
           tolerance: 0.3,
           unit: "GB",
@@ -324,17 +350,9 @@ const chapter: Chapter = {
           },
         },
         {
-          kind: "number",
-          prompt: "The catalog is about 0.5 PB. The assumed model delivers about 540 PB per month. The catalog is what percent of one month of delivery?",
-          answer: 0.1,
-          tolerance: 0.05,
-          unit: "%",
-          explain: "0.5 ÷ 540 ≈ 0.001, so about **0.1%**. Storing the catalog is small; serving it is huge.",
-        },
-        {
           kind: "read",
           title: "The most important ratio",
-          body: "Storing and replicating the catalog costs little. Serving it costs a lot.\n\nSo keep full copies in several places, and spend your engineering effort on **origin offload** and miss handling, not on squeezing storage.",
+          body: "Compare the catalog with one month of delivery: 0.5 PB ÷ 540 PB ≈ 0.001, about **0.1%**.\n\nStoring and replicating the catalog costs little. Serving it costs a lot.\n\nSo keep full copies in several places, and spend your engineering effort on **origin offload** (keeping requests away from the origin) and miss handling, not on squeezing storage.",
           callout: { type: "staff", text: "This ratio (catalog ≈ 0.1% of one month's delivery) is the most important number in the chapter. It is why full copies in several clouds are affordable." },
         },
         {
@@ -355,16 +373,24 @@ const chapter: Chapter = {
       id: "ch06-l2",
       title: "Misses multiply",
       goal: "Compute origin offload across tiers, read shield hit ratios correctly, and price each point of offload.",
-      minutes: 10,
+      minutes: 12,
       steps: [
         {
-          kind: "number",
-          prompt: "Simulcast peak: 8 Tbps of edge egress. The edge hits 95% of bytes. A shield behind it hits 80% of what reaches it. How many Gbps reach the origin?",
-          answer: 80,
-          tolerance: 5,
-          unit: "Gbps",
-          hint: "The edge passes 5% of 8 Tbps to the shield. The shield passes 20% of that.",
-          explain: "Edge: 5% of 8 Tbps = 400 Gbps to the shield. Shield: 20% of 400 Gbps = **80 Gbps** to the origin. Without the shield, the origin would serve 400 Gbps, five times more.",
+          kind: "read",
+          title: "How much reaches the origin?",
+          body: "Picture a **simulcast** premiere: a new episode goes live worldwide at the same moment. At peak, the CDNs send about **8 Tbps** (terabits per second) to viewers. How much of that reaches the origin?\n\nThe answer is simple multiplication. By the end of this lesson you can compute origin offload across cache layers, read a shield's hit ratio correctly, and put a dollar value on each point of offload.",
+        },
+        {
+          kind: "quiz",
+          guess: true,
+          prompt: "Take a guess. The edge serves 95% of bytes from its cache. A second cache layer behind it (a shield) serves 80% of what still reaches it. Compared with no shield, what would you expect at the origin?",
+          options: [
+            "About the same traffic, because 80% is lower than 95%",
+            "About five times less traffic",
+            "No traffic at all",
+          ],
+          answer: 1,
+          explain: "Without the shield, the origin gets the edge's 5% miss share. With the shield, only 20% of that 5% passes on: 0.05 × 0.20 = 0.01, or 1%. Going from 5% to 1% is five times less. A lower hit ratio at the second layer still removes most of what is left.",
         },
         {
           kind: "read",
@@ -372,20 +398,14 @@ const chapter: Chapter = {
           body: "- **Request hit ratio** ([[CHR (cache hit ratio)]]): hits divided by all requests at one cache layer.\n- **Byte hit ratio** ([[BHR (byte hit ratio)]]): bytes served from cache divided by all bytes at one layer. For video it is usually higher, because small manifest and subtitle requests miss more often than big popular segments.\n- **[[Origin offload]]**: the share of bytes (or requests) that never reach the origin, across **all** layers. This drives origin cost and load.",
         },
         {
-          kind: "match",
-          prompt: "Match each metric to what it measures.",
-          pairs: [
-            ["Request hit ratio", "Hits ÷ all requests at one layer"],
-            ["Byte hit ratio", "Bytes from cache ÷ all bytes at one layer"],
-            ["Origin offload", "Share of bytes that never reach the origin, across all layers"],
-            ["Shield hit ratio", "Hits among only the edge's misses"],
-          ],
-          explain: "Hit ratios describe one layer. Origin offload describes the whole stack, and it is the one that drives origin cost.",
+          kind: "read",
+          title: "Misses multiply across tiers",
+          body: "A **tier** is one layer of caches. The **shield hit ratio** counts hits among only the requests that reach the shield, which are the edge's misses.\n\nIf the edge misses a fraction m_e of bytes and the shield misses a fraction m_s of what reaches it, the origin sees **m_e × m_s** of the bytes.\n\nTotal origin offload = 1 − (m_e × m_s).",
         },
         {
           kind: "read",
-          title: "Misses multiply across tiers",
-          body: "If the edge misses a fraction m_e of bytes and the shield misses a fraction m_s of what reaches it, the origin sees **m_e × m_s** of the bytes.\n\nTotal origin offload = 1 − (m_e × m_s).",
+          title: "Worked example at simulcast peak",
+          body: "Assumed model: 2M concurrent streams × 4 Mbps = 8 Tbps = 8,000 Gbps.\n\n- The edge misses 5%: 0.05 × 8,000 = 400 Gbps go to the shield.\n- The shield misses 20%: 0.20 × 400 = **80 Gbps** go to the origin.\n- Offload: 1 − (0.05 × 0.20) = 1 − 0.01 = **99%**.\n\nWithout the shield, the origin would serve 400 Gbps, five times more.",
           visual: {
             kind: "table",
             headers: ["Layer", "Hit ratio by bytes (assumed)", "Bytes passed on"],
@@ -398,12 +418,26 @@ const chapter: Chapter = {
           },
         },
         {
+          kind: "match",
+          teach: "For each metric ask two things: does it describe one layer or the whole stack, and which requests does it look at?",
+          prompt: "Match each metric to what it measures.",
+          pairs: [
+            ["Request hit ratio", "Hits ÷ all requests at one layer"],
+            ["Byte hit ratio", "Bytes from cache ÷ all bytes at one layer"],
+            ["Origin offload", "Share of bytes that never reach the origin, across all layers"],
+            ["Shield hit ratio", "Hits among only the edge's misses"],
+          ],
+          explain: "Hit ratios describe one layer. Origin offload describes the whole stack, and it is the one that drives origin cost.",
+        },
+        {
           kind: "number",
-          prompt: "With m_e = 0.05 and m_s = 0.20, what is the total origin offload?",
-          answer: 99,
-          tolerance: 0.2,
-          unit: "%",
-          explain: "1 − (0.05 × 0.20) = 1 − 0.01 = **99%**.",
+          teach: "Multiply the edge's miss share by the shield's miss share, then apply the result to the total egress in Gbps.",
+          prompt: "A smaller event: 4 Tbps of edge egress. The edge hits 90% of bytes, and the shield hits 75% of what reaches it. How many Gbps reach the origin?",
+          answer: 100,
+          tolerance: 5,
+          unit: "Gbps",
+          hint: "4 Tbps = 4,000 Gbps. The edge passes on 10% of it; the shield passes on 25% of that.",
+          explain: "Edge: 10% of 4,000 Gbps = 400 Gbps to the shield. Shield: 25% of 400 Gbps = **100 Gbps** to the origin. Offload is 1 − (0.10 × 0.25) = 97.5%.",
         },
         {
           kind: "widget",
@@ -415,7 +449,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Over a month",
-          body: "540 PB × 1% = **5.4 PB** per month from the origin with a shield. At 95% offload (edge only) it would be 27 PB.\n\nSo each point of offload is worth about **5.4 PB per month** in the assumed model.",
+          body: "The assumed model delivers 540 PB (petabytes) a month. At 99% offload, 1% reaches the origin: 540 PB × 1% = **5.4 PB** per month. At 95% offload (edge only) it would be 27 PB.\n\nSo each point of offload is worth about **5.4 PB per month** in the assumed model.",
           visual: {
             kind: "stats",
             items: [
@@ -426,33 +460,24 @@ const chapter: Chapter = {
           },
         },
         {
-          kind: "number",
-          prompt: "Now requests. 2M streams with about 5-second segments and separate audio and video tracks make about 800,000 segment requests per second at the edge. If 2% reach the origin, how many requests per second does it see?",
-          answer: 16000,
-          tolerance: 1000,
-          unit: "req/s",
-          hint: "Request miss ratio is usually worse than byte miss ratio, so 2%, not 1%.",
-          explain: "800,000 × 0.02 = **16,000 requests per second**. Fine when spread across many prefixes. But a new-episode prefix jumping from zero to thousands per second can see temporary 503 Slow Down errors.",
+          kind: "read",
+          title: "Requests, not just bytes",
+          body: "2M streams with about 5-second segments and separate audio and video tracks make about **800,000 segment requests per second** at the edge.\n\nThe request miss ratio is usually worse than the byte miss ratio, so assume 2% reach the origin: 800,000 × 0.02 = **16,000 requests per second**.\n\nFine when spread across many prefixes. But a new-episode prefix jumping from zero to thousands per second can see temporary 503 Slow Down errors.",
         },
         {
-          kind: "quiz",
-          prompt: "The edge hits 95%. The shield hits 80% of what reaches it. A colleague says “80% at the shield is poor”. Are they right?",
-          options: [
-            "Yes, a shield should hit 95% like the edge",
-            "No. The shield only sees edge misses (long tail, cold starts, rare renditions), so 80% on top of 95% is excellent",
-            "Yes, it means the shield is too small",
-          ],
-          answer: 1,
-          explain: "The shield sees only the hard traffic the edge could not serve. An 80% shield hit ratio on top of a 95% edge gives 99% offload.",
+          kind: "reveal",
+          prompt: "A colleague sees edge 95% and shield 80% on the dashboard and says “80% at the shield is poor”. Are they right? Think about which requests the shield sees, then reveal.",
+          answer: "No. The shield only sees the edge's misses: the long tail, cold starts and rare renditions, the hardest traffic there is. 80% of that, on top of a 95% edge, gives 99% offload. Judge a shield by what still reaches the origin, not by comparing its hit ratio with the edge's.",
         },
         {
           kind: "read",
           title: "Shielding can lower the reported hit ratio",
-          body: "Fastly warns that shielding can lower the *reported* hit ratio. An edge miss that becomes a shield hit counts as one miss **and** one hit. An origin fetch counts as two misses. So the number “may be lower than you expect”, even while origin traffic falls a lot.",
+          body: "Fastly warns that shielding can lower the *reported* hit ratio when all tiers are counted together in one **blended** number. An edge miss that becomes a shield hit counts as one miss **and** one hit. An origin fetch counts as two misses. So the number “may be lower than you expect”, even while origin traffic falls a lot.",
           callout: { type: "mistake", text: "Treating a drop in one blended “CDN cache hit ratio” as bad. Turning on shielding can lower it while cutting origin traffic a lot. Make **origin offload by bytes** the headline metric (Chapter 11)." },
         },
         {
           kind: "quiz",
+          teach: "Think about how one request that passes through two tiers is counted in a blended hit ratio, and which metric drives origin cost.",
           prompt: "You turn on shielding. The blended hit ratio falls from 92% to 88%, and origin egress halves. What do you report?",
           options: [
             "A regression: roll shielding back",
@@ -465,7 +490,22 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "What offload is worth",
-          body: "Chapter 16 covers the full bill. Here, assume a blended origin egress price of **$0.03 per GB** for non-paired CDN pulls (use your real contract number).\n\nEach point of offload is worth about **$160,000 per month** at this price. That is the business case for shields.",
+          body: "Chapter 16 covers the full bill. Origin **[[egress]]** is data leaving the cloud, billed per GB. Here, assume a blended origin egress price of **$0.03 per GB** for non-paired CDN pulls (use your real contract number).\n\nWorked example at 95% offload (edge only): 27 PB a month reach the origin.\n\n- 1 PB = 1,000,000 GB, so 27 PB = 27,000,000 GB\n- 27,000,000 × $0.03 = **about $810,000 per month**",
+        },
+        {
+          kind: "number",
+          teach: "Convert PB to GB (1 PB = 1,000,000 GB), then multiply by the price per GB.",
+          prompt: "With a shield, 5.4 PB per month reach the origin at $0.03 per GB. What is the monthly origin egress bill in dollars?",
+          answer: 162000,
+          tolerance: 8000,
+          unit: "$/month",
+          hint: "1 PB = 1,000,000 GB.",
+          explain: "5.4 PB = 5,400,000 GB. × $0.03 = **about $162,000 per month**, against about $810,000 at 95% offload.",
+        },
+        {
+          kind: "read",
+          title: "Three scenarios, priced",
+          body: "Each point of offload is worth about **$160,000 per month** at this price. That is the business case for shields.",
           visual: {
             kind: "table",
             headers: ["Scenario", "Origin bytes / month", "Egress at $0.03/GB"],
@@ -477,21 +517,18 @@ const chapter: Chapter = {
           },
         },
         {
-          kind: "number",
-          prompt: "5.4 PB per month reach the origin at $0.03 per GB. What is the monthly origin egress bill in dollars?",
-          answer: 162000,
-          tolerance: 8000,
-          unit: "$/month",
-          hint: "1 PB = 1,000,000 GB.",
-          explain: "5.4 PB = 5,400,000 GB. × $0.03 = **about $162,000 per month**, against about $810,000 at 95% offload.",
+          kind: "read",
+          title: "Four origin cost items",
+          body: "- **Origin egress.** CloudFront is “Free for origin fetches from any AWS origin”. Other CDNs pulling from S3 or GCS pay cloud egress: several cents per GB at list price, often lower under commits. Google's **CDN Interconnect** links select third-party CDNs directly to Google's edge, with its own egress pricing.\n- **Origin requests**, billed per GET.\n- **Shield fees**, such as Origin Shield's charge per 10,000 requests.\n- **Replication:** cross-region transfer, GCS replication charges on write, RTC fees and cross-cloud egress.",
         },
         {
           kind: "read",
-          title: "Four origin cost items",
-          body: "- **Origin [[egress]].** CloudFront is “Free for origin fetches from any AWS origin”. Other CDNs pulling from S3 or GCS pay cloud egress: several cents per GB at list price, often lower under commits. Google's **CDN Interconnect** links select third-party CDNs directly to Google's edge, with its own egress pricing.\n- **Origin requests**, billed per GET.\n- **Shield fees**, such as Origin Shield's charge per 10,000 requests.\n- **Replication:** cross-region transfer, GCS replication charges on write, RTC fees and cross-cloud egress.",
+          title: "Worked example: a per-request fee",
+          body: "Some fees are priced per 10,000 requests. Divide the requests by 10,000 to get billing units, then multiply by the price per unit.\n\nExample: 2 billion requests at $0.0100 per 10,000.\n\n- 2,000,000,000 ÷ 10,000 = 200,000 units\n- 200,000 × $0.0100 = **$2,000**",
         },
         {
           kind: "number",
+          teach: "Turn the requests into units of 10,000, then multiply by the price per unit.",
           prompt: "300M hours × 3,600 ÷ 5 × 2 ≈ 430 billion edge requests a month. If 3% reach Origin Shield from another Region (about 13 billion), what is the fee at $0.0075 per 10,000 requests?",
           answer: 9700,
           tolerance: 600,
@@ -525,56 +562,58 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "Many caches, one origin",
+          body: "A CDN has hundreds of **PoPs** (points of presence: server sites in cities around the world), each with its own cache. A rarely watched episode is requested in Tokyo, Paris, São Paulo and Dallas, and every one of those PoPs misses.\n\nBy the end of this lesson you can explain what an origin shield does and what it costs, and how CloudFront, Fastly, Media CDN, Akamai and Cloudflare each build one.",
+        },
+        {
           kind: "quiz",
-          prompt: "A long-tail episode is requested in Tokyo, Paris, São Paulo and Dallas. Each edge PoP misses. There is no shield. How many fetches reach the origin?",
-          visual: { kind: "flow", spec: NO_SHIELD },
+          guess: true,
+          prompt: "Take a guess. Four PoPs each miss the same episode file, and nothing sits between them and the origin. How many fetches would you expect to reach the origin?",
           options: ["1, the CDN shares one fetch", "4, one per PoP", "0, the PoPs ask each other"],
           answer: 1,
-          explain: "Each PoP has its own cache and goes to the origin on its own: 4 fetches for one object. With several CDNs, multiply again.",
+          explain: "Each PoP has its own cache and does not know what the others are doing, so each one goes to the origin on its own: 4 fetches for one object. With several CDNs, multiply again. The next steps show how one extra layer fixes this.",
+        },
+        {
+          kind: "read",
+          title: "Without a shield",
+          body: "Here is that picture. Each PoP misses and fetches from the origin separately, so the origin bucket serves and bills the same object four times.\n\nA rarely watched object makes this worse. It is seldom in any edge cache, so almost every PoP that gets a request for it misses.",
+          visual: { kind: "flow", spec: NO_SHIELD },
         },
         {
           kind: "read",
           title: "One layer in between",
-          body: "An **[[origin shield]]** is a cache layer that all edge PoPs go through before the origin. Vendors also call it a **[[mid-tier]]**, **parent tier**, **upper tier** or **cache hierarchy**.\n\nNow the four PoPs miss into one shield, and the shield makes one fetch.",
+          body: "An **[[origin shield]]** is a cache layer that all edge PoPs go through before the origin. Vendors also call it a **[[mid-tier]]**, **parent tier**, **upper tier** or **cache hierarchy**. Think of it as a regional warehouse in front of the factory.\n\nNow the four PoPs miss into one shield, and the shield makes one fetch.",
           visual: { kind: "flow", spec: WITH_SHIELD },
         },
         {
           kind: "read",
           title: "Three jobs of a shield",
-          body: "1. **Deduplicates fills.** Many edge misses for one object become one shield miss.\n2. **Collapses concurrent requests.** If 300 edge servers ask for the same new segment in the same second, the shield sends one request to origin ([[request collapsing]]).\n3. **Keeps the [[long tail]] warm.** Its larger storage holds objects that edge PoPs evict.",
+          body: "1. **Deduplicates fills.** Many edge misses for one object become one shield miss.\n2. **Collapses concurrent requests.** If 300 edge servers ask for the same new segment in the same second, the shield sends one request to origin ([[request collapsing]]).\n3. **Keeps the [[long tail]] warm.** The long tail is the many rarely watched titles. The shield's larger storage holds objects that edge PoPs evict.",
           visual: { kind: "flow", spec: WITH_SHIELD_FOCUS },
         },
         {
           kind: "quiz",
+          teach: "Each shield job handles a different pattern: repeated misses spread over time, many misses at the same instant, or objects too rare for the edge to keep.",
           prompt: "300 edge servers ask for the same brand-new segment in the same second. Which shield job protects the origin here?",
           options: ["Deduplicating fills over time", "Collapsing concurrent requests", "Keeping the long tail warm"],
           answer: 1,
           explain: "Simultaneous requests for one uncached object are collapsed into a single origin request. Deduplication is the same idea over time; long-tail warmth is about storage size.",
         },
         {
-          kind: "quiz",
-          prompt: "Where should the shield sit?",
-          options: [
-            "Close to the viewers, so their misses are fast",
-            "Close to the origin, with the lowest latency to it",
-            "In the middle of the world, so all PoPs are equally far",
-          ],
-          answer: 1,
-          explain: "Every vendor says the same: choose the shield location with the lowest latency to the origin. The slow edge-to-origin leg then runs on the CDN's backbone.",
-        },
-        {
           kind: "read",
           title: "What a shield costs (1)",
-          body: "- **Extra hop on a miss.** Small if the shield is near the origin, because the slow edge-to-origin leg now runs on the CDN's backbone.\n- **Concentration risk.** If the shield location fails, every miss needs another path. Good shields fail over to a secondary location automatically (CloudFront does), and your config must **fail open** to the origin. Fastly says Compute services “should always fail open”.",
+          body: "- **Extra hop on a miss.** Small if the shield is near the origin, because the slow edge-to-origin leg now runs on the CDN's own backbone network.\n- **Concentration risk.** If the shield location fails, every miss needs another path. Good shields fail over to a secondary location automatically (CloudFront does), and your config must **fail open**: go straight to the origin rather than fail. Fastly says Compute services “should always fail open”.",
           callout: { type: "staff", text: "Put the shield close to the origin, not to the viewers. Every vendor says the same: choose the shield location with the lowest latency to the origin." },
         },
         {
           kind: "read",
           title: "What a shield costs (2)",
-          body: "- **Double billing.** Fastly counts inter-PoP traffic toward requests and billable bandwidth. CloudFront charges an Origin Shield fee per 10,000 requests.\n- **Double execution.** Edge logic can run at both edge and shield, and a shield that rewrites responses can poison edge caches.\n- **[[Cache key]] consistency.** Both tiers must compute the same key. Query-string tokens are the usual problem (Chapter 8).",
+          body: "- **Double billing.** Fastly counts inter-PoP traffic toward requests and billable bandwidth. CloudFront charges an Origin Shield fee per 10,000 requests.\n- **Double execution.** Edge logic can run at both edge and shield, and a shield that rewrites responses can poison edge caches (fill them with wrong content).\n- **[[Cache key]] consistency.** The cache key is the name a cache files an object under. Both tiers must compute the same key. Query-string tokens are the usual problem (Chapter 8).",
         },
         {
           kind: "multi",
+          teach: "Recall the five costs from the last two steps. For each option, ask whether the shield itself causes it.",
           prompt: "Which are real costs or risks of adding a shield? Select all that apply.",
           options: [
             "An extra hop on every miss",
@@ -590,7 +629,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "CloudFront: regional edge caches",
-          body: "**[[Regional edge caches|Regional Edge Cache]] (RECs)** sit between PoPs and the origin and have “a larger cache than an individual POP”. On a miss a PoP goes to its nearest REC.\n\nExceptions go straight to the origin: proxy methods (PUT, POST), dynamic requests, and requests to an S3 origin in the same AWS Region as the REC.",
+          body: "Now, how each CDN builds the shield. In CloudFront, **[[Regional edge caches|Regional Edge Cache]] (RECs)** sit between PoPs and the origin and have “a larger cache than an individual POP”. On a miss a PoP goes to its nearest REC.\n\nExceptions go straight to the origin: proxy methods (PUT, POST), dynamic requests, and requests to an S3 origin in the same AWS Region as the REC.",
         },
         {
           kind: "read",
@@ -604,6 +643,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall whether Origin Shield supports origins outside AWS, and the one rule every vendor gives for picking a shield location.",
           prompt: "Your origin is a GCS bucket, but one of your CDNs is CloudFront. How do you choose the Origin Shield Region?",
           options: [
             "Always us-east-1, the largest Region",
@@ -620,16 +660,9 @@ const chapter: Chapter = {
           body: "Inside each Fastly PoP, **clustering** sends all fetches for one object through one cache node. **Shielding** routes misses from every PoP through one designated **shield PoP**. Pick one close to the origin, with **[[private network interconnects|PNI]] (PNIs)** to your cloud, and large enough for a good hit ratio.\n\nEach backend (Fastly's word for origin) is shielded separately, unless you use automatic load balancing, which forces one shared shield. Together, clustering and shielding “create up to four collapse points”.",
         },
         {
-          kind: "quiz",
-          prompt: "You rewrite the `Host` header at the Fastly edge, and the shield starts rejecting requests. What is the fix Fastly suggests?",
-          options: [
-            "Turn shielding off",
-            "Use override host instead of changing Host at the edge",
-            "Read Fastly-Client-IP at the shield",
-            "Move the backend into VCL only",
-          ],
-          answer: 1,
-          explain: "Changing Host at the edge can make the shield reject requests; use override host. The other caveats: the shield sees the edge's IP (so read `Fastly-Client-IP`), and VCL-only backends cannot be shielded.",
+          kind: "read",
+          title: "Fastly: three caveats",
+          body: "Fastly lists three operational caveats for shielding:\n\n- Changing the `Host` header at the edge can make the shield reject requests. Use **override host** instead.\n- The shield sees the edge's IP address, not the viewer's, so read the `Fastly-Client-IP` header.\n- Backends defined only in VCL (Fastly's configuration language) cannot be shielded.",
         },
         {
           kind: "read",
@@ -644,7 +677,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Cloudflare: Tiered Cache",
-          body: "In **Tiered Cache**, “only the upper-tier can ask the origin for content”.\n\n**Smart Tiered Cache** picks “the single closest upper tier for each of your website's origins” from latency data. For public-cloud origins you may need a **cloud region hint**, because [[anycast]] can hide where the origin really is.",
+          body: "In **Tiered Cache**, “only the upper-tier can ask the origin for content”.\n\n**Smart Tiered Cache** picks “the single closest upper tier for each of your website's origins” from latency data. For public-cloud origins you may need a **cloud region hint**, because [[anycast]] (one IP address served from many places) can hide where the origin really is.",
         },
         {
           kind: "read",
@@ -665,6 +698,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Each CDN has its own name for the same idea. Think back to the five vendor steps you just read.",
           prompt: "Match each CDN to its shield feature.",
           pairs: [
             ["CloudFront", "Origin Shield on top of regional edge caches"],
@@ -674,13 +708,6 @@ const chapter: Chapter = {
             ["Cloudflare", "Smart Tiered Cache"],
           ],
           explain: "Same idea, five names. Each has its own cache key rules, collapse rules and log fields, which matters when you run several CDNs.",
-        },
-        {
-          kind: "quiz",
-          prompt: "Which CDN picks its default shield location by the end user's location, not the origin's?",
-          options: ["CloudFront", "Fastly", "Google Media CDN", "Cloudflare"],
-          answer: 2,
-          explain: "Media CDN shields by default from a limited set of global locations chosen by user location. For a centralised origin, flexible shielding pins fill through one region you choose.",
         },
         {
           kind: "read",
@@ -706,18 +733,24 @@ const chapter: Chapter = {
       id: "ch06-l4",
       title: "The thundering herd",
       goal: "Explain how a stampede hits the origin, how request collapsing stops it, how it breaks, and the premiere math.",
-      minutes: 9,
+      minutes: 10,
       steps: [
         {
+          kind: "read",
+          title: "The first minute of a premiere",
+          body: "Tonight a big episode goes live in 200 countries at once. Nothing is cached anywhere yet. In the first minute, millions of players ask for the same few files.\n\nBy the end of this lesson you can explain how such a stampede hits the origin, how request collapsing stops it, how collapsing breaks, and how much a shield helps, in numbers.",
+        },
+        {
           kind: "quiz",
-          prompt: "A big episode goes live in 200 countries at once. Nothing is cached anywhere yet. What is the main danger at the origin?",
+          guess: true,
+          prompt: "Take a guess. Nothing is cached yet, and millions of players ask for the same files in the same minute. What would you expect to be the main danger at the origin?",
           options: [
             "Too little traffic to warm the caches",
             "Many requests for the same uncached objects arriving together, each going to the origin",
             "Viewers reading stale manifests from cache",
           ],
           answer: 1,
-          explain: "This is the thundering herd: the same cold objects requested everywhere in the same minute.",
+          explain: "Every cache misses at the same moment, and each miss becomes a request to the origin for the same few files. The origin can be slowed, throttled or knocked over, even though it only has to serve a handful of objects. This flood has a name, coming next.",
         },
         {
           kind: "read",
@@ -725,7 +758,13 @@ const chapter: Chapter = {
           body: "A **[[thundering herd]]** (or **cache stampede**) is many requests for the same uncached object arriving together, each going to the origin.\n\nFor a bucket it means throttling and wasted egress. For a JIT packager it means CPU overload and cascading timeouts.",
         },
         {
+          kind: "read",
+          title: "What sets off a herd",
+          body: "A herd starts whenever many caches miss the same objects at once. In video delivery:\n\n- **A new release goes live**, with nothing cached: Crunchyroll's simulcast pattern (Chapter 13).\n- **A purge** (forced removal from cache) of a popular manifest or path.\n- **A shield failover** to a **cold** (empty) secondary location.\n- **A multi-CDN steering change** to a CDN whose caches are cold.\n- **Cache-key fragmentation**, for example a per-user token in the key (Chapter 8).",
+        },
+        {
           kind: "multi",
+          teach: "A herd needs many simultaneous misses for the same objects. For each event, ask whether caches suddenly stop having what viewers want.",
           prompt: "Which events can trigger a thundering herd in video delivery? Select all that apply.",
           options: [
             "A new release goes live (the simulcast pattern)",
@@ -746,10 +785,16 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "How collapsing breaks",
-          body: "Collapsing only works for **cacheable** responses. Fastly documents the traps:\n\n- A **private** response goes only to the first waiting request. The rest may go to origin **one after another**, which “can cause response times of several minutes”.\n- A **hit-for-pass** marker (TTL 2 minutes to 1 hour) sends later requests to origin in parallel.\n- Passed requests never collapse.\n\nFastly suggests capping wait time in `vcl_miss` (for example `time.elapsed > 1s`), trading some errors for predictable latency.",
+          body: "Collapsing only works for **cacheable** responses, ones that may be shared. Fastly documents the traps:\n\n- A **private** response (`Cache-Control: private`, for one user only) goes only to the first waiting request. The rest may go to origin **one after another**, which “can cause response times of several minutes”.\n- A **hit-for-pass** marker (a note saying “do not cache this”, kept 2 minutes to 1 hour) sends later requests to origin in parallel.\n- **Passed** requests (sent straight past the cache) never collapse.",
+        },
+        {
+          kind: "read",
+          title: "Capping the wait",
+          body: "If the waiting list can turn into a slow queue, cap how long a request waits. Fastly suggests a check in `vcl_miss`, for example `time.elapsed > 1s`.\n\nThe trade-off: some requests get an error, but every viewer gets a predictable response time instead of a multi-minute wait.",
         },
         {
           kind: "quiz",
+          teach: "Collapsing only helps when one response can be shared with every waiting request. Recall what Fastly says happens to the waiting list when it cannot.",
           prompt: "A not-yet-published segment returns `Cache-Control: private`. 2,000 requests wait on it at one shield. What happens?",
           options: [
             "All 2,000 share the one response",
@@ -774,10 +819,16 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "The first minute of a simulcast",
-          body: "Assume 2M viewers arrive over a few minutes, through three CDNs with about 100 PoPs each.\n\nObjects needed in the first seconds: the master manifest, 7 video media playlists, 4 audio playlists, and the first segments of 7 video renditions and 4 audio tracks. About **25 objects**.",
+          body: "Now the numbers. Assume 2M viewers arrive over a few minutes, through three CDNs with about 100 PoPs each.\n\nObjects needed in the first seconds: the master manifest, 7 video media playlists, 4 audio playlists, and the first segments of 7 video renditions and 4 audio tracks. About **25 objects**.",
+        },
+        {
+          kind: "read",
+          title: "Worked example: counting origin requests",
+          body: "Use a smaller, made-up case: 2 CDNs with 50 PoPs each, and 10 new objects.\n\n- **No shield**, perfect collapsing inside each PoP: every PoP fetches every object once. 2 × 50 = 100 PoPs × 10 objects = **1,000** origin requests.\n- **A shield per CDN**: one fetch per object per CDN. 10 × 2 = **20**.\n- **One shared shield** for both CDNs: one fetch per object. **10**.",
         },
         {
           kind: "number",
+          teach: "Count the PoPs across all CDNs, then multiply by the number of objects each PoP must fetch.",
           prompt: "No shield. Even with perfect collapsing inside each PoP, each of the 300 PoPs (3 CDNs × 100) fetches each of the 25 objects. How many origin requests in the first seconds?",
           answer: 7500,
           tolerance: 100,
@@ -786,6 +837,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "With a shield per CDN, each object is fetched once per CDN, no matter how many PoPs that CDN has.",
           prompt: "Now each of the 3 CDNs has a shield with collapsing: about one fetch per object per CDN. How many origin requests for the 25 objects?",
           answer: 75,
           tolerance: 3,
@@ -793,11 +845,9 @@ const chapter: Chapter = {
           explain: "25 × 3 = **75 origin requests**. A factor of 100 fewer.",
         },
         {
-          kind: "quiz",
-          prompt: "And with one shared shield in front of the origin for all three CDNs?",
-          options: ["About 7,500", "About 75", "About 25", "About 1"],
-          answer: 2,
-          explain: "One fetch per object in total: about **25 origin requests**.",
+          kind: "reveal",
+          prompt: "And with one shared shield in front of the origin for all three CDNs? Work it out, then reveal.",
+          answer: "About **25 origin requests**: one fetch per object in total, no matter how many CDNs or PoPs ask.",
         },
         {
           kind: "read",
@@ -837,23 +887,24 @@ const chapter: Chapter = {
       id: "ch06-l5",
       title: "One writer, many copies",
       goal: "Choose a multi-origin topology, protect it with a single writer and a publish gate, and know what S3 and GCS replication promise.",
-      minutes: 12,
+      minutes: 13,
       steps: [
         {
+          kind: "read",
+          title: "It has happened",
+          body: "On 28 February 2017, a mistyped command removed far more S3 servers than intended in **us-east-1** (AWS's Northern Virginia Region). The index and placement subsystems needed full restarts, and S3 there was impaired for about **four hours and seventeen minutes**. Even the AWS Service Health Dashboard could not be updated for a while, because it depended on S3.\n\nBy the end of this lesson you can choose a multi-origin design, protect it with one writer and a publish gate, and say what S3 and GCS replication promise.",
+        },
+        {
           kind: "quiz",
-          prompt: "Your only origin is one S3 bucket in us-east-1. S3 in that Region is impaired for four hours. What happens to cache misses?",
+          guess: true,
+          prompt: "Take a guess. Your only origin is one S3 bucket in us-east-1, and S3 there is impaired for four hours. What would you expect to happen to cache misses?",
           options: [
             "Nothing: the CDN will serve everything from cache",
             "Every miss fails, so new episodes and the long tail stop playing",
             "The CDN automatically finds another copy",
           ],
           answer: 1,
-          explain: "One bucket in one region is a single point of failure. Popular objects keep playing from cache, but every miss fails.",
-        },
-        {
-          kind: "read",
-          title: "It has happened",
-          body: "On 28 February 2017, a mistyped command removed far more S3 servers than intended in us-east-1. The index and placement subsystems needed full restarts, and S3 there was impaired for about **four hours and seventeen minutes**.\n\nEven the AWS Service Health Dashboard could not be updated for a while, because it depended on S3.",
+          explain: "Popular episodes keep playing from cache. But every miss needs the origin, and it is gone, so new episodes and rarely watched titles stop playing. One bucket in one region is a **single point of failure**: one broken part stops the service.",
         },
         {
           kind: "read",
@@ -863,6 +914,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall the four reasons for more than one origin. One of them is about which CDN can read which cloud cheaply.",
           prompt: "Why keep a full copy of the catalog in GCS as well as S3, beyond availability?",
           options: [
             "GCS is always cheaper to store in",
@@ -875,7 +927,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Four topologies",
-          body: "Each topology trades simplicity, cost and how often the backup path is exercised.",
+          body: "A **topology** is how the origins are arranged and who reads which one. **Active** means a copy serves traffic every day; **passive** means it waits for a failover. Each topology trades simplicity, cost and how often the backup path is exercised.",
           visual: {
             kind: "table",
             headers: ["Topology", "How it works", "Strength", "Weakness"],
@@ -889,6 +941,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "For each topology, ask what goes wrong when its backup is used only in emergencies, or when every CDN depends on one piece.",
           prompt: "Match each topology to its main weakness.",
           pairs: [
             ["Active-passive", "The replica is cold and rarely tested"],
@@ -901,18 +954,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "One writer, many readers",
-          body: "The safest rule: **exactly one system writes the source of truth; everything else is a replica.** The Content Pipeline writes to one primary bucket, replication copies outward, and CDNs only read.\n\n**Dual writes** to both clouds need their own retry and reconciliation logic, and they hide partial failure until a viewer gets a 404. A single writer plus a replication pipeline makes the gap measurable.\n\nWith immutable keys there are no conflicts. “Is the replica correct?” becomes “does it have the object, with the same checksum?”",
-        },
-        {
-          kind: "quiz",
-          prompt: "Why is a single writer plus replication safer than the Content Pipeline writing to S3 and GCS directly?",
-          options: [
-            "It is faster for every object",
-            "Dual writes hide partial failure until a viewer hits the missing copy; one writer gives one source of truth, measurable lag, and retries in one place",
-            "GCS cannot accept writes from the pipeline",
-          ],
-          answer: 1,
-          explain: "With a single writer, retries, reconciliation and a ledger for the publish gate all live in one replication pipeline, and lag can be measured.",
+          body: "The safest rule: **exactly one system writes the source of truth; everything else is a replica** (a copy). The Content Pipeline writes to one primary bucket, replication copies outward, and CDNs only read.\n\n**Dual writes** (the pipeline writing to both clouds) need their own retry and reconciliation logic, and hide partial failure until a viewer gets a 404. A single writer plus a replication pipeline makes the gap measurable.\n\nWith immutable keys there are no conflicts. “Is the replica correct?” becomes “does it have the object, with the same checksum?”",
         },
         {
           kind: "read",
@@ -922,6 +964,7 @@ const chapter: Chapter = {
         },
         {
           kind: "order",
+          teach: "A player can only ask for what the manifest lists, and only after the catalog shows the episode. Arrange the steps so nothing becomes visible before it exists, checked, everywhere.",
           prompt: "Put the safe publish sequence in order.",
           items: [
             "The pipeline writes segments to the primary bucket",
@@ -940,21 +983,12 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "S3 live replication",
-          body: "S3 **live replication** copies new objects asynchronously to a bucket in another Region (**Cross-Region Replication, CRR**) or the same Region (**SRR**), keeping metadata and version IDs. Versioning is required.\n\nPlain CRR promises replication “within 24-48 hours (not SLA backed)”.",
+          body: "S3 **live replication** copies new objects **asynchronously** (after the write is confirmed, not as part of it) to a bucket in another Region (**Cross-Region Replication, CRR**) or the same Region (**SRR**), keeping metadata and version IDs. **Versioning** (keeping every version of an object) is required.\n\nPlain CRR promises replication “within 24-48 hours (not SLA backed)”.",
         },
         {
-          kind: "multi",
-          prompt: "What does S3 live replication NOT copy by default? Select all that apply.",
-          options: [
-            "Objects that existed before the rule",
-            "Replicas made by another rule (no chaining A→B→C)",
-            "Lifecycle actions",
-            "Version-specific deletes",
-            "Objects archived in Glacier",
-            "New objects uploaded with multipart upload",
-          ],
-          answers: [0, 1, 2, 3, 4],
-          explain: "Not copied by default: existing objects (use **S3 Batch Replication**), replicas from another rule, lifecycle actions, delete markers under the current configuration format, version-specific deletes (AWS says this “protects data from malicious deletions”) and Glacier-archived objects. New multipart objects are copied.",
+          kind: "read",
+          title: "What S3 replication skips",
+          body: "Live replication copies new objects, including multipart uploads. By default it does **not** copy:\n\n- objects that existed before the rule (use **S3 Batch Replication**)\n- replicas made by another rule (no chaining A→B→C)\n- lifecycle actions\n- delete markers, under the current configuration format\n- version-specific deletes (AWS says this “protects data from malicious deletions”)\n- objects archived in Glacier",
         },
         {
           kind: "read",
@@ -964,10 +998,16 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "RTC fine print",
-          body: "These show up in incidents:\n\n- The SLA does not apply while you exceed S3 request-rate guidelines or the default **1 Gbps** replication quota.\n- Each replicated object costs up to five GET/HEAD and one PUT on the source, plus one PUT per destination, against the **same per-prefix limits** as CDN fetches.\n- SSE-KMS objects need KMS calls, which can be throttled.\n\nAt 1 Gbps a 3.7 GB episode replicates in about 30 seconds.",
+          body: "These show up in incidents:\n\n- The SLA does not apply while you exceed S3 request-rate guidelines or the default **1 Gbps** replication quota.\n- Each replicated object costs up to five GET/HEAD and one PUT on the source, plus one PUT per destination, against the **same per-prefix limits** as CDN fetches.\n- SSE-KMS objects (encrypted with AWS's key service) need KMS calls, which can be throttled.\n\nAt 1 Gbps a 3.7 GB episode replicates in about 30 seconds.",
+        },
+        {
+          kind: "read",
+          title: "Worked example: how long is a backfill?",
+          body: "A **backfill** copies objects that already exist. Take a 0.1 PB archive at the 1 Gbps quota.\n\n- 0.1 PB = 10^14 bytes = 8 × 10^14 bits\n- 8 × 10^14 bits ÷ 10^9 bits/s = 8 × 10^5 s = 800,000 s\n- 800,000 s ÷ 86,400 s per day ≈ **9.3 days**",
         },
         {
           kind: "number",
+          teach: "Convert PB to bits (1 PB = 10^15 bytes, 8 bits per byte), divide by the rate in bits per second, then divide by 86,400 to get days.",
           prompt: "You need to backfill a 0.5 PB catalog at the default 1 Gbps replication quota. About how many days does it take?",
           answer: 46,
           tolerance: 4,
@@ -976,15 +1016,9 @@ const chapter: Chapter = {
           explain: "4 × 10^15 bits ÷ 10^9 bits/s = 4 × 10^6 s ≈ **46 days**. Plan backfills with Batch Replication and a raised quota.",
         },
         {
-          kind: "quiz",
-          prompt: "S3 Multi-Region Access Points route each request to the closest bucket. A new episode is still replicating. What can a viewer get?",
-          options: [
-            "Always the object, because the access point checks both buckets",
-            "A 404, because routing ignores whether the object exists in the chosen bucket",
-            "A redirect to the primary bucket",
-          ],
-          answer: 1,
-          explain: "A request “can be routed to a bucket that doesn't contain the object”. That is the publish-gate problem again.",
+          kind: "reveal",
+          prompt: "S3 **Multi-Region Access Points** give one address for several buckets and route each request to the closest one. A new episode is still replicating to the second bucket. What can a viewer get? Think, then reveal.",
+          answer: "A **404**. Routing does not check whether the object exists in the chosen bucket: a request “can be routed to a bucket that doesn't contain the object”. That is the publish-gate problem again: expose an episode only when every bucket has it.",
         },
         {
           kind: "read",
@@ -1003,6 +1037,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Two options are S3 and two are GCS. Recall which ones carry an SLA or an RPO, and the time each one names.",
           prompt: "Match each replication option to its promise.",
           pairs: [
             ["Plain S3 CRR", "Within 24–48 hours, not SLA-backed"],
@@ -1037,47 +1072,40 @@ const chapter: Chapter = {
       id: "ch06-l6",
       title: "Proving the copy",
       goal: "Design a cross-cloud replicator, verify copies with CRC32C, and run replication lag as an SLO.",
-      minutes: 10,
+      minutes: 11,
       steps: [
         {
+          kind: "read",
+          title: "Copying across clouds",
+          body: "The 2026 posting describes storage across AWS and Google Cloud. But neither cloud replicates natively into the other: S3 replication cannot target a GCS bucket. So you either use a managed transfer service or build your own **replicator**, a service that copies objects.\n\nBy the end of this lesson you can design a cross-cloud replicator, prove each copy with a checksum, and run replication lag as a service-level objective.",
+        },
+        {
           kind: "quiz",
-          prompt: "Can S3 replicate natively into a GCS bucket?",
+          guess: true,
+          prompt: "Take a guess. You must keep a full copy of the catalog in a second cloud. What would you expect to be the hard part?",
           options: [
-            "Yes, CRR can target GCS",
-            "No. Neither cloud replicates natively into the other",
-            "Yes, if the GCS bucket is dual-region",
+            "Proving that every copy is complete and correct",
+            "Finding enough disk space in the second cloud",
+            "Writing the code that copies the bytes",
           ],
-          answer: 1,
-          explain: "Across clouds you use a managed transfer service or build a custom replicator.",
+          answer: 0,
+          explain: "Copying bytes takes a few lines of code, and storage is cheap (the catalog is about 0.1% of a month's delivery). The real work is **proof**: knowing that every object arrived, unchanged, before any viewer depends on it. That is why this lesson spends most of its time on checksums, ledgers and alerts.",
         },
         {
           kind: "read",
           title: "Managed cross-cloud transfer",
-          body: "**Google Storage Transfer Service (STS)** copies from S3 into GCS with integrity validation. **Event-driven transfers** consume S3 Event Notifications through Amazon SQS and copy “in near-real time”, “in order of minutes”.\n\nLimits: deletions are not detected, the destination is always GCS, and STS “does not provide an SLA, including for transfer performance or latency”.",
-        },
-        {
-          kind: "multi",
-          prompt: "Which needs push a team to build a custom replicator instead of STS? Select all that apply.",
-          options: [
-            "A replication lag SLO",
-            "Per-object checksum verification recorded for the publish gate",
-            "Priority lanes so new simulcast episodes go first",
-            "Copying in both directions, GCS to S3 as well",
-            "Copying from S3 into GCS at all",
-          ],
-          answers: [0, 1, 2, 3],
-          explain: "STS already copies S3 into GCS with integrity validation. A lag SLO, per-object verification, priority lanes or both directions need a custom replicator.",
+          body: "**Google Storage Transfer Service (STS)** copies from S3 into GCS with integrity validation. **Event-driven transfers** consume S3 Event Notifications through Amazon SQS (a message queue) and copy “in near-real time”, “in order of minutes”.\n\nLimits: deletions are not detected, the destination is always GCS, and STS “does not provide an SLA, including for transfer performance or latency”.",
         },
         {
           kind: "read",
           title: "A custom replicator: the copy path",
-          body: "The pipeline writes an object to the S3 primary. An **S3 event notification** goes into a queue such as SQS. **Replicator workers** take each event and stream-copy the object into the GCS replica.",
+          body: "The pipeline writes an object to the S3 primary. An **S3 event notification** (a message saying “this object was written”) goes into a queue such as SQS. **Replicator workers** take each event and stream-copy the object into the GCS replica.",
           visual: { kind: "flow", spec: REPL_COPY },
         },
         {
           kind: "read",
           title: "The verify path",
-          body: "After the copy, the worker compares CRC32C checksums. If they match, the **ledger** marks the object replicated, with a timestamp. If they still do not match after retries, the object goes to a **dead letter queue** and someone is alerted.",
+          body: "A **checksum** is a short number computed from a file's bytes; change one byte and the checksum changes. **CRC32C** is one common checksum.\n\nAfter the copy, the worker compares CRC32C checksums. If they match, the **ledger** (a database of verified copies) marks the object replicated, with a timestamp. If they still do not match after retries, the object goes to a **dead letter queue** (a queue for messages that keep failing) and someone is alerted.",
           visual: { kind: "flow", spec: REPL_VERIFY },
         },
         {
@@ -1088,6 +1116,7 @@ const chapter: Chapter = {
         },
         {
           kind: "order",
+          teach: "Follow the arrows in the last three diagrams: the copy path, then the verify path, then what reads the result.",
           prompt: "Put the life of one object through the custom replicator in order.",
           items: [
             "The pipeline writes the object to the S3 primary",
@@ -1102,18 +1131,21 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Design rules",
-          body: "- **Events plus reconciliation.** Events can be lost; the inventory diff re-queues them.\n- **Idempotent workers.** Re-copying an immutable object is safe, so retries are trivial.\n- **Priority lanes.** New simulcast episodes jump ahead of backfills and re-encodes.\n- **Rate limits** on per-prefix request rates and egress budget.\n- **A ledger** of verified checksum and time per object per destination, read by the publish gate and used to compute lag.",
+          body: "- **Events plus reconciliation.** Events can be lost; the inventory diff re-queues them.\n- **Idempotent workers.** Idempotent means doing it twice gives the same result as once. Re-copying an immutable object is safe, so retries are trivial.\n- **Priority lanes.** New simulcast episodes jump ahead of backfills and re-encodes.\n- **Rate limits** on per-prefix request rates and egress budget.\n- **A ledger** of verified checksum and time per object per destination, read by the publish gate and used to compute lag.",
         },
         {
-          kind: "quiz",
-          prompt: "Why are retries “trivial” in this replicator?",
+          kind: "multi",
+          teach: "Compare STS's listed limits with the design rules of the custom replicator. A need belongs on the list only if STS cannot already meet it.",
+          prompt: "Which needs push a team to build a custom replicator instead of STS? Select all that apply.",
           options: [
-            "Because SQS never delivers an event twice",
-            "Because objects are immutable, so re-copying one is safe (idempotent)",
-            "Because GCS rejects duplicate writes",
+            "A replication lag SLO",
+            "Per-object checksum verification recorded for the publish gate",
+            "Priority lanes so new simulcast episodes go first",
+            "Copying in both directions, GCS to S3 as well",
+            "Copying from S3 into GCS at all",
           ],
-          answer: 1,
-          explain: "Immutable keys make every copy idempotent: copying the same bytes twice gives the same result.",
+          answers: [0, 1, 2, 3],
+          explain: "STS already copies S3 into GCS with integrity validation. A lag SLO, per-object verification, priority lanes or both directions need a custom replicator.",
         },
         {
           kind: "read",
@@ -1122,6 +1154,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Check two things: what the S3 ETag really is for a multipart upload, and which checksum both clouds support.",
           prompt: "A teammate verifies cross-cloud copies by comparing the S3 ETag with the GCS MD5. What is wrong?",
           options: [
             "Nothing, they are the same hash",
@@ -1143,6 +1176,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Read the line that compares `meta.crc32c` with `srcCrc`. Then recall what the verify path does with an error that keeps happening.",
           prompt: "In this worker, what happens when the GCS `crc32c` does not match the source?",
           options: [
             "The ledger records the object anyway, with a warning",
@@ -1155,10 +1189,11 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Replication lag is a delivery SLI",
-          body: "Replication lag decides whether failover works, so treat it as a delivery **[[SLI|SLI / SLO / SLA]]**:\n\n- Per object: time from source write to verified at destination, by destination and priority lane.\n- Plus the **age of the oldest unreplicated object**.",
+          body: "Replication lag decides whether failover works, so treat it as a delivery **[[SLI|SLI / SLO / SLA]]** (a measured service level):\n\n- Per object: time from source write to verified at destination, by destination and priority lane.\n- Plus the **age of the oldest unreplicated object**.\n\nA **percentile** such as p99 is the value that 99% of objects beat. It describes the many, and says little about the few slowest.",
         },
         {
           kind: "quiz",
+          teach: "Ask what a percentile over millions of objects can and cannot show, and what a single missing object means for its episode.",
           prompt: "p99 replication lag is 40 seconds. Why also track the age of the oldest unreplicated object?",
           options: [
             "Because one stuck object is invisible in percentiles, yet it breaks failover for that episode",
@@ -1196,29 +1231,29 @@ const chapter: Chapter = {
       id: "ch06-l7",
       title: "When the origin fails",
       goal: "Configure fast origin failover per CDN, size timeouts to the player buffer, and lock every origin to its CDNs.",
-      minutes: 12,
+      minutes: 13,
       steps: [
         {
+          kind: "read",
+          title: "Before the buffer runs out",
+          body: "Mid-episode, your primary origin bucket stops answering. Viewers keep watching from their **buffer**: video the player has already downloaded ahead of the current moment. The question is whether a second origin takes over before that buffer runs out.\n\nBy the end of this lesson you can configure fast origin failover on each CDN, size timeouts to the player's buffer, and lock every origin so only your CDNs can read it.",
+        },
+        {
           kind: "quiz",
-          prompt: "Your primary origin bucket goes dark mid-episode. Which layer can recover fastest, invisibly, per request?",
+          guess: true,
+          prompt: "Take a guess. The primary origin is down. Which recovery would you expect to be fastest and invisible to the viewer?",
           options: [
-            "DNS failover of the origin hostname",
-            "CDN origin failover inside the CDN",
-            "The player switching to another CDN",
+            "Changing DNS records so the origin's name points somewhere else",
+            "The CDN retrying the same request on a second origin",
+            "The viewer's app switching to a different CDN",
           ],
           answer: 1,
-          explain: "CDN origin failover retries the same request on a second origin. DNS failover is slower, and player failover is the last line of defence.",
+          explain: "The CDN can retry the very same request on a second origin within a second or two, and the viewer never notices. DNS changes take longer, because records and the caches that hold them must update. The app switching CDN works, but only after the whole path has failed: it is the last line of defence.",
         },
         {
           kind: "read",
           title: "Failover at three layers",
-          body: "Recovery can happen at three layers, and good designs use more than one:\n\n1. **CDN origin failover** per request: fast and invisible (this lesson).\n2. **DNS failover** of the origin hostname: slower (Chapter 3).\n3. **Player failover** to another CDN or URL: the last line of defence (Chapter 10).",
-        },
-        {
-          kind: "order",
-          prompt: "Order the failover layers from fastest to last line of defence.",
-          items: ["CDN origin failover per request", "DNS failover of the origin hostname", "Player failover to another CDN or URL"],
-          explain: "The CDN retries in the same request. DNS needs records and caches to change. The player acts only when the whole path fails.",
+          body: "Recovery can happen at three layers, and good designs use more than one:\n\n1. **CDN origin failover** per request: fast and invisible (this lesson).\n2. **DNS failover** of the origin hostname: slower, because records and caches must change (Chapter 3).\n3. **Player failover** to another CDN or URL: the last line of defence, used when the whole path fails (Chapter 10).",
         },
         {
           kind: "read",
@@ -1226,8 +1261,14 @@ const chapter: Chapter = {
           body: "An **[[origin group|origin group / director]]** has a primary and a secondary origin.\n\n- On a miss, CloudFront always tries the primary first, even if the last request failed over.\n- Failover triggers are status codes you choose from 400, 403, 404, 416, 429, 500, 502, 503 and 504, plus connection failure (with 503 selected) and timeout (with 504 selected).\n- Only GET, HEAD and OPTIONS fail over.\n- Each origin keeps its own Origin Shield, and Lambda@Edge origin triggers can run twice on failover.",
         },
         {
+          kind: "read",
+          title: "How long until failover?",
+          body: "Before failing over on a dead origin, CloudFront keeps trying to connect to the primary. The wait is about **connection attempts × connection timeout**. By default CloudFront makes **3 attempts**, each with a **10-second** connection timeout.\n\nWorked example with other settings: 2 attempts × 5 seconds = up to **10 seconds** before the request moves to the secondary, plus the time to fetch from it.",
+        },
+        {
           kind: "number",
-          prompt: "Default CloudFront settings: 3 connection attempts of 10 seconds each. About how long before a request fails over to the secondary?",
+          teach: "Multiply the number of connection attempts by the timeout of each attempt.",
+          prompt: "With CloudFront's default settings, about how long before a request fails over to the secondary?",
           answer: 30,
           tolerance: 2,
           unit: "seconds",
@@ -1236,7 +1277,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Fast failover in Terraform",
-          body: "Connection timeout can be 1–10 seconds, attempts 1–3, and response timeout 1–120 seconds (default 30).\n\nThis sketch uses a 2-second connection timeout, one attempt, Origin Shield on the primary, and failover on 404 and 5xx.",
+          body: "Connection timeout can be 1–10 seconds, attempts 1–3, and response timeout 1–120 seconds (default 30).\n\nThis sketch uses a 2-second connection timeout, one attempt, Origin Shield on the primary, and failover on 404 and 5xx. The two settings `connection_timeout = 2` and `connection_attempts = 1` make failover take about 2 seconds instead of up to 30.",
           visual: {
             kind: "code",
             lang: "hcl",
@@ -1244,23 +1285,18 @@ const chapter: Chapter = {
           },
         },
         {
-          kind: "quiz",
-          prompt: "In that Terraform, which two settings make failover fast?",
-          options: [
-            "origin_shield_region and origin_id",
-            "connection_timeout = 2 and connection_attempts = 1",
-            "status_codes and member order",
-          ],
-          answer: 1,
-          explain: "A 2-second timeout with one attempt fails over in about 2 seconds instead of up to 30.",
+          kind: "read",
+          title: "Fastly: health checks and directors",
+          body: "Fastly separates “is this backend healthy” from “which backend to use”.\n\n- **[[Health checks|health check]]** are test requests run from Fastly's data centres, with an initial value and an expected status (usually 200). Unhealthy backends get no requests. There is roughly one check per PoP per period, so frequent checks are real origin load; with shielding, only the shield needs to check the origin.\n- **Directors** pick among healthy backends: `random`, `hash`, `client`, `chash` for balancing, `fallback` for pure failover. Automatic load balancing uses a quorum of 1.",
         },
         {
           kind: "read",
-          title: "Fastly: health checks and directors",
-          body: "Fastly separates “is this backend healthy” from “which backend to use”.\n\n- **[[Health checks|health check]]** run from Fastly's data centres, with presets, an initial value and an expected status (usually 200). Unhealthy backends get no requests. There is roughly one check per PoP per period, so frequent checks are real origin load; with shielding, only the shield needs to check the origin.\n- **Directors** pick among healthy backends: `random`, `hash`, `client`, `chash` for balancing, `fallback` for pure failover. Automatic load balancing uses a quorum of 1.",
+          title: "Fastly: presets and the last resort",
+          body: "Health-check **presets** set how often Fastly checks and how many checks must pass:\n\n- **“low”**: one check per minute; 1 of 2 must pass.\n- **“high”**: every 2 seconds; 7 of 10 must pass.\n\nIf every backend is unhealthy, Fastly returns **503**, unless configured to serve stale (an old cached copy).\n\nDesigns often combine directors for “this backend is down” with a VCL `restart` on 5xx or 404 for “this one request failed”.",
         },
         {
           kind: "match",
+          teach: "Recall the two health-check presets, the director built for failover only, and what Fastly does when no backend is healthy.",
           prompt: "Match each Fastly item to its behaviour.",
           pairs: [
             ["“low” health check preset", "One check per minute, 1 of 2 must pass"],
@@ -1268,7 +1304,7 @@ const chapter: Chapter = {
             ["`fallback` director", "Pure failover to the next healthy backend"],
             ["All backends unhealthy", "503, unless configured to serve stale"],
           ],
-          explain: "Designs often combine directors for “this backend is down” with a VCL `restart` on 5xx or 404 for “this one request failed”.",
+          explain: "Health checks answer “is this backend up?”; directors answer “which one do I use?”. A VCL `restart` covers the single failed request.",
         },
         {
           kind: "read",
@@ -1282,6 +1318,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall what the publish gate guarantees about real content before release, and what 404 failover can hide.",
           prompt: "The rate of 404-triggered failovers from the GCS replica to the S3 primary is small but never zero. What does that tell you?",
           options: [
             "Normal background noise; ignore it",
@@ -1312,6 +1349,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Compare each option with two numbers: the bucket's normal time to first byte, and the player's 20–30 s buffer.",
           prompt: "A healthy bucket answers in 100–200 ms. What response timeout should a static segment origin get when a failover origin exists?",
           options: ["30 seconds (the default)", "A few seconds", "100 milliseconds"],
           answer: 1,
@@ -1325,7 +1363,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Mechanisms by CDN and origin",
-          body: "Each CDN-to-origin pair has its own way to prove identity.",
+          body: "Each CDN-to-origin pair has its own way to prove identity. **SigV4** is AWS's request-signing method; **HMAC keys** are shared secrets used to sign requests; **mTLS** means both sides show a certificate.",
           visual: {
             kind: "table",
             headers: ["CDN → origin", "Mechanism", "Notes"],
@@ -1340,25 +1378,14 @@ const chapter: Chapter = {
           },
         },
         {
-          kind: "match",
-          prompt: "Match each CDN-to-origin link to its cloaking mechanism.",
-          pairs: [
-            ["CloudFront → S3", "Origin Access Control (OAC)"],
-            ["Fastly → S3", "SigV4 signing in VCL, read-only IAM identity"],
-            ["Fastly → GCS", "HMAC keys on the S3-compatible XML API"],
-            ["Media CDN → GCS", "IAM service account, no keys in config"],
-            ["Any CDN → origin service", "Secret header, mTLS or IP allowlist"],
-          ],
-          explain: "Five CDNs and three buckets can mean fifteen trust links, each with its own credential type and rotation.",
-        },
-        {
           kind: "read",
           title: "The credential matrix",
-          body: "Five CDNs and three buckets make up to **fifteen trust links**. Rules:\n\n- **One credential per CDN per origin**, so a leak revokes one link, not all.\n- **Read-only and prefix-scoped:** GetObject on delivery prefixes, never List or Put.\n- **Everything in [[IaC]]** (Chapter 14), so the failover origin's policy ships in the same change as the primary's.\n- **Continuous probes** fetch a canary object through every CDN from every origin, including failover origins.",
+          body: "Five CDNs and three buckets make up to **fifteen trust links**, each with its own credential type and rotation. Rules:\n\n- **One credential per CDN per origin**, so a leak revokes one link, not all.\n- **Read-only and prefix-scoped:** GetObject on delivery prefixes, never List or Put.\n- **Everything in [[IaC]]** (Chapter 14), so the failover origin's policy ships in the same change as the primary's.\n- **Continuous probes** fetch a canary object through every CDN from every origin, including failover origins.",
           callout: { type: "mistake", text: "The primary bucket allows the distribution via OAC, but the secondary's policy was copied from an old OAI setup. Every failed-over request returns 403. Check that every origin in every group accepts each CDN's identity." },
         },
         {
           kind: "quiz",
+          teach: "Recall what HTTP 403 means compared with 404, and which settings can differ between a primary and a failover origin.",
           prompt: "During a failover drill, every request that fails over to the replica returns 403. The primary works. What is the most likely cause?",
           options: [
             "The replica is missing the objects",
@@ -1386,8 +1413,13 @@ const chapter: Chapter = {
       id: "ch06-l8",
       title: "Checkpoint",
       goal: "Put the whole origin layer together and answer the chapter's review questions.",
-      minutes: 10,
+      minutes: 11,
       steps: [
+        {
+          kind: "read",
+          title: "What this chapter covered",
+          body: "Here is what this chapter covered:\n\n- The **origin** is the source of truth; object storage is the usual VOD origin.\n- Misses multiply across tiers: offload = 1 − (edge miss × shield miss).\n- A **shield** near the origin deduplicates and collapses fills, at a cost.\n- **Request collapsing** stops herds, unless responses are uncacheable.\n- **One writer**, immutable keys, verified replication and a **publish gate**.\n- **Failover** must beat the player's buffer, and every origin is **cloaked**.\n\nFirst a likely architecture, then the review questions.",
+        },
         {
           kind: "read",
           title: "A likely shape: the write side",
@@ -1413,6 +1445,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "The origin's share is the edge miss share times the shield miss share. Offload is 100% minus that share.",
           prompt: "Q1. The edge byte hit ratio is 96% and the shield hit ratio is 75% of what reaches it. What is the total origin offload?",
           answer: 99,
           tolerance: 0.2,
@@ -1421,6 +1454,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Multiply the monthly delivery volume by the share that still reaches the origin.",
           prompt: "Q1, continued. In the assumed model (540 PB delivered per month), how many PB per month reach the origin?",
           answer: 5.4,
           tolerance: 0.3,
@@ -1429,6 +1463,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Think about how one request that passes through both the edge and the shield is counted in a blended hit ratio.",
           prompt: "Q2. Why can turning on Fastly shielding lower the reported cache hit ratio while reducing origin traffic?",
           options: [
             "Shielding evicts objects from edge caches",
@@ -1445,6 +1480,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Collapsing only works when one response can be shared with every waiting request.",
           prompt: "Q4. A new episode's first segment returns `Cache-Control: private` by mistake. What happens in the first minute of the premiere?",
           options: [
             "Collapsing still works, because the shield ignores Cache-Control",
@@ -1456,6 +1492,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Compare where a partial failure shows up, and where retries and checks live, in each design.",
           prompt: "Q5. Why is a single writer plus replication safer than dual writes from the Content Pipeline to S3 and GCS?",
           options: [
             "Dual writes cost twice as much storage",
@@ -1467,6 +1504,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "Recall the list of what S3 live replication skips by default, and what it does copy for every new object.",
           prompt: "Q6. What does S3 live replication not copy by default? Select all that apply.",
           options: [
             "Objects in Glacier Flexible Retrieval or Deep Archive",
@@ -1480,6 +1518,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall what the S3 ETag is for a multipart upload, and which checksum both clouds support.",
           prompt: "Q7. Why not compare S3 ETags with GCS MD5 hashes to verify cross-cloud copies?",
           options: [
             "ETags are encrypted",
@@ -1491,6 +1530,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Wait before failover is about connection attempts × connection timeout. Recall CloudFront's default for each.",
           prompt: "Q8. A CloudFront origin group uses default timeouts. The primary bucket's Region becomes unreachable. Roughly how many seconds before a segment request fails over?",
           answer: 30,
           tolerance: 3,
@@ -1499,6 +1539,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Compare the failover time with the length of the player's buffer, and recall which settings control the wait.",
           prompt: "Q8, continued. The player has a 25-second buffer. What happens, and what is the fix?",
           options: [
             "Nothing: 30 s is inside the buffer",

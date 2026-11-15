@@ -162,7 +162,23 @@ const chapter: Chapter = {
       minutes: 10,
       steps: [
         {
+          kind: "read",
+          title: "Start here",
+          body: "A product manager asks: “Can we add a 1440p quality level (a **rung**) for premium users?” It sounds like a video question. It is also a delivery question, because it changes how many files you store, cache and send.\n\nThis lesson teaches the few video basics a delivery engineer needs: frames, codecs, bitrate and key frames.\n\nBy the end you can turn an encoding proposal into delivery numbers, and explain why every segment must start with a special frame called an **IDR**.",
+        },
+        {
+          kind: "read",
+          title: "The bytes are shaped upstream",
+          body: "A delivery engineer does not encode video. At Crunchyroll that is the **Content Pipeline** team.\n\nBut the bytes you deliver are shaped before they reach you. The **encoder** compresses video and decides object sizes. The [[packager]] cuts it into small files and decides how many objects exist, their URLs, and whether HLS and DASH share files. The [[manifest|Manifest / playlist]] decides what the player asks for next.\n\nYou feel each choice later: in hit ratio, origin request rate, the storage bill, premiere spikes and 3 a.m. pages.",
+        },
+        {
+          kind: "read",
+          title: "One more rung, four effects",
+          body: "Back to the 1440p rung:\n\n- Every episode gets one more set of segments. Storage and cross-cloud replication grow (Chapter 6).\n- The cache holds one more variant of every popular episode. The working set grows, so hit ratio may drop.\n- The new rung is the biggest. Users who get it pull more bytes per hour, so [[egress]] and the CDN bill grow (Chapter 16).\n- On a [[simulcast]] premiere, every new object must come from origin at least once per shield. More objects, bigger cold-cache herd (Chapter 13).",
+        },
+        {
           kind: "quiz",
+          teach: "Think about the four effects in the last step: what one more rung does to storage, the cache, egress and a premiere.",
           prompt: "A product manager asks: “Can we add a 1440p rung for premium users?” Which answer sounds like a **delivery** engineer?",
           options: [
             "How long will each episode take to encode?",
@@ -172,16 +188,6 @@ const chapter: Chapter = {
           ],
           answer: 2,
           explain: "Encode time and picture quality are the encoding engineer's questions. A delivery engineer thinks about objects, storage, cache working set, egress and the premiere herd.",
-        },
-        {
-          kind: "read",
-          title: "The bytes are shaped upstream",
-          body: "A delivery engineer does not encode video. At Crunchyroll that is the **Content Pipeline** team.\n\nBut the bytes you deliver are shaped before they reach you. The encoder decides how big each object is. The [[packager]] decides how many objects exist, what their URLs look like, and whether HLS and DASH share the same files. The [[manifest|Manifest / playlist]] decides what the player asks for next.\n\nYou feel each choice later: in hit ratio, origin request rate, the storage bill, premiere request rate, and 3 a.m. pages.",
-        },
-        {
-          kind: "read",
-          title: "One more rung, four effects",
-          body: "Back to the 1440p rung:\n\n- Every episode gets one more set of segments. Storage and cross-cloud replication grow (Chapter 6).\n- The cache holds one more variant of every popular episode. The working set grows, so hit ratio may drop.\n- The new rung is the biggest. Users who get it pull more bytes per hour, so [[egress]] and the CDN bill grow (Chapter 16).\n- On a [[simulcast]] premiere, every new object must come from origin at least once per shield. More objects, bigger cold-cache herd (Chapter 13).",
         },
         {
           kind: "read",
@@ -205,6 +211,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Use the table in the last step. Each upstream decision lands on a different delivery number; find its row.",
           prompt: "Match each upstream decision to what it changes for you.",
           pairs: [
             ["Segment duration", "Requests per second and object size"],
@@ -221,7 +228,13 @@ const chapter: Chapter = {
           body: "A video is a sequence of still pictures called **frames**.\n\n**Resolution** is the frame size in pixels, such as 1920x1080 (“1080p”).\n\n**Frame rate** is frames per second (fps). Film and most anime are about 24 fps (23.976 in many TV workflows).\n\nRaw video is huge. One 1080p frame with 8-bit 4:2:0 color is about **3.1 MB**.",
         },
         {
+          kind: "read",
+          title: "Worked example: raw 720p",
+          body: "How big is video before compression? Multiply three things:\n\n**raw bitrate = MB per frame × frames per second × 8** (8 bits in a byte)\n\nOne raw 720p frame (1280x720) is about 1.4 MB. At 30 fps:\n\n- 1.4 MB × 30 = 42 MB per second\n- 42 × 8 = about **336 Mbps**\n\nThat is raw 720p. Now try 1080p yourself.",
+        },
+        {
           kind: "number",
+          teach: "Multiply the MB per frame by the frames per second, then by 8 to turn bytes into bits.",
           prompt: "One raw 1080p frame is about 3.1 MB. At 24 fps, about how many megabits per second is raw video?",
           answer: 600,
           tolerance: 40,
@@ -232,10 +245,11 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Codec and bitrate",
-          body: "A [[codec]] (coder-decoder) compresses raw video down to a few Mbps.\n\nThe bits per second after compression is the **bitrate**.\n\nOur assumed average delivered bitrate for Crunchyroll is about **4 Mbps**.",
+          body: "A [[codec]] (coder-decoder) compresses raw video down to a few Mbps.\n\nThe bits per second after compression is the **bitrate**. Our assumed average delivered bitrate for Crunchyroll is about **4 Mbps**.\n\nThe **compression ratio** is raw bitrate ÷ delivered bitrate. Example: raw 720p is about 336 Mbps. Delivered at 3 Mbps, that is 336 ÷ 3 = **112 to 1**.",
         },
         {
           kind: "number",
+          teach: "Divide the raw bitrate by the delivered bitrate.",
           prompt: "Raw 1080p is about 600 Mbps. The assumed delivered average is about 4 Mbps. Roughly what compression ratio is that (X to 1)?",
           answer: 150,
           tolerance: 15,
@@ -245,7 +259,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "I, P and B frames",
-          body: "Codecs save space inside a frame (**spatial compression**, like JPEG) and across frames (**temporal compression**: send only what moved, using **motion vectors**).\n\nThat gives three frame types.",
+          body: "Codecs save space inside a frame (**spatial compression**, like JPEG) and across frames (**temporal compression**: send only what moved, using **motion vectors**).\n\nThat gives three frame types. An I-frame is the largest, a P-frame is smaller, and a B-frame, which can borrow from both directions, is the smallest.",
           visual: {
             kind: "table",
             headers: ["Frame", "What it holds", "Size"],
@@ -257,18 +271,13 @@ const chapter: Chapter = {
           },
         },
         {
-          kind: "order",
-          prompt: "Order the frame types from largest to smallest.",
-          items: ["I-frame (complete picture)", "P-frame (difference from earlier frames)", "B-frame (refers before and after)"],
-          explain: "An I-frame is a whole picture. A P-frame stores only changes from the past. A B-frame can borrow from both directions, so it is the smallest.",
-        },
-        {
           kind: "read",
           title: "IDR frames and the GOP",
           body: "An **IDR frame** (Instantaneous Decoder Refresh) is an I-frame that says “nothing after me refers to anything before me.” It is a clean restart point.\n\nA **[[GOP]]** (Group of Pictures) is the run of frames from one I-frame to the next. A **closed GOP** does not refer outside itself.\n\nThe key fact for delivery: **a player can only start decoding at an IDR frame.**",
         },
         {
           kind: "quiz",
+          teach: "P- and B-frames depend on other frames. Recall which frame is the clean restart point.",
           prompt: "A viewer seeks to minute 12. Where can the player start decoding?",
           options: [
             "At any frame, if it has enough bandwidth",
@@ -282,7 +291,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Segment alignment",
-          body: "So **every segment must start with an IDR, and all renditions must have IDRs at the same timestamps.**\n\nAdaptive streaming switches renditions at segment boundaries. If segment 51 at 720p and segment 51 at 1080p do not start at exactly the same moment with a clean IDR, the switch glitches or fails.\n\nThis is **segment alignment** (or GOP alignment).",
+          body: "So **every segment must start with an IDR, and all renditions must have IDRs at the same timestamps.**\n\nAdaptive streaming switches renditions (quality versions) at segment boundaries. If segment 51 at 720p and segment 51 at 1080p do not start at exactly the same moment with a clean IDR, the switch glitches or fails.\n\nThis is **segment alignment** (or GOP alignment).",
           visual: {
             kind: "table",
             headers: ["Segment 51", "0-2 s", "2-4 s", "4-6 s"],
@@ -308,6 +317,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "A segment can only begin where the encoder put an IDR. With IDRs every 2 seconds, list the moments where a cut is possible.",
           prompt: "The encoder puts an IDR every 2 seconds. Which VOD segment durations can the packager produce cleanly? Select all that apply.",
           options: ["2 s", "4 s", "5 s", "6 s", "8 s"],
           answers: [0, 1, 3, 4],
@@ -326,6 +336,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall which picture areas compress very well, and which kind of area shows visible steps at low bitrate.",
           prompt: "Which part of an anime picture is hardest to keep clean at low bitrate?",
           options: [
             "Large flat color areas",
@@ -358,8 +369,14 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "Start here",
+          body: "Video codecs keep improving. A newer codec can send the same picture with a third fewer bytes. That sounds like pure savings on the CDN bill.\n\nIt is not that simple. Old devices, several file formats and encryption all change the math.\n\nBy the end of this lesson you can compare codecs by their delivery cost, work out an egress saving, and explain how the **CMAF** format lets HLS and DASH share one copy of the files.",
+        },
+        {
           kind: "quiz",
-          prompt: "A new codec saves a third of the bytes. Can you stop encoding H.264?",
+          guess: true,
+          prompt: "Take a guess. A new codec saves a third of the bytes. Could you stop making the old H.264 version of every episode?",
           options: [
             "Yes, once half the devices support the new codec",
             "No. H.264 is always needed as the fallback, so each new codec is another full ladder per episode",
@@ -367,7 +384,7 @@ const chapter: Chapter = {
             "Yes, the CDN can convert codecs on the fly",
           ],
           answer: 1,
-          explain: "Every device plays H.264, and many older devices play nothing else. So a new codec does not replace a ladder; it adds one.",
+          explain: "No. Every device plays H.264, and many older devices play nothing else. So a new codec does not replace the H.264 **ladder** (the full set of quality versions of an episode); it adds a second full ladder next to it.",
         },
         {
           kind: "read",
@@ -385,20 +402,9 @@ const chapter: Chapter = {
           },
         },
         {
-          kind: "match",
-          prompt: "Match each codec to a fact about it.",
-          pairs: [
-            ["H.264 / AVC", "Plays on every device; always the fallback"],
-            ["HEVC / H.265", "Apple requires fMP4 for it in HLS"],
-            ["VP9", "YouTube's main efficient codec for years"],
-            ["AV1", "Royalty-free (AOMedia), expensive to encode"],
-          ],
-          explain: "H.264 is the universal baseline. HEVC is efficient but has complex licensing and needs fMP4 in Apple's HLS. VP9 was YouTube's workhorse. AV1 is the newest royalty-free codec with the biggest bandwidth win.",
-        },
-        {
           kind: "read",
           title: "AV1 in practice",
-          body: "AV1 comes from the Alliance for Open Media, whose members include Google, Netflix, Amazon, Apple and Meta.\n\nIn December 2025 Netflix reported that AV1 powered about **30 percent** of its on-demand viewing, second only to H.264. AV1 sessions used about **one-third less bandwidth** than AVC and HEVC, with about **45 percent fewer** buffering interruptions (as summarized by Dan Rayburn from the Netflix TechBlog post).\n\n88 percent of large-screen devices submitted for Netflix certification from 2021 to 2025 supported AV1. Apple's HLS spec now allows AV1, in fMP4 only.",
+          body: "AV1 comes from the Alliance for Open Media (**AOMedia**), whose members include Google, Netflix, Amazon, Apple and Meta.\n\nIn December 2025 Netflix reported that AV1 powered about **30 percent** of its on-demand viewing, second only to H.264. AV1 sessions used about **one-third less bandwidth** than AVC and HEVC, with about **45 percent fewer** buffering interruptions (as summarized by Dan Rayburn from the Netflix TechBlog post).\n\n88 percent of large-screen devices submitted for Netflix certification from 2021 to 2025 supported AV1. Apple's HLS spec now allows AV1, in fMP4 only.",
           visual: {
             kind: "stats",
             items: [
@@ -410,26 +416,31 @@ const chapter: Chapter = {
           },
         },
         {
+          kind: "match",
+          teach: "Look back at the codec table's Device support and Delivery notes columns, and at who makes AV1 and how it is licensed.",
+          prompt: "Match each codec to a fact about it.",
+          pairs: [
+            ["H.264 / AVC", "Plays on every device; always the fallback"],
+            ["HEVC / H.265", "Apple requires fMP4 for it in HLS"],
+            ["VP9", "YouTube's main efficient codec for years"],
+            ["AV1", "Royalty-free (AOMedia), expensive to encode"],
+          ],
+          explain: "H.264 is the universal baseline. HEVC is efficient but has complex licensing and needs fMP4 in Apple's HLS. VP9 was YouTube's workhorse. AV1 is the newest royalty-free codec with the biggest bandwidth win.",
+        },
+        {
           kind: "read",
           title: "Why delivery cares: bytes per hour",
-          body: "Suppose one-third of your traffic moves to a codec that is one-third smaller.\n\nThen one-third of the bytes shrink by one-third. Work out what that does to total egress.",
+          body: "When part of your traffic moves to a smaller codec, total egress falls by:\n\n**saving = share of traffic moved × how much smaller**\n\nExample: half your traffic (0.5) moves to a codec 40 percent smaller (0.4). Saving = 0.5 × 0.4 = 0.2, so total egress falls **20 percent**.\n\nNow the Netflix-like case: one-third of traffic moves to a codec one-third smaller.",
         },
         {
           kind: "number",
+          teach: "Multiply the share of traffic that moves by how much smaller the new codec is. Write both as fractions or decimals.",
           prompt: "One-third of traffic moves to a codec one-third smaller. By about what percent does total egress fall?",
           answer: 11,
           tolerance: 1.5,
           unit: "%",
           hint: "1/3 × 1/3.",
-          explain: "1/3 × 1/3 = 1/9 ≈ **11 percent** less egress.",
-        },
-        {
-          kind: "number",
-          prompt: "At the assumed ~540 PB delivered per month, how many PB per month does an 11 percent cut avoid?",
-          answer: 60,
-          tolerance: 5,
-          unit: "PB/month",
-          explain: "540 × 0.11 ≈ **60 PB/month** less to deliver (assumed model).",
+          explain: "1/3 × 1/3 = 1/9 ≈ **11 percent** less egress. At the assumed ~540 PB delivered per month, that is 540 × 0.11 ≈ **60 PB/month** less to deliver (assumed model).",
         },
         {
           kind: "read",
@@ -439,6 +450,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "The CDN only moves bytes; the device decodes them. Think about what the CDN sees when the bytes arrive fine but the device cannot use them.",
           prompt: "The playback API sends an HEVC ladder to a TV that cannot decode HEVC. What do CDN logs show?",
           options: [
             "A burst of 415 Unsupported Media Type errors",
@@ -452,7 +464,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Audio codecs",
-          body: "Audio is a small share of bytes but a large share of complexity, because of dubs.",
+          body: "Audio is a small share of bytes but a large share of complexity, because of dubs.\n\n**Audio size = bitrate × seconds ÷ 8.** Example: HE-AAC at 64 kbps for a 10-minute clip (600 s): 64 × 600 = 38,400 kb. ÷ 8 = 4,800 KB, about **4.8 MB**.",
           visual: {
             kind: "table",
             headers: ["Audio codec", "Typical use", "Notes"],
@@ -466,6 +478,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Multiply kilobits per second by seconds, then divide by 8 to get kilobytes. About 1,000 KB make 1 MB.",
           prompt: "Stereo [[AAC]] at about 128 kbps for a 24-minute (1,440 s) episode. About how many MB is one dub track?",
           answer: 23,
           tolerance: 2,
@@ -490,13 +503,8 @@ const chapter: Chapter = {
           visual: { kind: "flow", spec: FMP4_SEGMENTS, caption: "One init segment, many media segments" },
         },
         {
-          kind: "read",
-          title: "CMAF: one set of segments, two manifests",
-          body: "**[[CMAF]]** (Common Media Application Format) is a constrained fMP4 profile, ISO/IEC 23000-19.\n\nIt was designed so **one set of segments** can be referenced by both an HLS media playlist (through `EXT-X-MAP`) and a DASH MPD (through `SegmentTemplate`).",
-          visual: { kind: "flow", spec: FMP4_SHARED, caption: "HLS and DASH point at the same init and media segments" },
-        },
-        {
           kind: "quiz",
+          teach: "In fMP4 there are two kinds of segment: one describes the tracks and has no media, the others carry the pictures and sound.",
           prompt: "With fMP4, which object does the player fetch only once per track?",
           options: ["The init segment (ftyp + moov)", "Every media segment", "The mdat box", "The moof of segment 1"],
           answer: 0,
@@ -504,19 +512,14 @@ const chapter: Chapter = {
         },
         {
           kind: "read",
-          title: "The CMAF story",
-          body: "Before 2016, HLS meant TS and DASH meant fMP4. Supporting Apple and Android/TVs meant storing and delivering **two copies of every segment**.\n\nApple and Microsoft jointly proposed CMAF to MPEG in February 2016. At WWDC in June 2016 Apple announced fMP4 support in HLS. CMAF was published as ISO/IEC 23000-19 in January 2018, with later editions. Unified Streaming later received a Technology and Engineering Emmy for its contribution to CMAF.",
+          title: "CMAF: one set of segments, two manifests",
+          body: "**[[CMAF]]** (Common Media Application Format) is a constrained fMP4 profile, ISO/IEC 23000-19.\n\nIt was designed so **one set of segments** can be referenced by both an HLS media playlist (through `EXT-X-MAP`) and a DASH MPD (through `SegmentTemplate`).",
+          visual: { kind: "flow", spec: FMP4_SHARED, caption: "HLS and DASH point at the same init and media segments" },
         },
         {
-          kind: "order",
-          prompt: "Put the CMAF story in order.",
-          items: [
-            "HLS means TS, DASH means fMP4: two copies of every segment",
-            "Apple and Microsoft propose CMAF to MPEG",
-            "Apple announces fMP4 support in HLS at WWDC",
-            "CMAF is published as ISO/IEC 23000-19",
-          ],
-          explain: "Two copies before 2016; the CMAF proposal in February 2016; fMP4 in HLS at WWDC in June 2016; the ISO standard in January 2018.",
+          kind: "read",
+          title: "The CMAF story",
+          body: "Before 2016, HLS meant TS and DASH meant fMP4. Supporting Apple and Android/TVs meant storing and delivering **two copies of every segment**.\n\nApple and Microsoft jointly proposed CMAF to MPEG in February 2016. At WWDC in June 2016 Apple announced fMP4 support in HLS. CMAF was published as ISO/IEC 23000-19 in January 2018, with later editions. Unified Streaming later received a Technology and Engineering Emmy for its contribution to CMAF.",
         },
         {
           kind: "read",
@@ -531,6 +534,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Two viewers share one cache entry only when they ask for exactly the same bytes. Ask whether the encrypted bytes are the same.",
           prompt: "A team moved to CMAF, but HLS gets `cbcs` bytes and DASH gets `cenc` bytes. What happened to cache sharing?",
           options: [
             "It doubled, because both use CMAF",
@@ -563,8 +567,14 @@ const chapter: Chapter = {
       minutes: 10,
       steps: [
         {
+          kind: "read",
+          title: "Start here",
+          body: "An episode is not one video file. It is encoded several times, at different sizes and bitrates, so a phone on a weak train connection and a big TV on fiber can both play it.\n\nThat list of versions is the **bitrate ladder**. Its shape decides how many objects you store and how many bytes you send.\n\nBy the end you can read a ladder, explain per-title and per-shot encoding, and describe how a player climbs the ladder one segment at a time.",
+        },
+        {
           kind: "quiz",
-          prompt: "Same bitrate, two choices: 1080p or 720p. Can the lower resolution look better?",
+          guess: true,
+          prompt: "Take a guess. Same bitrate, two choices: 1080p or 720p. Could the smaller 720p picture look better?",
           options: [
             "No, more pixels always look better",
             "Yes. Blocking artifacts are usually more annoying than the blur from downscaling",
@@ -572,7 +582,7 @@ const chapter: Chapter = {
             "Only for live sports",
           ],
           answer: 1,
-          explain: "Netflix noted that blocking artifacts are “typically more annoying and visible than blurring introduced by downscaling”. If the bitrate is too low for 1080p, 720p can win.",
+          explain: "Yes. When there are too few bits for 1080p, the encoder must throw away detail and you see blocky squares. Netflix noted that blocking artifacts are “typically more annoying and visible than blurring introduced by downscaling”. If the bitrate is too low for 1080p, 720p can win.",
         },
         {
           kind: "read",
@@ -598,7 +608,13 @@ const chapter: Chapter = {
           },
         },
         {
+          kind: "read",
+          title: "Worked example: how much lower?",
+          body: "To compare two bitrates, use:\n\n**percent lower = (old − new) ÷ old**\n\nExample, the lowest 720p rung: H.264 needs 3,000 kbps and HEVC needs 2,400 kbps.\n\n(3,000 − 2,400) ÷ 3,000 = 600 ÷ 3,000 = **20 percent** fewer bits for the same resolution.\n\nNow do the same for 1080p.",
+        },
+        {
           kind: "number",
+          teach: "Subtract the HEVC bitrate from the H.264 bitrate, then divide by the H.264 bitrate.",
           prompt: "In Apple's table, the lowest 1080p rung is 6,000 kbps for H.264 and 4,500 kbps for HEVC. By what percent is HEVC lower?",
           answer: 25,
           tolerance: 3,
@@ -616,21 +632,9 @@ const chapter: Chapter = {
           body: "In December 2015 Netflix published **[[per-title encode optimization|Per-title encoding]]**: encode each title at many resolution and bitrate test points, measure quality, and pick the best ladder for that title.\n\nThe best-possible quality-versus-bitrate curve is the **convex hull**.\n\nQuality is measured with **VMAF** (Video Multi-method Assessment Fusion), a perceptual metric Netflix open-sourced in 2016. It is now an industry standard for ladder decisions.",
         },
         {
-          kind: "match",
-          prompt: "Match each term to its meaning.",
-          pairs: [
-            ["Rung", "One resolution plus bitrate in the ladder"],
-            ["Convex hull", "Best-possible quality-versus-bitrate curve"],
-            ["VMAF", "Perceptual quality metric, open-sourced 2016"],
-            ["Per-title encoding", "A ladder chosen for each title"],
-            ["Per-shot encoding", "Each shot encoded separately, best mix assembled"],
-          ],
-          explain: "A ladder is made of rungs. Per-title picks a ladder per title along the convex hull, judged by VMAF. Per-shot goes further and optimizes each shot.",
-        },
-        {
           kind: "read",
           title: "Per-shot (dynamic) optimization",
-          body: "Netflix's **Dynamic Optimizer** (around 2018) encodes each shot separately and assembles the best combination per target bitrate.\n\nAs reported by Streaming Learning Center from Netflix's figures, it cut bitrate at equal quality by about 28 percent for x264, 38 percent for VP9 and 34 percent for HEVC. In 2020 Netflix applied shot-based encoding to 4K; coverage reported comparable 4K quality at roughly half the previous bitrate.\n\nContent-aware encoding is now common (AWS Elemental MediaConvert, Bitmovin, Mux and others).",
+          body: "Netflix's **Dynamic Optimizer** (around 2018) encodes each **shot** (one continuous camera take) separately and assembles the best combination per target bitrate.\n\nAs reported by Streaming Learning Center from Netflix's figures, it cut bitrate at equal quality by about 28 percent for x264, 38 percent for VP9 and 34 percent for HEVC. In 2020 Netflix applied shot-based encoding to 4K; coverage reported comparable 4K quality at roughly half the previous bitrate.\n\nNetflix said the hard part was the pipeline: an episode can have hundreds of shots, so encode units explode.",
           visual: {
             kind: "stats",
             items: [
@@ -643,24 +647,26 @@ const chapter: Chapter = {
           },
         },
         {
-          kind: "quiz",
-          prompt: "What did Netflix say was the hard part of per-shot encoding?",
-          options: [
-            "Finding a quality metric",
-            "The pipeline: an episode can have hundreds of shots, so encode units explode",
-            "Device support for the new segments",
-            "CDN cache sizes",
+          kind: "match",
+          teach: "Recall the last four steps: what a ladder is made of, how per-title picks a ladder, how per-shot goes further, and the two names used to judge quality.",
+          prompt: "Match each term to its meaning.",
+          pairs: [
+            ["Rung", "One resolution plus bitrate in the ladder"],
+            ["Convex hull", "Best-possible quality-versus-bitrate curve"],
+            ["VMAF", "Perceptual quality metric, open-sourced 2016"],
+            ["Per-title encoding", "A ladder chosen for each title"],
+            ["Per-shot encoding", "Each shot encoded separately, best mix assembled"],
           ],
-          answer: 1,
-          explain: "Hundreds of shots per episode means hundreds of small encode jobs per rung. The pipeline, not the math, was the hard part.",
+          explain: "A ladder is made of rungs. Per-title picks a ladder per title along the convex hull, judged by VMAF. Per-shot goes further and optimizes each shot.",
         },
         {
           kind: "read",
           title: "What ladders mean for delivery",
-          body: "- **Fewer, smarter rungs.** Easy content often gets fewer rungs, so fewer objects.\n- **Variable segment sizes.** With per-shot encoding, a dialog segment may be one-third the size of a fight-scene segment. Object-size dashboards and cache sizing must expect this.\n- **Bytes per hour drop**, if players keep the same quality choices.",
+          body: "Content-aware encoding is now common (AWS Elemental MediaConvert, Bitmovin, Mux and others). For delivery:\n\n- **Fewer, smarter rungs.** Easy content often gets fewer rungs, so fewer objects.\n- **Variable segment sizes.** With per-shot encoding, a dialog segment may be one-third the size of a fight-scene segment. Object-size dashboards and cache sizing must expect this.\n- **Bytes per hour drop**, if players keep the same quality choices. Example: a 10 percent cut at the assumed ~540 PB/month avoids 540 × 0.10 = **54 PB/month**.",
         },
         {
           kind: "number",
+          teach: "Multiply the monthly bytes by the percent cut, written as a decimal.",
           prompt: "A 20 percent average bitrate cut at equal quality, at the assumed ~540 PB/month. How many PB/month are avoided?",
           answer: 108,
           tolerance: 5,
@@ -675,6 +681,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "Think about what a re-encode creates, where those new files must be copied, and what caches hold while the switch happens.",
           prompt: "Content Pipeline re-encodes the whole back catalog. What should Media Delivery expect? Select all that apply.",
           options: [
             "A wave of new objects",
@@ -713,6 +720,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall what kind of request the player makes for each segment, and whether two viewers at the same rung ask for the same file.",
           prompt: "Why does ABR fit CDNs so well?",
           options: [
             "Each viewer gets a private stream from the origin",
@@ -744,11 +752,17 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "Start here",
+          body: "**Segment duration** (how many seconds of video each small file holds) is the most important number the packager sets. It looks small, but it decides how many requests per second hit your CDN at a premiere.\n\nIn this lesson you work out request rates and object counts, then open real HLS playlists line by line.\n\nBy the end you can compute requests per second from segment duration, count the objects in one episode, and read an HLS playlist.",
+        },
+        {
           kind: "quiz",
-          prompt: "2M viewers are watching. You shorten segments from 6 s to 2 s. What happens to bytes per second at the edge?",
+          guess: true,
+          prompt: "Take a guess. 2M viewers are watching. You cut the video into 2-second pieces instead of 6-second pieces. What do you expect happens to bytes per second at the edge?",
           options: ["They triple", "They stay the same", "They drop by two-thirds", "They double"],
           answer: 1,
-          explain: "Each stream still needs about 4 Mbps. Shorter segments only cut the same bytes into more, smaller objects. What triples is the request rate.",
+          explain: "They stay the same. It is like slicing the same loaf of bread thinner: more slices, same bread. Each stream still needs about 4 Mbps. Shorter segments only cut the same bytes into more, smaller objects. What triples is the **request rate**.",
         },
         {
           kind: "read",
@@ -767,10 +781,11 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Back-of-envelope: a simulcast spike (assumed)",
-          body: "Take **2M concurrent streams** with **demuxed audio**. Each stream fetches one video segment and one audio segment per segment period. Ignore the small subtitle requests.\n\nRequests per second = streams ÷ segment duration × 2.",
+          body: "With **demuxed audio**, audio lives in its own files, apart from video. So each stream fetches one video segment and one audio segment per segment period. Ignore the small subtitle requests.\n\n**Requests per second = streams ÷ segment duration × 2**\n\nWorked example: 1M streams with 4-second segments. 1,000,000 ÷ 4 × 2 = **500k requests/s**.\n\nNow try the premiere: **2M concurrent streams**.",
         },
         {
           kind: "number",
+          teach: "Divide the number of streams by the segment duration, then double it for the separate audio request.",
           prompt: "2M streams, 6-second segments, one video + one audio request per period. How many thousand requests per second at the edge?",
           answer: 667,
           tolerance: 20,
@@ -778,17 +793,9 @@ const chapter: Chapter = {
           explain: "2,000,000 ÷ 6 × 2 ≈ **670k requests/s**.",
         },
         {
-          kind: "number",
-          prompt: "Same 2M streams, but 2-second segments. How many thousand requests per second?",
-          answer: 2000,
-          tolerance: 50,
-          unit: "k requests/s",
-          explain: "2,000,000 ÷ 2 × 2 = **2M requests/s**, three times the 6-second rate. (At 4 s it is about 1M/s.)",
-        },
-        {
           kind: "read",
           title: "Same bytes, more requests",
-          body: "Bytes are the same in all cases: about **8 Tbps**. Only the request rate changes.\n\nRequests cost money (CDNs bill per request in some form), edge CPU, and, on a cold cache, origin fetches.\n\nAt 4 Mbps a 6 s video segment is about 3 MB and a 2 s one about 1 MB. A 6 s audio segment at 128 kbps is about 96 KB.",
+          body: "With 2-second segments, 2M streams make 2,000,000 ÷ 2 × 2 = **2M requests/s**, three times the 6-second rate (4 s gives ~1M/s). Bytes stay about **8 Tbps** in every case.\n\nRequests cost money (CDNs bill per request in some form), edge CPU, and on a cold cache, origin fetches.\n\n**Segment size = bitrate × duration ÷ 8.** At 4 Mbps a 2 s video segment is 4 × 2 = 8 Mb ÷ 8 = **1 MB**. A 6 s audio segment at 128 kbps is about 96 KB.",
           visual: {
             kind: "stats",
             items: [
@@ -801,6 +808,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Multiply megabits per second by seconds to get megabits, then divide by 8 to get megabytes.",
           prompt: "A 6-second video segment at 4 Mbps. About how many MB?",
           answer: 3,
           tolerance: 0.2,
@@ -814,7 +822,13 @@ const chapter: Chapter = {
           callout: { type: "mistake", text: "Choosing 2-second VOD segments “because startup is faster.” Do not triple steady-state request rate to fix a startup problem." },
         },
         {
+          kind: "read",
+          title: "Worked example: counting objects",
+          body: "Every rendition is cut into segments, so:\n\n**segments per rendition = episode seconds ÷ segment seconds**\n\n**objects ≈ segments × (video rungs + audio dubs) + extras**\n\nExtras are init segments, playlists, subtitles and trick-play files.\n\nExample: a 10-minute clip (600 s), 4 video rungs, 2 dubs, 6 s segments. 600 ÷ 6 = 100 segments per rendition. (4 + 2) × 100 = 600, plus ~20 extras ≈ **620 objects**.",
+        },
+        {
           kind: "number",
+          teach: "Find segments per rendition first. Multiply by the number of video plus audio renditions, then add the extras.",
           prompt: "One 24-minute episode (1,440 s), 7 video rungs, 5 audio dubs, 6 s segments, plus about 50 init segments, playlists, subtitles and trick-play files. How many objects per packaging format?",
           answer: 2900,
           tolerance: 100,
@@ -847,7 +861,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "A multivariant playlist",
-          body: "Two dubs and two subtitle languages.\n\n- `BANDWIDTH` is required on every variant. It is a correctness field.\n- `EXT-X-MEDIA` `TYPE` is `AUDIO`, `VIDEO`, `SUBTITLES` or `CLOSED-CAPTIONS`.\n- `EXT-X-I-FRAME-STREAM-INF` points to an I-frame-only playlist for trick play.",
+          body: "Two dubs and two subtitle languages.\n\n- `BANDWIDTH` is required on every variant. Players use it to decide which rung their network can carry, so it is a correctness field.\n- `EXT-X-MEDIA` `TYPE` is `AUDIO`, `VIDEO`, `SUBTITLES` or `CLOSED-CAPTIONS`.\n- `EXT-X-I-FRAME-STREAM-INF` points to an I-frame-only playlist for trick play.",
           visual: {
             kind: "code",
             lang: "m3u8",
@@ -856,6 +870,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Players trust BANDWIDTH when they pick a rung. Ask what happens when the number they trust is lower than reality.",
           prompt: "A variant says `BANDWIDTH=5300000`, but its real peaks are much higher. What happens?",
           options: [
             "Nothing, BANDWIDTH is only informational",
@@ -878,6 +893,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Use the two playlist examples. Three tags live in the media playlist; two live in the multivariant playlist and describe extra renditions.",
           prompt: "Match each HLS tag to its job.",
           pairs: [
             ["EXT-X-TARGETDURATION", "Maximum segment duration"],
@@ -904,6 +920,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Compare the two columns of the table. Think about which design behaves the same way on every CDN.",
           prompt: "Why do many large services prefer separate segment files over byte ranges?",
           options: [
             "They use less storage",
@@ -942,8 +959,14 @@ const chapter: Chapter = {
       minutes: 10,
       steps: [
         {
+          kind: "read",
+          title: "Start here",
+          body: "Apple's HLS is one of the two big streaming formats. The other is **MPEG-DASH**, common on Android, smart TVs and browsers.\n\nBoth use a **manifest**: a small file that tells the player which segments exist. Because the player obeys it, the manifest is also your most powerful control point.\n\nBy the end you can read a DASH manifest, use the manifest for control without breaking caching, and say what low-latency live streaming asks of a CDN.",
+        },
+        {
           kind: "quiz",
-          prompt: "Do Apple devices play MPEG-DASH natively?",
+          guess: true,
+          prompt: "Take a guess. Apple created HLS. Do you expect Apple devices to play MPEG-DASH natively?",
           options: [
             "Yes, all Apple devices do",
             "No. That is why most services run both HLS and DASH",
@@ -951,7 +974,7 @@ const chapter: Chapter = {
             "Only in Safari",
           ],
           answer: 1,
-          explain: "Apple devices need HLS for native playback. Android, smart TVs and browsers commonly use DASH. So most services run both protocols.",
+          explain: "No. Apple devices need HLS for native playback. Android, smart TVs and browsers commonly use DASH. So most services run **both** protocols, and want them to share the same segment files.",
         },
         {
           kind: "read",
@@ -975,6 +998,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Look back at the MPD bullet list. Each element has a one-line job, from the largest container down to the URL pattern.",
           prompt: "Match each MPD element to its meaning.",
           pairs: [
             ["Period", "A time span; VOD usually has one"],
@@ -1001,6 +1025,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Think about size: which files are tiny text, and which are large media that never change?",
           prompt: "With CMAF, which part is small and may be generated per request?",
           options: ["The video segments", "The manifests", "The init segments", "The audio segments"],
           answer: 1,
@@ -1018,6 +1043,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall pattern 3. Each CDN runs its own edge code, so think about what can go wrong when three copies of the same logic are kept separately.",
           prompt: "You rewrite manifests at the edge on three CDNs. What is the main new risk?",
           options: [
             "Segments stop being cacheable",
@@ -1031,11 +1057,12 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Compress manifests, never segments",
-          body: "Manifests are text and compress well with gzip or Brotli. Segments are already compressed and must not be (Chapter 4).",
+          body: "Manifests are text and compress well with gzip or Brotli. Segments are already compressed and must not be (Chapter 4).\n\nA segment's cache key should identify the **bytes**, never the **viewer**.",
           callout: { type: "staff", text: "Segment URLs must be immutable and globally cacheable: long max-age, no per-user data in the cache key. Per-user logic (entitlement, steering, tokens) belongs in the manifest response or in a token the CDN strips from the cache key." },
         },
         {
           kind: "multi",
+          teach: "A segment's bytes are the same for every viewer. Keep in the key only the things that change which bytes you get.",
           prompt: "Which of these should be part of a segment's cache key? Select all that apply.",
           options: [
             "Content ID and encode version",
@@ -1055,10 +1082,16 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "What LL-HLS adds",
-          body: "- **Partial segments** (`EXT-X-PART`), such as CMAF chunks. Apple's example publishes a 6-second segment first as thirty 200 ms parts.\n- **Blocking playlist reload**: the client asks for a future playlist with `_HLS_msn` and `_HLS_part`, and the server holds the request, which “eliminates Playlist polling”.\n- **Preload hints** (`EXT-X-PRELOAD-HINT`), **rendition reports** and **delta updates** (`EXT-X-SKIP`).\n\n**[[LL-DASH]]** uses CMAF chunks sent with HTTP chunked transfer encoding as the encoder produces them.",
+          body: "- **Partial segments** (`EXT-X-PART`), such as CMAF chunks. Apple's example publishes a 6-second segment first as 200 ms parts.\n- **Blocking playlist reload**: the client asks for a future playlist with `_HLS_msn` and `_HLS_part`, and the server holds the request, which “eliminates Playlist polling”.\n- **Preload hints** (`EXT-X-PRELOAD-HINT`), **rendition reports** and **delta updates** (`EXT-X-SKIP`).\n\n**[[LL-DASH]]** uses CMAF chunks sent with HTTP chunked transfer encoding as the encoder produces them.",
+        },
+        {
+          kind: "read",
+          title: "Worked example: counting parts",
+          body: "A **part** is a small piece of a segment, published as soon as the encoder has it.\n\n**parts per segment = segment duration ÷ part duration** (in the same units)\n\nExample: a 4-second segment cut into 500 ms parts. 4,000 ms ÷ 500 ms = **8 parts**. Each part is a separate request, so that stream now makes 8 requests where it used to make one.",
         },
         {
           kind: "number",
+          teach: "Turn the segment duration into milliseconds, then divide by the part duration.",
           prompt: "A 6-second segment is first published as 200 ms parts. How many parts?",
           answer: 30,
           tolerance: 1,
@@ -1072,6 +1105,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "Recall the list in the last step, plus this lesson's rules about per-user data in cache keys and about compressing segments.",
           prompt: "Which of these does LL-HLS ask of your CDNs? Select all that apply.",
           options: [
             "Hold and collapse blocking playlist requests",
@@ -1104,12 +1138,18 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "Start here",
+          body: "Crunchyroll's catalog is anime with many **dubs** (audio tracks in other languages) and many subtitle languages. Every language choice can multiply the bytes you store and split the audience in your cache.\n\nThis lesson does the math on audio and subtitles, then looks at a real, reported story about Crunchyroll's subtitles.\n\nBy the end you can compare muxed and demuxed audio, and hardsubs and softsubs, in GB and in cache sharing.",
+        },
+        {
           kind: "number",
-          prompt: "Guess first. 7 video rungs and 5 dubs. If audio is packed inside the video segments, how many renditions must you store?",
+          guess: true,
+          prompt: "Take a guess. 7 video rungs and 5 dubs. If the audio is packed inside the video files, each video rung must exist once per dub. How many renditions must you store?",
           answer: 35,
           tolerance: 0.5,
           unit: "renditions",
-          explain: "Every video rung must exist once per dub: 7 × 5 = **35** renditions.",
+          explain: "Every video rung must exist once per dub: 7 × 5 = **35** renditions. Packing audio into video multiplies the ladder.",
         },
         {
           kind: "read",
@@ -1122,7 +1162,13 @@ const chapter: Chapter = {
           },
         },
         {
+          kind: "read",
+          title: "Worked example: GB per episode",
+          body: "To size a ladder, add up the bitrates of all its rungs, then:\n\n**GB = total Mbps × seconds ÷ 8 ÷ 1,000**\n\nExample: a small ladder whose rungs sum to 10 Mbps, for a 10-minute clip (600 s).\n\n10 × 600 = 6,000 Mb. ÷ 8 = 750 MB. ÷ 1,000 = **0.75 GB**.",
+        },
+        {
           kind: "number",
+          teach: "Multiply total Mbps by seconds to get megabits. Divide by 8 for megabytes, then by 1,000 for gigabytes.",
           prompt: "The 7 rungs sum to about 21 Mbps. For a 24-minute (1,440 s) episode, about how many GB of video is that?",
           answer: 3.8,
           tolerance: 0.2,
@@ -1130,17 +1176,9 @@ const chapter: Chapter = {
           explain: "21 Mb/s × 1,440 s ≈ 30,000 Mb ÷ 8 ≈ **3.8 GB** (assumed ladder).",
         },
         {
-          kind: "number",
-          prompt: "Muxed with 5 dubs stores the video 5 times. About how many GB per episode?",
-          answer: 19,
-          tolerance: 1,
-          unit: "GB",
-          explain: "3.8 GB × 5 ≈ **19 GB** per episode.",
-        },
-        {
           kind: "read",
           title: "Demuxing saves about 5x",
-          body: "Demuxed: 3.8 GB of video + 5 × 23 MB of audio ≈ **3.9 GB**.\n\nDemuxing saves about **5x** storage here, and all viewers share the same video segments whatever dub they choose.",
+          body: "Muxed with 5 dubs stores the video 5 times: 3.8 GB × 5 ≈ **19 GB** per episode.\n\nDemuxed: 3.8 GB of video + 5 × 23 MB of audio ≈ **3.9 GB**.\n\nDemuxing saves about **5x** storage here, and all viewers share the same video segments whatever dub they choose.",
           visual: {
             kind: "stats",
             items: [
@@ -1168,6 +1206,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Use the Strengths and Weaknesses columns of the subtitle table.",
           prompt: "Match each subtitle format to its key trait.",
           pairs: [
             ["WebVTT", "Native in browsers and HLS, limited styling"],
@@ -1189,6 +1228,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall where the subtitle text lives in each case: in a separate file, or inside the pixels of the video.",
           prompt: "A translator finds a typo in the Spanish subtitles of a hardsubbed episode. What is the fix?",
           options: [
             "Upload a new small text file",
@@ -1216,6 +1256,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Separate what fans, press and an anonymous-source analysis reported from what Crunchyroll itself said in October 2025.",
           prompt: "Which statement about the Fall 2025 subtitle story is accurate?",
           options: [
             "Crunchyroll officially announced a move from ASS to TTML",
@@ -1227,7 +1268,13 @@ const chapter: Chapter = {
           explain: "The TTML move was a claim in a fan analysis citing anonymous workers. Crunchyroll's own statement blamed internal system problems. Keep reported and official apart.",
         },
         {
+          kind: "read",
+          title: "Hardsubs multiply the ladder",
+          body: "With hardsubs, every subtitle language needs its own full video ladder:\n\n**storage = subtitle languages × GB per ladder**\n\nExample: 3 subtitle languages at ~3.8 GB of video per ladder. 3 × 3.8 ≈ **11.4 GB** per episode.\n\nWith softsubs it stays ~3.9 GB, plus a few hundred KB of subtitle files.",
+        },
+        {
           kind: "number",
+          teach: "Multiply the number of subtitle languages by the GB of one full video ladder.",
           prompt: "Assume 10 subtitle languages and a full hardsub ladder for each, at ~3.8 GB of video per ladder. Up to how many GB per episode?",
           answer: 38,
           tolerance: 2,
@@ -1235,12 +1282,9 @@ const chapter: Chapter = {
           explain: "10 × 3.8 GB = **~38 GB per episode**, versus ~3.9 GB plus a few hundred KB of subtitle files with softsubs.",
         },
         {
-          kind: "number",
-          prompt: "Assume 50,000 episodes (an assumed count). Full hardsub coverage at ~38 GB each is up to about how many PB per format?",
-          answer: 1.9,
-          tolerance: 0.2,
-          unit: "PB",
-          explain: "50,000 × 38 GB = 1,900 TB ≈ **~2 PB** per format, before replication to a second cloud. Softsubs: 50,000 × 3.9 GB ≈ **195 TB**.",
+          kind: "read",
+          title: "Across the whole catalog",
+          body: "Assume 50,000 episodes (an assumed count).\n\nFull hardsub coverage at ~38 GB each: 50,000 × 38 GB = 1,900 TB, about **2 PB per format**, before replication to a second cloud.\n\nSoftsubs: 50,000 × 3.9 GB ≈ **195 TB**.",
         },
         {
           kind: "read",
@@ -1250,6 +1294,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "Think about who shares each cached copy when every subtitle language is its own video, and what happens to a copy few people request.",
           prompt: "Storage is free. Why are hardsubs still bad for cache efficiency? Select all that apply.",
           options: [
             "Viewers of the same episode fetch different video bytes per subtitle language",
@@ -1263,10 +1308,11 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Trick play and thumbnails",
-          body: "**[[Trick play]]** is scrubbing and fast-forward with preview images. Apple requires I-frame playlists for scrubbing, recommends dense one-frame-per-second I-frame renditions, and gives a bitrate rule (normal bitrate × I-frame fps ÷ 8).\n\nThe alternative is **thumbnail sprites**: sheets of small JPEGs referenced by the manifest or a WebVTT thumbnail track. DASH-IF defines image adaptation sets for this, and Roku uses its own BIF format.",
+          body: "**[[Trick play]]** is scrubbing and fast-forward with preview images. Apple requires I-frame playlists for scrubbing, recommends dense one-frame-per-second I-frame renditions, and gives a bitrate rule (normal bitrate × I-frame fps ÷ 8).\n\nThe alternative is **thumbnail sprites**: sheets of small JPEGs referenced by the manifest or a WebVTT thumbnail track. DASH-IF defines image adaptation sets, and Roku uses its own BIF format.\n\nThese are rarely a bandwidth problem, but scrubbing creates bursty requests. Name them immutably and version them like segments.",
         },
         {
           kind: "quiz",
+          teach: "Think about how a viewer scrubs: many small image requests in a short time, for files that never change.",
           prompt: "What is the main delivery concern with trick-play assets?",
           options: [
             "They are a large share of bandwidth",
@@ -1298,8 +1344,14 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "Start here",
+          body: "Two sandwich shops. One makes all its sandwiches in the morning and keeps them on the shelf. The other makes each sandwich when you order it. That is the choice between **static** and **just-in-time** packaging.\n\nThe choice decides what a cache miss costs your origin, and what happens at a premiere.\n\nBy the end you can choose between the two, compare packaging designs by storage, objects and cache sharing, and write down the contract between the video pipeline and delivery.",
+        },
+        {
           kind: "quiz",
-          prompt: "Your origin builds each segment when it is requested. A cache miss now costs the origin what?",
+          guess: true,
+          prompt: "Take a guess. Your origin builds each segment only when someone asks for it, like the made-to-order sandwich shop. What do you expect a cache miss now costs the origin?",
           options: [
             "Only disk I/O, like any bucket",
             "CPU to package the segment, not just I/O",
@@ -1307,7 +1359,7 @@ const chapter: Chapter = {
             "Only network bandwidth",
           ],
           answer: 1,
-          explain: "With just-in-time packaging, every origin miss runs the packager. That changes how much a shield matters.",
+          explain: "CPU to package the segment, not just I/O. With just-in-time packaging, every origin miss runs the packager, like a cook making a fresh sandwich for every order. That changes how much a shield matters.",
         },
         {
           kind: "read",
@@ -1340,6 +1392,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "Use the trade-off table. Compare the static and JIT columns row by row: storage, compute, format changes, cold starts and debugging.",
           prompt: "Which are true of just-in-time packaging? Select all that apply.",
           options: [
             "Adding a new format or DRM is a config change",
@@ -1358,7 +1411,13 @@ const chapter: Chapter = {
           callout: { type: "crunchyroll", text: "Crunchyroll has not published whether it packages statically or just in time. Given simulcast spikes, a platform like Crunchyroll would likely want new episodes fully packaged and replicated to both clouds before release, so the premiere herd hits storage behind shields, not a CPU-bound packager. Ask early: “Where is a segment created, and what happens to that component when 2M viewers press play at the same minute?”" },
         },
         {
+          kind: "read",
+          title: "Worked example: packaging operations",
+          body: "With JIT behind shields, each shield misses each object once, and each miss is one packaging operation:\n\n**operations = unique objects × CDNs × shields per CDN**\n\nExample: 2,000 unique objects, one CDN with 4 shields. 2,000 × 1 × 4 = **8,000** packaging operations.\n\nWithout shields, every PoP is its own cache, so use the number of PoPs instead of shields.",
+        },
+        {
           kind: "number",
+          teach: "Multiply the unique objects by the number of CDNs and by the shields per CDN.",
           prompt: "JIT on a premiere (assumed): ~5,800 unique objects (HLS and DASH not sharing bytes). Two CDNs with 3 shields each. About how many packaging operations?",
           answer: 34800,
           tolerance: 1500,
@@ -1368,6 +1427,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Without shields, every PoP misses each object once. Multiply the objects by the total number of PoPs across both CDNs.",
           prompt: "Now no shields: ~100 PoPs per CDN, two CDNs, each missing all ~5,800 objects. About how many million packaging operations?",
           answer: 1.16,
           tolerance: 0.1,
@@ -1379,13 +1439,6 @@ const chapter: Chapter = {
           title: "Hybrid designs",
           body: "- **Static head, JIT tail.** Pre-package new and popular titles (simulcasts) for maximum reliability; package the long tail on demand.\n- **JIT then persist.** Package on first request and write the result back to storage.\n- **Static CMAF, dynamic manifests.** One protocol-agnostic copy of segments, with HLS and DASH manifests generated on demand. Most of JIT's flexibility at almost no CPU cost, because manifests are tiny.",
           callout: { type: "industry", text: "Netflix pre-positions encoded files onto Open Connect appliances during off-peak fill windows (Chapter 17), the extreme static approach. Many broadcasters and mid-size OTT services use JIT packaging (Unified Origin, MediaPackage, Broadpeak) to keep one source and serve many devices and DRMs." },
-        },
-        {
-          kind: "quiz",
-          prompt: "Which hybrid gives most of JIT's flexibility at almost no CPU cost?",
-          options: ["Static head, JIT tail", "JIT then persist", "Static CMAF segments with dynamic manifests", "Full JIT behind no shield"],
-          answer: 2,
-          explain: "Segments stay static and shared; only the tiny manifests are generated per request. That is cheap and keeps the protocol choice flexible.",
         },
         {
           kind: "read",
@@ -1412,6 +1465,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "For each option ask: would two viewers watching the same moment end up with different bytes, or a different cache key?",
           prompt: "Which of these split popularity, so two viewers of the same moment fetch different bytes? Select all that apply.",
           options: [
             "Two containers (TS for HLS, fMP4 for DASH)",
@@ -1444,6 +1498,7 @@ const chapter: Chapter = {
         },
         {
           kind: "order",
+          teach: "Recall the two handoff diagrams: first the build steps, then storage, replication and publishing.",
           prompt: "Put the publish pipeline in order.",
           items: [
             "Transcode a ladder per codec",
@@ -1487,6 +1542,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall the header policy in the last step, and think about how often a live playlist changes.",
           prompt: "Which `Cache-Control` fits a live media playlist?",
           options: [
             "public, max-age=31536000, immutable",
@@ -1519,7 +1575,13 @@ const chapter: Chapter = {
       minutes: 10,
       steps: [
         {
+          kind: "read",
+          title: "Here is what this chapter covered",
+          body: "- **Every segment starts with an aligned IDR.** The GOP limits possible segment durations.\n- **Requests per second = streams ÷ segment seconds × 2** (video + audio). Bytes per second do not change.\n- **CMAF** lets HLS and DASH share one copy, only if encryption converges on `cbcs`.\n- **Muxed renditions = rungs × dubs; demuxed = rungs + dubs.** Hardsubs multiply the video ladder.\n- **JIT packaging** spends CPU on every miss; the shield is mandatory.\n- **Never overwrite and purge.** Publish to a new versioned path.",
+        },
+        {
           kind: "quiz",
+          teach: "A segment must start with an IDR, and here the encoder placed IDRs every 2 seconds.",
           prompt: "IDRs are every 2 seconds. A teammate wants 5-second VOD segments to save requests. What do you say?",
           options: [
             "Fine, the packager can cut anywhere",
@@ -1532,6 +1594,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Requests per second = streams ÷ segment duration × 2 (one video and one audio request per segment).",
           prompt: "2M concurrent streams, demuxed audio, 4-second segments. How many million edge requests per second?",
           answer: 1,
           tolerance: 0.05,
@@ -1540,6 +1603,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Hit ratio rises when many viewers ask for the same URL. Think about what can make the HLS and DASH copies of a segment differ.",
           prompt: "Why does CMAF improve cache hit ratio, not just storage, and when does the benefit disappear?",
           options: [
             "Segments are smaller; it disappears with 2-second segments",
@@ -1557,6 +1621,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Muxed: every video rung is stored once for each dub.",
           prompt: "7 video rungs and 6 dubs, **muxed**. How many renditions?",
           answer: 42,
           tolerance: 0.5,
@@ -1565,6 +1630,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Demuxed: video renditions and audio renditions are stored separately, each only once.",
           prompt: "Same 7 rungs and 6 dubs, **demuxed**. How many renditions?",
           answer: 13,
           tolerance: 0.5,
@@ -1578,6 +1644,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall what a JIT miss costs the origin, and how many caches miss at the same moment when a popular episode releases.",
           prompt: "Your origin is a JIT packager and a popular simulcast episode releases. Why is the shield more critical than with static packaging?",
           options: [
             "Because JIT segments are larger",
@@ -1590,6 +1657,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "Think about how one audience is split when each subtitle language is a different video.",
           prompt: "Why are hardsubs bad for cache efficiency even if storage were free? Select all that apply.",
           options: [
             "Each subtitle language is a different video, so viewers of the same episode fetch different bytes",
@@ -1603,6 +1671,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall the common mistake about purging: a purge has to reach hundreds of PoPs on several CDNs.",
           prompt: "A pipeline engineer proposes fixing a bad encode by overwriting segments in place and purging all CDNs. What is the main risk?",
           options: [
             "Purges are too fast",
@@ -1620,6 +1689,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Recall the single biggest delivery effect of each topic from its lesson.",
           prompt: "Match each topic to its key takeaway.",
           pairs: [
             ["GOP", "Limits which segment durations are possible"],

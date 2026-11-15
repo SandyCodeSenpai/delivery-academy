@@ -41,31 +41,82 @@ const chapter: Chapter = {
       id: "ch00-l1",
       title: "Press Play: what this course covers",
       goal: "Name the links behind one press of Play and explain why Crunchyroll's traffic is a good teaching example.",
-      minutes: 6,
+      minutes: 8,
       steps: [
         {
-          kind: "reveal",
-          prompt: "Someone in Brazil presses play on a new anime episode, one hour after it aired in Tokyo. About two seconds later the video plays. What has to happen in those two seconds? Name as many steps as you can, then reveal.",
+          kind: "read",
+          title: "Two seconds after Play",
+          body: "Someone in Brazil presses Play on a new anime episode, one hour after it aired in Tokyo. About two seconds later, the video plays.\n\nThose two seconds hide a long chain of systems. This course is about that chain.\n\nBy the end of this lesson you will be able to name each link behind one press of Play, and explain why Crunchyroll's traffic makes a good teaching example.",
           visual: { kind: "flow", spec: chain(["pl"]), caption: "Only the player is visible to the viewer. Everything else is hidden." },
-          answer: "1. The app asks a **playback service** what this user may watch.\n\n2. It gets a **[[manifest|Manifest / playlist]]** that lists the qualities, dubs and subtitles.\n\n3. It gets a **[[DRM]] license**, so it can decrypt the video.\n\n4. Then it pulls small video **[[segments|Segment]]**, every few seconds, from a server that is probably in a building in São Paulo, owned by a CDN company. That server was filled from a cache tier, which was filled from cloud storage in another country.",
+        },
+        {
+          kind: "read",
+          title: "First half: ask and unlock",
+          body: "Before any video arrives, the app asks for three things.\n\n- A **playback service** (a backend API) answers: what may this user watch, here and now?\n- A **[[manifest]]** is a small text file. It lists the video qualities, audio dubs and subtitles, and where each piece lives.\n- A **[[DRM]] license** holds the keys to decrypt the video. **DRM** (digital rights management) means the video is encrypted, so only allowed players can show it.\n\nThis half is small and fast. No video yet.",
+          visual: { kind: "flow", spec: chain(["pl", "api", "man", "drm", "pl>api", "pl>man", "pl>drm"]), caption: "Steps 1 to 3: ask what you may watch, get the list of pieces, get the keys." },
+        },
+        {
+          kind: "read",
+          title: "Second half: pull the bytes",
+          body: "Now the player pulls the video itself, in small pieces called **[[segments|Segment]]**. Each segment is a few seconds of video. The player asks for the next one every few seconds, for the whole episode.\n\nThe segments come from a **CDN edge server**. A **CDN** (content delivery network) is a company that runs servers in buildings close to viewers. For our viewer, the **[[edge]]** server is probably in a building in São Paulo, owned by a CDN company.",
+          visual: { kind: "flow", spec: chain(["pl", "edge", "pl>edge"], ["pl>edge"]), caption: "Step 4: segments, every few seconds, from a nearby edge server." },
+        },
+        {
+          kind: "read",
+          title: "Who fills the edge",
+          body: "The edge server keeps copies of segments. A store of copies kept close to where they are needed is called a **cache**.\n\nIf the edge has the segment, that is a **hit**, and it answers at once. If not, that is a **miss**: it asks a bigger **cache tier** behind it. If that misses too, the request goes all the way to **cloud storage** in another country.\n\nThink of a local shop, a regional warehouse, and the factory.",
+          visual: { kind: "flow", spec: chain(["pl", "edge", "cache", "store", "pl>edge", "edge>cache", "cache>store"], ["pl>edge", "edge>cache", "cache>store"]), caption: "The bytes path: every few seconds, for the whole episode." },
         },
         {
           kind: "read",
           title: "Every link can break",
-          body: "If any link in that chain is slow, the spinner appears. If one breaks and nothing takes its place, the video does not play.\n\nThis course explains every link: how it works, how it fails, what it costs, and how the best streaming companies build it. It goes from zero to leading a design review.\n\nIt is the fourth book in a series, after ML data, storage and compute. It covers **delivery**: getting video bytes from cloud storage to hundreds of millions of screens, fast, safely and cheaply.",
-          visual: { kind: "flow", spec: chain(["pl", "edge", "cache", "store", "pl>edge", "edge>cache", "cache>store"], ["pl>edge", "edge>cache", "cache>store"]), caption: "The bytes path: every few seconds, for the whole episode." },
+          body: "If any link in that chain is slow, the viewer sees a spinner. If one link breaks and nothing takes its place, the video does not play at all.\n\nThis course explains every link: how it works, how it fails, what it costs, and how the best streaming companies build it. It goes from zero to the level where you can lead a design review on it.",
+          visual: { kind: "flow", spec: chain(), caption: "Seven boxes in two halves. Any one of them can cause the spinner." },
+        },
+        {
+          kind: "read",
+          title: "Where this course fits",
+          body: "This is the fourth book in a series. The earlier handbooks cover ML data pipelines, storage and compute.\n\nThis one covers **delivery**: getting the bytes of a video from cloud storage to hundreds of millions of screens, fast, safely and cheaply.",
+        },
+        {
+          kind: "reveal",
+          prompt: "Recall, without scrolling back. After Play is pressed, what are the four things the app does? Say them in order, then reveal.",
+          visual: { kind: "flow", spec: chain(["pl"]), caption: "Only the player is visible to the viewer. Everything else is hidden." },
+          answer: "1. The app asks a **playback service** what this user may watch.\n\n2. It gets a **[[manifest|Manifest / playlist]]** that lists the qualities, dubs and subtitles.\n\n3. It gets a **[[DRM]] license**, so it can decrypt the video.\n\n4. Then it pulls small video **[[segments|Segment]]**, every few seconds, from a server that is probably in a building in São Paulo, owned by a CDN company. That server was filled from a cache tier, which was filled from cloud storage in another country.",
+        },
+        {
+          kind: "order",
+          prompt: "A viewer presses Play. Put what the app does in order.",
+          items: [
+            "Ask the playback service what this user may watch",
+            "Get the manifest: the list of qualities, dubs and subtitles",
+            "Get the DRM license with the keys to decrypt",
+            "Pull video segments from the CDN edge, every few seconds",
+          ],
+          teach: "The chain has two halves. First the app asks and unlocks; only then does it pull the bytes. In the first half, start with permission, then find out what pieces exist, then get what you need to open them.",
+          explain: "First **ask** (may I watch?), then the **manifest** (what pieces exist?), then the **license** (the keys to open them), and only then the **segments**, every few seconds, from the edge. If the edge misses, a cache tier fills it, and behind that, cloud storage.",
         },
         {
           kind: "widget",
           widget: "playground",
           title: "A first look at the whole system",
-          task: "Press Play on a new episode and watch the request travel. Do \"A cache hit\", then \"A miss the shield catches\". For each one, follow the boxes the request passes through. Do not worry about the details yet: this is the book's Chapter 18 design, and the course builds it up one part at a time.",
+          task: "Press Play on a new episode and watch the request travel. Do \"A cache hit\", then \"A miss the shield catches\" (a shield is the cache tier behind the edge). For each one, follow the boxes the request passes through. Do not worry about the details yet: this is the book's Chapter 18 design, and the course builds it up one part at a time.",
           props: { scenario: 1 },
         },
         {
           kind: "read",
-          title: "Why Crunchyroll",
-          body: "The course follows Crunchyroll's **Media Delivery** team (Video Platform Engineering), as described in its public job posting. The team owns global CDN networks, cloud origins on AWS and GCP, content replication pipelines and the delivery services between them. So every chapter ends with: \"what does this mean at Crunchyroll?\"\n\nCrunchyroll is also a good teaching example, because its traffic has an unusual shape. Most streaming services spread their load over the day. Crunchyroll gets a synchronized spike every week, many times a week.",
+          title: "The team this course follows",
+          body: "The course follows Crunchyroll's **Media Delivery** team (Video Platform Engineering), as described in its public job posting.\n\nThe team owns global CDN networks, cloud **[[origins|Origin]]** on AWS and GCP, content replication pipelines, and the delivery services between them. An **origin** is the system that holds the master copy of every file; caches fill from it.\n\nSo every chapter ends with one question: \"what does this mean at Crunchyroll?\"",
+        },
+        {
+          kind: "read",
+          title: "A traffic shape with spikes",
+          body: "Crunchyroll is also a good teaching example, because its traffic has an unusual shape.\n\nMost streaming services spread their load over the day, like a road with steady traffic. Crunchyroll has **[[simulcast]]**: new episodes of popular shows go out worldwide shortly after the Japanese broadcast, at a fixed time. Millions press play in the same few minutes, on content no cache has ever seen.\n\nSo it gets a synchronized spike every week, many times a week. Think of a stadium emptying onto one road.",
+        },
+        {
+          kind: "read",
+          title: "Four traits that shape delivery",
+          body: "Simulcast is one of four traits. Two new words for the table:\n\n- The **[[long tail]]** is the large part of a catalog that is watched rarely. The small, popular part is the **hot head**.\n- A **track** is one version of the picture, sound or text: one video quality, one audio dub, or one subtitle language.\n\nRead the last column closely. It says what each trait does to delivery.",
           visual: {
             kind: "table",
             headers: ["Trait", "What it is", "Effect on delivery"],
@@ -87,6 +138,7 @@ const chapter: Chapter = {
             ["The team adds one more audio dub to every episode of a show", "Many tracks per episode"],
             ["A title plays in one country but is blocked next door", "Global licensing"],
           ],
+          teach: "For each situation, ask what it is really about: when people watch, which content gets watched, how many versions of one episode exist, or where the viewer is.",
           explain: "**[[Simulcast]]** creates a synchronized spike on content no cache has seen. The **[[long tail|Long tail]]** is watched rarely, so it decides how hard the [[origin|Origin]] works. Each extra **track** multiplies storage and splits the cache. **Licensing** is per territory and per time window, so geo-rules sit right in the delivery path.",
         },
         {
@@ -94,6 +146,18 @@ const chapter: Chapter = {
           title: "A note on honesty",
           body: "Crunchyroll publishes little about its internals. Where the course states a Crunchyroll fact, it is cited. Where it does not know, it says \"a platform like Crunchyroll would likely...\" or it uses the **assumed traffic model** from the next lesson.\n\nTreat the assumptions as a whiteboard model, not as company data. Your first weeks on the team will replace them with real numbers.",
           callout: { type: "crunchyroll", text: "Anything not published is labelled \"assumed\" or \"likely\" in this course. When you see those words, read the number as a model to check, not a fact to repeat." },
+        },
+        {
+          kind: "quiz",
+          prompt: "Chapter 1 says: \"A platform like Crunchyroll would likely receive a simulcast episode from the licensor close to broadcast time.\" How should you treat this sentence?",
+          options: [
+            "As a published Crunchyroll fact you can repeat in a meeting",
+            "As a reasonable model to check against real data once you join",
+            "As an error, because the course should only state facts",
+          ],
+          answer: 1,
+          teach: "The course makes two kinds of statement about Crunchyroll: cited facts, and model statements marked with special words. Look at which kind of word this sentence uses.",
+          explain: "\"Likely\" marks a **model**, not company data. It is a sensible starting point for a whiteboard, so it is not an error. But you check it before you repeat it: your first weeks on the team replace it with the real answer.",
         },
         {
           kind: "summary",
@@ -113,16 +177,55 @@ const chapter: Chapter = {
       id: "ch00-l2",
       title: "The numbers and the map",
       goal: "Work out the assumed traffic model from two numbers and find the right chapter for a real problem.",
-      minutes: 8,
+      minutes: 10,
       steps: [
         {
+          kind: "read",
+          title: "Size before you design",
+          body: "Before you design a delivery system, you need to know how big it must be. A bridge engineer first asks how heavy the busiest traffic gets.\n\nThis lesson gives you the course's numbers. You will work out the two biggest ones yourself, with one multiplication each, and check how far to trust them. Then you will learn the map of the course.\n\nBy the end you can size delivery from two numbers and find the right chapter for a real problem.",
+        },
+        {
+          kind: "quiz",
+          guess: true,
+          prompt: "Take a guess. Someone says \"Crunchyroll has 200+ million users.\" You have to decide how big the delivery system must be. What would you expect to matter most?",
+          options: [
+            "How many accounts exist in total",
+            "How many people watch at the same moment, and how much data each one pulls per second",
+            "How many episodes are in the catalog",
+            "How many countries the service is sold in",
+          ],
+          answer: 1,
+          explain: "A road is built for rush hour, not for the number of cars registered in the city. Delivery is the same. What loads the servers is the people watching **right now**, each pulling a steady stream of data. An account that is not watching costs nothing to deliver. In the next steps you turn this idea into one number.",
+        },
+        {
+          kind: "read",
+          title: "Four words for size",
+          body: "- **Bitrate** is how much data a video needs per second, counted in bits. **Mbps** means megabits (millions of bits) per second.\n- **Concurrent streams** are videos playing at the same moment.\n- **[[Egress]]** is the data leaving your servers toward viewers. **Peak egress** is the most egress at any one moment.\n- **Tbps** means terabits per second. 1 Tbps = 1,000,000 Mbps.",
+        },
+        {
+          kind: "read",
+          title: "Worked example: peak egress",
+          body: "The rule is one line:\n\n**peak egress = peak concurrent streams x average bitrate**\n\nTry it on a smaller event: 500,000 concurrent streams at 3 Mbps each.\n\n- 500,000 x 3 Mbps = 1,500,000 Mbps\n- 1,500,000 Mbps / 1,000,000 = **1.5 Tbps**\n\nThis one multiplication is the number that sizes delivery. Next, you do it with the course's numbers.",
+        },
+        {
           kind: "number",
-          prompt: "Predict first. At a big simulcast premiere the course assumes about **2M concurrent streams** at an average of about **4 Mbps** each. What is the peak egress?",
+          prompt: "At a big simulcast premiere the course assumes about **2M concurrent streams** at an average of about **4 Mbps** each. What is the peak egress?",
           answer: 8,
           tolerance: 0.5,
           unit: "Tbps",
+          teach: "Use the rule from the worked example: concurrent streams times bitrate gives you Mbps. Then divide by 1,000,000 to turn Mbps into Tbps.",
           hint: "2,000,000 x 4 Mbps = 8,000,000 Mbps. One Tbps is 1,000,000 Mbps.",
           explain: "2M streams x 4 Mbps = 8,000,000 Mbps = **8 Tbps**. The model then designs for about **12 Tbps**, to leave headroom above the biggest premiere. This one multiplication, peak concurrent streams times bitrate, is the number that sizes delivery.",
+        },
+        {
+          kind: "read",
+          title: "Design for more than the peak",
+          body: "The biggest premiere needs about **8 Tbps**. The course designs for about **12 Tbps**.\n\nThe gap is **headroom**: spare capacity above the biggest load you expect. It covers surprises, like a bigger crowd than planned, a failure that pushes traffic onto fewer servers, or growth.\n\nA lift rated for exactly 8 people should not be the one you squeeze 9 into.",
+        },
+        {
+          kind: "read",
+          title: "Worked example: bytes in a month",
+          body: "Storage and bills count **bytes**, not bits. **1 byte = 8 bits**, so divide by 8. 1 **GB** is 1,000 MB, and 1 **PB** (petabyte) is 1,000,000 GB.\n\nExample: 10M hours a month at 2 Mbps.\n\n- 2 Mbps / 8 = 0.25 MB per second\n- One hour = 3,600 s x 0.25 MB = 900 MB = 0.9 GB\n- 10M hours x 0.9 GB = 9M GB = **9 PB** a month",
         },
         {
           kind: "number",
@@ -130,13 +233,14 @@ const chapter: Chapter = {
           answer: 540,
           tolerance: 30,
           unit: "PB",
+          teach: "Follow the worked example. Find the bytes in one hour first: bitrate divided by 8 gives MB per second, times 3,600 seconds. Then multiply by the hours, and turn GB into PB.",
           hint: "4 Mbps is 0.5 MB per second. One hour is 3,600 seconds, so one hour is about 1.8 GB.",
           explain: "4 Mbps = 0.5 MB/s. One hour = 3,600 s x 0.5 MB = **1.8 GB**. Then 300M hours x 1.8 GB = 540M GB = **540 PB** a month. Watch the units: bits (b) on the network, bytes (B) on disk, 8 bits per byte.",
         },
         {
           kind: "read",
           title: "The assumed traffic model",
-          body: "Every chapter uses the same numbers, so the math connects from chapter to chapter. You just derived two of them: **8 Tbps** at peak and **540 PB** a month.\n\nNote the target [[cache hit ratio|CHR (cache hit ratio)]]: it is measured **by bytes**, and a warm simulcast episode should be served almost entirely from cache.",
+          body: "Every chapter uses the same numbers, so the math connects from chapter to chapter. You just derived two of them: **8 Tbps** at peak and **540 PB** a month.\n\nTwo terms in the table. **VOD** (video on demand) is any episode you can start whenever you like. The **[[cache hit ratio]]** is the share of data served straight from cache, without a trip to the origin. Here it is measured **by bytes**, and a warm simulcast episode (already in the caches) should come almost entirely from cache.",
           visual: {
             kind: "table",
             headers: ["Quantity", "Assumed value"],
@@ -155,17 +259,24 @@ const chapter: Chapter = {
           },
         },
         {
+          kind: "read",
+          title: "Check the model: minutes to hours",
+          body: "A model is only useful if you check it against real numbers. Public figures often come as **minutes watched**. To compare them with the model, turn minutes into hours: **divide by 60**.\n\nExample: 600M minutes a month / 60 = **10M hours** a month.\n\nCrunchyroll's own engineering blog gives one such public number. You convert it in the next step.",
+        },
+        {
           kind: "number",
           prompt: "How good is the model? Crunchyroll's own engineering blog reported more than **2 billion minutes** watched per month in 2020 (Chapter 17). How many **millions of hours** a month is that?",
           answer: 33,
           tolerance: 2,
           unit: "M hours",
+          teach: "An hour has 60 minutes, so divide the minutes by 60. It helps to write 2 billion as 2,000 million first.",
           hint: "Divide minutes by 60.",
           explain: "2,000,000,000 / 60 = about **33M hours** a month in 2020. Paid subscribers have grown roughly sevenfold since then, and the free tier has ended. So **~300M hours** is a deliberately generous upper bound, not a measured figure. Designing for headroom is the point. Replace it with the real number in your first week.",
         },
         {
-          kind: "quiz",
-          prompt: "Someone says \"Crunchyroll has 200+ million users.\" You need to size the delivery platform. Which number matters?",
+          kind: "read",
+          title: "Users are not load",
+          body: "Back to the opening claim of \"200+ million users.\" The job posting itself says **100M+ fans in 200+ countries and territories**. Paid subscribers are far fewer: about **21 million** in 2026.\n\nBut for delivery design, the number that matters is not users at all. Like the road built for rush hour, delivery is sized by **peak concurrent streams times bitrate**. That is what the assumed model is built on.",
           visual: {
             kind: "stats",
             items: [
@@ -174,19 +285,11 @@ const chapter: Chapter = {
               { value: "~2M", label: "concurrent streams", note: "assumed, big premiere" },
             ],
           },
-          options: [
-            "200M+ users, because more users means more traffic",
-            "About 21M paid subscribers, because only they stream",
-            "Peak concurrent streams times bitrate",
-            "200+ countries and territories, because each needs its own servers",
-          ],
-          answer: 2,
-          explain: "The job posting itself says **100M+ fans in 200+ countries and territories**, and paid subscribers are far fewer, about **21 million** in 2026. But for delivery design the number that matters is not users at all. It is **peak concurrent streams times bitrate**, and that is what the assumed model is built on.",
         },
         {
           kind: "read",
           title: "The map: six parts",
-          body: "The course has six parts, and they build on each other. There are three ways to read it:\n\n- **Straight through** the first time.\n- **Before your first day (one weekend):** Chapters 1, 5, 6, 9, 13 and 18. These six give you the shape of the job.\n- **By problem:** jump to the chapter for the problem you have today. Try it in the next step.",
+          body: "The course has six parts, and they build on each other. Each chapter's title names the problem it covers, so the map is also an index.\n\nThe last column is full of words you do not know yet, like BGP or CMAF. That is expected: each one is taught in its own chapter.",
           visual: {
             kind: "table",
             headers: ["Part", "Chapters", "What you learn"],
@@ -202,6 +305,16 @@ const chapter: Chapter = {
           },
         },
         {
+          kind: "read",
+          title: "Three ways to read it",
+          body: "- **Straight through** the first time. Parts build on each other.\n- **Before your first day (one weekend):** Chapters 1, 5, 6, 9, 13 and 18. These six give you the shape of the job.\n- **By problem:** open the chapter whose title names the problem you have today. Example: a design review tomorrow → Chapter 18 (the capstone design) and Chapter 19 (thinking like a staff engineer).\n\nSome problems need two chapters: one to understand the problem, and one to see it or act on it.",
+        },
+        {
+          kind: "read",
+          title: "Four words from the chapter titles",
+          body: "- **Rebuffering** means the video stops to load more data, and the spinner appears.\n- **[[QoE]]** (quality of experience) is how good playback feels to the viewer: fast start, no stalls, sharp picture.\n- **Observability** is seeing what your system is doing, through metrics, logs and dashboards.\n- **IaC** (infrastructure as code) means setting up servers and CDN settings from code files instead of clicking in a console.",
+        },
+        {
           kind: "match",
           prompt: "Reading by problem: match each problem to the chapter(s) to open first.",
           pairs: [
@@ -211,6 +324,7 @@ const chapter: Chapter = {
             ["A new CDN to onboard", "Chapters 9 and 14"],
             ["The bill is too high", "Chapter 16"],
           ],
+          teach: "Use the chapter titles in the six-part map. Pick the chapter whose title names the problem. Where two chapters are needed, one explains the problem and the other lets you see it or configure it.",
           explain: "A vendor outage is **Reliability and Failover** (12). A premiere is **Simulcast and Spike Scale** (13). Rebuffering in one country needs **Players, ABR and QoE** (10) plus **Observability** (11). Onboarding a CDN is **Multi-CDN and Steering** (9) plus **IaC and Edge Config** (14). A high bill is **Economics** (16). One more: a design review tomorrow means Chapters **18 and 19**.",
         },
         {

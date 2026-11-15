@@ -264,20 +264,8 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "A design session, not a tour",
-          body: "This chapter is one full **design doc**. It joins Chapters 1 to 17 into one system: context, goals, numbers, architecture, components, walk-throughs, failures, cost, alternatives, roadmap and open questions.\n\nRead this twice: **this is the book's proposal, not Crunchyroll's actual system.** Crunchyroll has published only a little about its delivery stack. Everything else is a choice made by the book, using the assumed traffic model from Chapter 1.",
+          body: "You know the pieces from Chapters 1 to 17. This chapter joins them into one system, written as a **design doc**: a document that explains a system, its numbers and its trade-offs, and asks reviewers to approve it.\n\nRead this twice: **this is the book's proposal, not Crunchyroll's actual system.** Crunchyroll has published only a little. Everything else is the book's choice, using Chapter 1's assumed traffic model.\n\nBy the end of this lesson you can state what the platform must solve and work out the numbers behind every choice.",
           callout: { type: "crunchyroll", text: "If you ever work on a system like this, compare it with this design. The differences will teach you more than either design alone." },
-        },
-        {
-          kind: "quiz",
-          prompt: "Before we start: which statement about this chapter's design is true?",
-          options: [
-            "It is Crunchyroll's published delivery architecture.",
-            "It is the book's proposal, built on a few published facts and an assumed traffic model.",
-            "It is copied from Netflix's Open Connect design.",
-            "It is an AWS reference architecture with no assumptions.",
-          ],
-          answer: 1,
-          explain: "Only a few facts are published (cited in the chapter). Everything else is the book's design choice, using assumed numbers. Treat it as a strong starting point to compare with the real system.",
         },
         {
           kind: "read",
@@ -292,18 +280,6 @@ const chapter: Chapter = {
             ],
             caption: "The traffic model was built at about 17M subscribers. It stays \"assumed\". Growth only makes headroom more important.",
           },
-        },
-        {
-          kind: "match",
-          prompt: "Match each published source to what it tells us.",
-          pairs: [
-            ["2017 engineering post", "Weekend simulcast degradation; move to AWS"],
-            ["2020 Katana write-up", "Lambda@Edge orchestration; CloudFront as fail-through cache"],
-            ["2020 conference talk", "12+ requests to start a session, many moved to the edge"],
-            ["2026 job posting", "AWS + GCP origins, several CDNs, Datadog, automated failover"],
-            ["May 2026 press release", "21M paid subscribers, 50,000+ episodes"],
-          ],
-          explain: "These are the only published anchors. Every other detail in this design is the book's proposal, labelled as assumed.",
         },
         {
           kind: "read",
@@ -334,6 +310,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "Look back at the six problems: failure, cold-cache spikes, steering, verified replication, observability and change safety. Anything outside that list belongs to another team or is a rejected option.",
           prompt: "Which of these are problems this design must solve? Select all that apply.",
           options: [
             "No single point of failure in the bytes path",
@@ -352,15 +329,19 @@ const chapter: Chapter = {
           body: "- VOD and simulcast to 200+ countries, QoE equal to or better than today.\n- Lose any one CDN, region or bucket with no outage longer than the player retry window (seconds).\n- ~2M streams, headroom to ~12 Tbps (assumed), near-zero origin impact.\n- Playable only after verification in **two independent origins**.\n- At start: ranked paths and signed access; re-rank mid-session.\n- Only CDNs read origins; only entitled sessions read CDNs.\n- Automatic traffic shifts, with limits and human override.\n- Every change reviewable, testable, reversible.",
         },
         {
-          kind: "match",
-          prompt: "Each non-goal still has an owner or a reason. Match them.",
-          pairs: [
-            ["Encoding ladders and codecs", "Content Pipeline; we give them delivery cost per rendition"],
-            ["DRM keys and licenses", "Content Protection; we deliver encrypted bytes"],
-            ["Our own CDN hardware", "Rejected for now (see alternatives)"],
-            ["Live linear channels", "Room left for live events; early phases target VOD and simulcast"],
-          ],
-          explain: "A non-goal is not \"nobody cares\". It says who owns the thing, so reviewers know the boundary of this design.",
+          kind: "read",
+          title: "Non-goals, with owners",
+          body: "A **non-goal** is something this design deliberately does not do. A non-goal is not \"nobody cares\". Each one names an owner or a reason, so reviewers can see exactly where this design stops.",
+          visual: {
+            kind: "table",
+            headers: ["Non-goal", "Owner or reason"],
+            rows: [
+              ["Encoding ladders and codecs", "Content Pipeline; we give them delivery cost per rendition"],
+              ["DRM keys and licenses", "Content Protection; we deliver encrypted bytes"],
+              ["Our own CDN hardware", "Rejected for now (see alternatives)"],
+              ["Live linear channels", "Room left for live events; early phases target VOD and simulcast"],
+            ],
+          },
         },
         {
           kind: "read",
@@ -380,16 +361,9 @@ const chapter: Chapter = {
           },
         },
         {
-          kind: "quiz",
-          prompt: "What byte hit ratio does the design target for a premiere episode after T+5 minutes?",
-          options: ["At least 90%", "At least 95%", "At least 99%", "100%"],
-          answer: 2,
-          explain: "The catalog target is at least 95% per CDN. A premiere episode is one hot title: after the first 5 minutes, at least 99% of its bytes should come from cache.",
-        },
-        {
           kind: "read",
           title: "Egress, and N minus one",
-          body: "Normal peak: ~1M streams x 4 Mbps = ~4 Tbps. Big simulcast: ~2M x 4 Mbps = ~8 Tbps; design for ~12 Tbps. Monthly: ~540 PB.\n\nNow imagine CDN A carries half of that 12 Tbps and fails during a premiere. The other CDNs must absorb its share with no notice. So capacity reservations must be sized for **\"N minus one CDN\"**, not for the normal split.",
+          body: "Normal peak: ~1M streams x 4 Mbps = ~4 Tbps. Big simulcast: ~2M x 4 Mbps = ~8 Tbps; design for ~12 Tbps. Monthly: ~540 PB.\n\nWhen a CDN fails, its share moves to the others with no notice. **Moved traffic = failed CDN's share x total peak.** Worked example: at the 4 Tbps normal peak, a CDN carrying 25% fails: 25% x 4 Tbps = **1 Tbps** moves.\n\nSo capacity reservations must be sized for **\"N minus one CDN\"**: the survivors must carry everything, not only the normal split.",
           visual: {
             kind: "stats",
             items: [
@@ -402,6 +376,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "When a CDN fails, its share of the traffic moves to the survivors. Multiply its share by the total peak.",
           prompt: "CDN A carries 50% of a 12 Tbps premiere peak and fails. How many extra Tbps must the other two CDNs absorb?",
           answer: 6,
           tolerance: 0.3,
@@ -412,10 +387,11 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Requests at the edge",
-          body: "Assume [[CMAF]] with separate video and audio tracks and 4 s segments. Each stream asks for one video and one audio segment every 4 s: **0.5 requests per second per stream**.\n\nAn average video segment is 4 Mbps x 4 s = ~2 MB. So ~540 PB a month is **~270 billion requests**.\n\nWith 6 s segments, requests fall by a third. That saves request fees and edge CPU, but slows ABR switching and startup. The design keeps 4 s and revisits it with cost data in Phase 3.",
+          body: "Assume [[CMAF]] with separate video and audio tracks and 4 s segments. Each stream asks for one video and one audio segment every 4 s: 2 requests / 4 s = **0.5 requests per second per stream**.\n\n**Requests per second = streams x 0.5.**\n\nWorked example, at the normal peak: 1M streams x 0.5 = **500,000 segment requests per second**.",
         },
         {
           kind: "number",
+          teach: "Each stream makes 2 requests (video and audio) every 4 s, which is 0.5 requests per second. Multiply by the number of streams.",
           prompt: "At a 2M-stream premiere, how many segment requests per second reach the CDNs?",
           answer: 1000000,
           tolerance: 50000,
@@ -425,8 +401,28 @@ const chapter: Chapter = {
         },
         {
           kind: "read",
+          title: "Per month, and longer segments",
+          body: "An average video segment is 4 Mbps x 4 s = 16 megabits = **~2 MB**. So ~540 PB a month is **~270 billion requests**.\n\nWith 6 s segments, requests fall by a third. That saves request fees and edge CPU, but slows ABR switching and startup. The design keeps 4 s and revisits it with cost data in Phase 3.",
+        },
+        {
+          kind: "read",
           title: "Unique objects in a premiere",
-          body: "Take a 24-minute episode: 1,440 s / 4 s = 360 segments per track. With 7 video renditions, 5 audio dubs and a second codec ladder (7 more renditions), that is 19 tracks.\n\nWith shields and [[request collapsing]], each CDN fetches each object from origin about once. Without shields, every PoP misses on its own.",
+          body: "How many different files does one new episode put into the caches?\n\n**Segments per track = episode seconds / segment seconds.** **Objects = segments per track x tracks.** A **track** is one rendition or one audio dub.\n\nWorked example: a 12-minute short is 720 s / 4 s = 180 segments per track. With 10 tracks: 180 x 10 = **1,800 objects**.\n\nOur premiere episode: 24 minutes, with 7 video renditions, 5 audio dubs and a second codec ladder (7 more renditions).",
+        },
+        {
+          kind: "number",
+          teach: "First find segments per track: episode seconds divided by 4 s. Then multiply by the number of tracks (7 + 5 + 7).",
+          prompt: "How many segment objects does the 24-minute premiere episode have? (19 tracks, 4 s segments; ignore manifests and subtitles.)",
+          answer: 6840,
+          tolerance: 100,
+          unit: "objects",
+          hint: "24 minutes is 1,440 seconds.",
+          explain: "1,440 s / 4 s = 360 segments per track. 19 x 360 = 6,840, so ~6,800 segment objects, plus manifests and subtitles.",
+        },
+        {
+          kind: "read",
+          title: "Shields turn millions into thousands",
+          body: "With shields and [[request collapsing]], each CDN fetches each object from origin about once. Without shields, every PoP misses on its own, and at T0 they all miss on the first segments in the same few seconds.",
           visual: {
             kind: "compare",
             left: { title: "With shields + collapsing", points: ["3 CDNs x ~6,800 objects", "~20,000 origin requests over 24 min", "Trivial for the origin"] },
@@ -435,26 +431,24 @@ const chapter: Chapter = {
           },
         },
         {
-          kind: "number",
-          prompt: "How many segment objects does the premiere episode have? (19 tracks, 360 segments per track; ignore manifests and subtitles.)",
-          answer: 6840,
-          tolerance: 100,
-          unit: "objects",
-          explain: "19 x 360 = 6,840, so ~6,800 segment objects, plus manifests and subtitles. Shields and collapsing turn millions of requests for them into thousands.",
-        },
-        {
           kind: "read",
           title: "The control-plane rate",
-          body: "Assume half of the 2M viewers start in the first 5 minutes: 1M / 300 s = ~3,300 starts per second. The busiest minute may be 3 times higher: **~10,000 starts per second** (assumed).\n\nEach start means one playback API call, one steering decision, one token signature, one or two DRM license requests, and three to five manifest requests. So the license service sees ~10,000 to 20,000 requests per second, and CDNs see ~30,000 to 50,000 manifest requests per second, almost all cache hits.",
-          callout: { type: "staff", text: "Write control-plane numbers into the doc even when another team owns the service. \"Your license service will see 20k RPS at T+2 min\" is the most useful sentence you can send Content Protection. Simulcast spikes hit the whole stack, not only the CDN." },
+          body: "The **control plane** (the services that decide who may watch and how) must also survive the premiere. Its load is set by how fast viewers press play.\n\n**Start rate = viewers starting / seconds.**\n\nWorked example: if 600,000 viewers start in the first 10 minutes, that is 600,000 / 600 s = **1,000 starts per second**.\n\nFor a premiere, assume half of the 2M viewers start in the first 5 minutes.",
         },
         {
           kind: "number",
+          teach: "Divide the number of viewers who start by the number of seconds in the window. 5 minutes is 300 seconds.",
           prompt: "1M viewers start in the first 5 minutes. What is the average start rate per second?",
           answer: 3333,
           tolerance: 150,
           unit: "starts/s",
           explain: "1,000,000 / 300 s = ~3,300 starts per second. Assume the busiest minute is 3 times that: ~10,000 starts per second.",
+        },
+        {
+          kind: "read",
+          title: "What each start costs",
+          body: "~3,300 starts per second is the average. The busiest minute may be 3 times higher: **~10,000 starts per second** (assumed).\n\nEach start means one playback API call, one steering decision, one token signature, one or two DRM license requests, and three to five manifest requests. So the license service sees ~10,000 to 20,000 requests per second, and CDNs see ~30,000 to 50,000 manifest requests per second, almost all cache hits.",
+          callout: { type: "staff", text: "Write control-plane numbers into the doc even when another team owns the service. \"Your license service will see 20k RPS at T+2 min\" is the most useful sentence you can send Content Protection. Simulcast spikes hit the whole stack, not only the CDN." },
         },
         {
           kind: "read",
@@ -485,6 +479,23 @@ const chapter: Chapter = {
       steps: [
         {
           kind: "read",
+          title: "Where content enters",
+          body: "Content Pipeline has just finished packaging a new episode. Before anyone can press play, those files must be checked, stored in more than one place, and locked so that only CDNs can read them.\n\nThis lesson builds the origin side one component at a time. By the end you can design the handoff contract, versioned paths, three origins, verified replication and the publish gate that decides when an episode is playable.",
+        },
+        {
+          kind: "quiz",
+          guess: true,
+          prompt: "A printed book has a typo, and 300 bookshops already hold copies. The publisher fixes the text but keeps the same edition number. What would you expect?",
+          options: [
+            "Every shop instantly has the fixed version",
+            "Shops hold a mix of old and new copies, and nobody can tell them apart",
+            "All the old copies disappear",
+          ],
+          answer: 1,
+          explain: "Copies already out in the world do not change, and with the same edition number you cannot tell them apart. CDN caches work the same way. If you overwrite a segment in place, hundreds of PoPs keep the old bytes while others get the new ones. The fix is a new edition: a new **versioned path**, which this lesson builds.",
+        },
+        {
+          kind: "read",
           title: "Two planes, protected differently",
           body: "The design separates the **[[control plane]]** (who may watch, from where, with which keys) from the **[[data plane]]** (moving segment bytes).\n\nThe control plane runs logic on every start but moves few bytes. The data plane moves huge volumes with simple logic. They fail differently, so they are protected differently. We will now build the system one component at a time, starting where content enters.",
           visual: {
@@ -495,6 +506,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "The data plane moves segment bytes in huge volumes with simple logic. The control plane makes decisions on every start but moves few bytes.",
           prompt: "Which of these belongs to the data plane?",
           options: [
             "Checking the viewer's entitlement",
@@ -519,6 +531,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "The handoff only validates what Content Pipeline delivered, object by object and manifest by manifest. Encoding belongs to Content Pipeline, and licenses to Content Protection.",
           prompt: "Which checks does the ingest handoff service run? Select all that apply.",
           options: [
             "Every object exists in origin A with the right size and SHA-256",
@@ -539,6 +552,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Objects under a version prefix never change. Think about what a fix produces, and where the Playback API sends new sessions.",
           prompt: "Episode 5 has a glitch in one segment. What does this design do?",
           options: [
             "Overwrite the segment and purge it on all three CDNs",
@@ -563,18 +577,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Origin cloaking",
-          body: "**[[Origin cloaking]]** means only CDNs can read the origins.\n\n- S3 allows reads only from the CloudFront distribution through **origin access control (OAC)**, with a bucket policy condition on the distribution ARN (`AWS:SourceArn`). AWS recommends OAC over the legacy origin access identity.\n- Fastly reads S3 with SigV4-signed requests from a dedicated read-only IAM principal.\n- Media CDN reads GCS with its own service identity.\n\nPublic access block stays on everywhere.",
-        },
-        {
-          kind: "match",
-          prompt: "Match each reader to how origin access is locked down.",
-          pairs: [
-            ["CloudFront", "OAC, bucket policy on the distribution ARN"],
-            ["Fastly", "SigV4-signed requests from a read-only IAM principal"],
-            ["Media CDN", "Its own service identity on GCS"],
-            ["A bucket policy with a `*` principal", "An infrastructure test fails the build"],
-          ],
-          explain: "Each CDN gets the narrowest identity its platform supports, and a build-time test makes a public bucket impossible to ship.",
+          body: "**[[Origin cloaking]]** means only CDNs can read the origins.\n\n- S3 allows reads only from the CloudFront distribution through **origin access control (OAC)**, with a bucket policy condition on the distribution ARN (`AWS:SourceArn`). AWS recommends OAC over the legacy origin access identity.\n- Fastly reads S3 with SigV4-signed requests from a dedicated read-only IAM principal.\n- Media CDN reads GCS with its own service identity.\n\nPublic access block stays on everywhere, and an infrastructure test fails the build if any bucket policy allows a `*` principal.",
         },
         {
           kind: "read",
@@ -583,7 +586,13 @@ const chapter: Chapter = {
           visual: { kind: "flow", spec: grow(ORIGIN, ["cpl", "ing", "oa", "rep", "ob", "og"], ["rep", "ob", "oa>rep", "rep>ob"], ["oa>rep", "rep>ob"]) },
         },
         {
+          kind: "read",
+          title: "Worked example: copy time",
+          body: "Does a new episode fit under the 1 Gbps quota? Work out the copy time.\n\n**Time = size in bits / speed.** File sizes are in bytes, and 1 byte = 8 bits, so multiply gigabytes (GB) by 8 to get gigabits (Gb).\n\nWorked example: a 2 GB file at 1 Gbps. 2 GB x 8 = 16 Gb. 16 Gb / 1 Gbps = **16 s**.\n\nRecall from Lesson 1: one episode with all its renditions and dubs is ~4.2 GB.",
+        },
+        {
           kind: "number",
+          teach: "Turn gigabytes into gigabits by multiplying by 8, then divide by the speed in gigabits per second.",
           prompt: "How many seconds does one 4.2 GB episode take to replicate at the 1 Gbps RTC quota?",
           answer: 34,
           tolerance: 3,
@@ -606,6 +615,7 @@ const chapter: Chapter = {
         },
         {
           kind: "order",
+          teach: "Validation comes first, then the copies, then an independent check of every copy. Only after that does the gate open.",
           prompt: "Put a new episode's path to \"playable\" in order.",
           items: [
             "Content Pipeline writes the package manifest",
@@ -619,6 +629,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall the two thresholds: the minimum state for the gate to return URLs, and what a premiere needs by T-30 min.",
           prompt: "A premiere starts at 20:00. At 19:30 the verifier still shows verified-2-of-3. What happens?",
           options: [
             "Nothing; 2-of-3 is always enough",
@@ -651,15 +662,21 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "From origin to viewer",
+          body: "The episode now sits safely in three origins. Next, its bytes must travel to viewers through CDNs, without overloading the origins and without letting anyone watch for free.\n\nBy the end of this lesson you can choose where shields go, explain why the design uses three CDNs that behave the same, and design the tokens and the DRM handoff.",
+        },
+        {
           kind: "quiz",
-          prompt: "Three CDNs pull from the same origins. Should they share one shield, or each have their own?",
+          guess: true,
+          prompt: "Three delivery companies serve your city. What would you expect if all three share one warehouse, instead of each having their own?",
           options: [
-            "One shared shield: fewer origin requests, so it is clearly better",
-            "One shield per CDN, so the CDNs fail independently",
-            "No shields at all: the origin can take the load",
+            "Deliveries get a bit cheaper, and nothing else changes",
+            "If that one warehouse has a problem, all three companies stop at once",
+            "Each company becomes faster",
           ],
           answer: 1,
-          explain: "A shared shield saves origin requests but couples every CDN to one cache and one config. This lesson shows why the design pays a small origin cost to keep CDNs independent.",
+          explain: "Sharing saves some trips, but it ties all three companies to one building. A [[shield]] is that warehouse for a CDN: a middle cache between the edges and the origin. This lesson weighs one shared shield against one shield per CDN, and picks independence.",
         },
         {
           kind: "read",
@@ -702,17 +719,21 @@ const chapter: Chapter = {
           },
         },
         {
-          kind: "number",
-          prompt: "What do per-CDN shields cost in origin requests for one premiere episode? (3 CDNs, ~6,800 objects each fetched once per CDN.)",
-          answer: 20400,
-          tolerance: 1000,
-          unit: "requests",
-          explain: "3 x ~6,800 = ~20,000 origin requests over 24 minutes. A shared shield would save about two thirds of a tiny number.",
-        },
-        {
           kind: "read",
           title: "Why per-CDN wins",
-          body: "This design chooses **per-CDN shields**. The extra origin load is small (~20,000 requests for a premiere episode). The coupling risk is large: a bad config push on the shared shield during a premiere breaks every CDN at once, which defeats multi-CDN.\n\nA shared shield for **long-tail content only** stays on the list as a Phase 5 cost experiment.",
+          body: "This design chooses **per-CDN shields**. The extra origin load is small: 3 CDNs x ~6,800 objects = ~20,000 requests for a premiere episode (Lesson 1). A shared shield would save about two thirds of a tiny number. The coupling risk is large: a bad config push on the shared shield during a premiere breaks every CDN at once, which defeats multi-CDN.\n\nA shared shield for **long-tail content only** stays on the list as a Phase 5 cost experiment.",
+        },
+        {
+          kind: "quiz",
+          teach: "Multi-CDN exists so that one failure cannot stop all playback. Compare the Failure coupling row of the two options.",
+          prompt: "Three CDNs pull from the same origins. Should they share one shield, or each have their own?",
+          options: [
+            "One shared shield: fewer origin requests, so it is clearly better",
+            "One shield per CDN, so the CDNs fail independently",
+            "No shields at all: the origin can take the load",
+          ],
+          answer: 1,
+          explain: "A shared shield saves origin requests but couples every CDN to one cache and one config. The design pays a small origin cost (~20,000 requests per premiere episode) to keep CDNs independent.",
         },
         {
           kind: "read",
@@ -721,24 +742,13 @@ const chapter: Chapter = {
           visual: { kind: "flow", spec: grow(DELIVERY, "all", ["e1", "e2", "e3", "pl", "s1>e1", "s2>e2", "s3>e3", "e1>pl", "e2>pl", "e3>pl"], ["oa>s2", "s2>e2", "e2>pl"]), caption: "The full data plane: origins, one shield per CDN, three CDNs." },
         },
         {
-          kind: "quiz",
-          prompt: "Why stop at three CDNs instead of adding a fourth and fifth by default?",
-          options: [
-            "Content Steering supports at most three pathways",
-            "Beyond three, config parity work grows faster than the value",
-            "Each origin can only serve three shields",
-            "Three CDNs always cover every country",
-          ],
-          answer: 1,
-          explain: "Three gives two survivors after a failure and real leverage. More CDNs are added only where measurements show a gap, because every CDN must behave the same.",
-        },
-        {
           kind: "read",
           title: "Config parity",
           body: "**Config parity** is the hardest part of multi-CDN. Every CDN must behave the same for:\n\n- [[cache key]]: path only, token and [[CMCD]] parameters removed\n- TTLs, and honoring origin Cache-Control\n- byte ranges and 206; CORS for web players\n- token validation and the exact 403 on failure\n- short [[negative caching]] of 404 (for example 10 s)\n- [[stale-if-error|stale-if-error / stale-while-revalidate]] for manifests (RFC 5861)\n- headers observability needs: cache status, PoP, request ID\n\nA **conformance suite** enforces it.",
         },
         {
           kind: "multi",
+          teach: "Parity is about behavior: the cache key, status codes, caching rules and headers. Things that differ between CDNs by design are what steering chooses between.",
           prompt: "Which of these must behave the same on every CDN? Select all that apply.",
           options: [
             "Cache key: path only, token and CMCD removed",
@@ -759,6 +769,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Think about the caches of a CDN that gets no traffic, and what a sudden failover would then send to the origin.",
           prompt: "Steering says Fastly is best in Brazil. Why not send 100% of Brazil there?",
           options: [
             "Fastly cannot serve Brazil",
@@ -777,10 +788,11 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Token rules",
-          body: "- **Token out of the cache key.** Use a cookie, a header, or a query parameter every CDN strips from the key. The conformance suite tests this.\n- **Validate before cache lookup**, so a cached object is never served to an unauthorized request.\n- **Lifetime** of a few hours, with a refresh path for long movies, and **[[key rotation]]** with two valid keys at once.\n- **Geo:** the [[entitlement]] service decides at start, because anime licenses are per region. CDN geo-blocking is a second layer, for high-value titles only.",
+          body: "- **Token out of the cache key.** Put it in a cookie, a header, or a query parameter every CDN strips from the key. Each session has a different token, so a token in the key would give every session its own cache entries. The conformance suite tests this.\n- **Validate before cache lookup**, so a cached object is never served to an unauthorized request.\n- **Lifetime** of a few hours, with a refresh path for long movies, and **[[key rotation]]** with two valid keys at once.",
         },
         {
           kind: "quiz",
+          teach: "The cache key decides which requests share one stored copy. Think about how many requests would share a copy if each session's key were different.",
           prompt: "One CDN accidentally includes the token in its cache key. What happens?",
           options: [
             "Nothing; tokens are short",
@@ -792,8 +804,14 @@ const chapter: Chapter = {
           explain: "Each session has a different token, so each becomes a separate cache key. The origin sees the full herd. That is why the token stays out of the key and the suite tests it.",
         },
         {
+          kind: "read",
+          title: "Geo, and the cost of signing",
+          body: "**Geo.** The [[entitlement]] service decides territory at playback start, because anime licenses are per region. CDN geo-blocking is a second layer, for high-value titles only.\n\n**Signing cost.** **Signatures per second = starts per second x token formats.** Worked example, at the average premiere rate from Lesson 1: 3,300 x 3 = **9,900 signatures per second**. Signing runs in process: never put a network call to a signing service on the start path. Keys load from a secrets manager at boot and on rotation.",
+        },
+        {
           kind: "number",
-          prompt: "At ~10,000 starts per second, each signed into 3 formats, how many signatures per second?",
+          teach: "Each start signs one claim set into each token format. Multiply starts per second by the number of formats.",
+          prompt: "At the busiest minute, ~10,000 starts per second, each signed into 3 formats. How many signatures per second?",
           answer: 30000,
           tolerance: 1000,
           unit: "signatures/s",
@@ -826,16 +844,21 @@ const chapter: Chapter = {
       minutes: 11,
       steps: [
         {
+          kind: "read",
+          title: "Who picks the CDN?",
+          body: "A viewer starts a two-hour movie on Fastly. Forty minutes in, Fastly gets slow in their country. Something must notice, and move them, without stopping the movie.\n\nThat job is **steering**: choosing which CDN path a session uses, and changing it when things go wrong. By the end of this lesson you can explain the four steering layers, what feeds the scores, why sessions are spread by weight, and the contract with the player.",
+        },
+        {
           kind: "quiz",
-          prompt: "A movie session started on Fastly 40 minutes ago. Fastly degrades in that country. What can move the session without a restart?",
+          guess: true,
+          prompt: "You start a drive on the fastest road. Halfway, a traffic jam appears ahead. What would you expect a good navigation app to do?",
           options: [
-            "Nothing; the CDN is fixed at playback start",
-            "Mid-session Content Steering, at the player's next steering reload",
-            "Only DNS, after the TTL expires",
-            "The license server",
+            "Keep you on the planned road until you arrive",
+            "Re-route you during the drive",
+            "Make you stop and start the trip again",
           ],
           answer: 1,
-          explain: "Playback-time ranking only decides the start. Content Steering lets long sessions, such as movies and binges, move after they started.",
+          explain: "A good app re-routes you mid-trip. Steering works the same way. The route chosen when you set off is **playback-time ranking**. Re-routing during the session is **Content Steering**, which can move a long movie away from a CDN that degrades after it started, at the player's next steering reload, with no restart.",
         },
         {
           kind: "read",
@@ -852,7 +875,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Layer 2: Content Steering",
-          body: "The multivariant playlist carries the HLS `EXT-X-CONTENT-STEERING` tag with a `SERVER-URI`. Apple's spec defines a JSON Steering Manifest with `VERSION`, `TTL`, an optional `RELOAD-URI` and `PATHWAY-PRIORITY`, an ordered list of pathway IDs. Clients may send `_HLS_pathway` and `_HLS_throughput` when they reload it. DASH has an equivalent from DASH-IF.\n\n[[Content Steering]] moves long sessions away from a CDN that degrades after the session started.",
+          body: "The multivariant playlist carries the HLS `EXT-X-CONTENT-STEERING` tag with a `SERVER-URI`. Apple's spec defines a JSON Steering Manifest with `VERSION`, `TTL`, an optional `RELOAD-URI` and `PATHWAY-PRIORITY`, an ordered list of pathway IDs. Clients may send `_HLS_pathway` and `_HLS_throughput` when they reload it. DASH has an equivalent from DASH-IF.\n\n[[Content Steering]] moves long sessions, such as movies and binges, away from a CDN that degrades after the session started.",
           visual: { kind: "code", lang: "json", code: "{\n  \"VERSION\": 1,\n  \"TTL\": 300,\n  \"RELOAD-URI\": \"/v1/steer?sid=4f2a\",\n  \"PATHWAY-PRIORITY\": [\"fastly\", \"cloudfront\", \"mediacdn\"]\n}" },
         },
         {
@@ -863,6 +886,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall the rule in the Content Steering spec for a client that cannot load a new Steering Manifest. This is static stability.",
           prompt: "The steering server is down for 20 minutes. What do players using Content Steering do?",
           options: [
             "Stop playback until it returns",
@@ -881,6 +905,7 @@ const chapter: Chapter = {
         },
         {
           kind: "order",
+          teach: "Each layer is a fallback for the one above. The first decides at playback start; the last is the coarsest and slowest.",
           prompt: "Order the steering layers from the main control to the last fallback.",
           items: [
             "Playback-time ranking in the Playback API",
@@ -893,10 +918,11 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Decision inputs",
-          body: "Scores are computed per (country, ASN group) from five inputs:\n\n- **Health** as a hard filter: a drained CDN-region is never first.\n- **QoE** from recent [[RUM]] (throughput, segment errors, start time), smoothed with a moving average.\n- **Cost** per GB in that region.\n- **Commit pacing**: a CDN behind its monthly [[commit]] has bytes you pay for anyway.\n- **Reserved capacity** for events.",
+          body: "Scores are computed per (country, ASN group) from five inputs:\n\n- **Health** as a hard filter: a drained CDN-region is never first.\n- **QoE** from recent [[RUM]] (throughput, segment errors, start time), smoothed with a moving average.\n- **Cost** per GB in that region.\n- **Commit pacing**: a CDN behind its monthly [[commit]] has bytes you pay for anyway.\n- **Reserved capacity** for events: a CDN never gets more than it has reserved.",
         },
         {
           kind: "match",
+          teach: "One input is a hard filter, one comes from viewers' own measurements, and two come from contracts and event planning.",
           prompt: "Match each steering input to how it is used.",
           pairs: [
             ["Health", "Hard filter: a drained CDN-region is never first"],
@@ -918,6 +944,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "In the sketch, the cost term is multiplied by (1 - commitGap) and then subtracted from the score. Work out that term when commitGap is close to 1.",
           prompt: "Two CDNs have equal quality. One is far behind its monthly commit (commitGap near 1). How does the sketch treat it?",
           options: [
             "Its cost penalty shrinks toward zero, so it ranks higher",
@@ -929,16 +956,9 @@ const chapter: Chapter = {
           explain: "The cost term is multiplied by (1 - commitGap). Bytes you have already committed to pay for are almost free, so at equal QoE they win.",
         },
         {
-          kind: "quiz",
-          prompt: "Predict: every new session is sent to the single top-scoring CDN. What happens next?",
-          options: [
-            "Nothing; the best CDN stays best",
-            "Its load jumps, its QoE drops, it loses the top spot, everyone moves again: oscillation",
-            "The origin is overloaded",
-            "DNS takes over",
-          ],
-          answer: 1,
-          explain: "Winner-takes-all steering chases its own effect. The real engine uses weighted random choice over the scores instead.",
+          kind: "reveal",
+          prompt: "Think about it: every new session is sent to the single top-scoring CDN. What happens over the next few minutes?",
+          answer: "Its load jumps and its QoE drops. It loses the top spot, so everyone moves to the next CDN, which then overloads too. The system **oscillates**: winner-takes-all steering chases its own effect. The next step shows how the real engine avoids this.",
         },
         {
           kind: "read",
@@ -976,6 +996,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Look at the player contract: one field is sent with every request and written into every log line.",
           prompt: "Which value lets one query follow a session across player beacons and all three CDNs' logs?",
           options: ["The token", "The CMCD session ID (sid)", "The client IP address", "The package version"],
           answer: 1,
@@ -1003,16 +1024,21 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "Running it every day",
+          body: "The platform is built. Now it has to run safely every day: when rebuffering rises on one ISP in Brazil, when an engineer changes a CDN config, and when a CDN breaks at 2 a.m.\n\nBy the end of this lesson you can design the telemetry that explains a problem in minutes, the pipeline that makes config changes safe, and failover automation that cannot run away.",
+        },
+        {
           kind: "quiz",
-          prompt: "Rebuffering rises for one ISP in Brazil. What lets you explain it in minutes?",
+          guess: true,
+          prompt: "A parcel arrives three days late. What would help you find where it got stuck, fastest?",
           options: [
-            "A bigger Datadog bill",
-            "One session ID joined across player RUM and every CDN's logs",
-            "Asking the ISP",
-            "Purging the episode",
+            "Asking every driver what they remember",
+            "One tracking number, scanned at every stop",
+            "A bigger warehouse",
           ],
           answer: 1,
-          explain: "Four telemetry sources share one join key, the CMCD sid. That is how one query goes from player symptom to CDN, PoP and cache layer.",
+          explain: "One ID recorded at every stop lets you follow the whole journey. Delivery telemetry works the same way: the player sends one session ID (CMCD `sid`) with every request, and it appears in player beacons and in every CDN's logs. One query then goes from a player symptom to the CDN, PoP and cache layer.",
         },
         {
           kind: "read",
@@ -1032,6 +1058,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "Page for user-facing SLO burn. Cause signals that do not predict a user symptom within the hour go to tickets.",
           prompt: "Which of these should page on-call right away? Select all that apply.",
           options: [
             "Fast burn rate on video start failures",
@@ -1044,21 +1071,8 @@ const chapter: Chapter = {
         },
         {
           kind: "read",
-          title: "One repository",
-          body: "One repository holds CDN configs (Terraform providers for CloudFront, Fastly and Media CDN), DNS records, bucket policies, replication rules, and the TypeScript services: steering library, signer, health controller, replicator. This is **[[IaC]]** for the whole delivery path (Chapter 14).",
-        },
-        {
-          kind: "order",
-          prompt: "Order the pipeline for an edge config change.",
-          items: [
-            "Pull request reviewed by another Media Delivery engineer",
-            "Unit tests for edge logic (VCL, Compute code, CloudFront Functions)",
-            "Deploy to a staging service on each CDN with a test hostname",
-            "Run the conformance suite against every CDN",
-            "Progressive exposure: 1%, then 10%, then 50% of sessions",
-            "Nightly drift detection between live config and Terraform state",
-          ],
-          explain: "Review, test, stage, prove parity, expose slowly with automatic rollback, then keep watching for drift.",
+          title: "One repository, six steps",
+          body: "One repository holds CDN configs (Terraform for CloudFront, Fastly and Media CDN), DNS records, bucket policies, replication rules, and the TypeScript services: steering library, signer, health controller, replicator. This is **[[IaC]]** for the whole delivery path.\n\nEvery edge config change takes six steps:\n1. Pull request reviewed by another Media Delivery engineer.\n2. Unit tests for edge logic (VCL, Compute code, CloudFront Functions).\n3. Deploy to a **staging service** on each CDN.\n4. Run the **conformance suite**.\n5. **Progressive exposure**.\n6. Nightly **drift detection**.",
         },
         {
           kind: "read",
@@ -1067,6 +1081,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "If something per-session leaks into the cache key, two sessions stop sharing one cached copy. Look for the test that would notice that.",
           prompt: "Which conformance test catches a token or CMCD key leaking into the cache key?",
           options: [
             "Range request returns 206",
@@ -1081,6 +1096,20 @@ const chapter: Chapter = {
           kind: "read",
           title: "Expose slowly, detect drift",
           body: "**Progressive exposure:** steering sends 1%, then 10%, then 50% of sessions to the canary config where the CDN supports versioned or header-routed configs, with **automatic rollback** if SLIs move.\n\n**Drift detection:** every night, compare live CDN config with Terraform state. **[[Drift|Drift (config)]]** means someone changed production outside the pipeline.",
+        },
+        {
+          kind: "order",
+          teach: "Follow the safest path for a change: people check it, tests check it, a test copy proves it on every CDN, real traffic sees it slowly, and you keep watching afterwards.",
+          prompt: "Order the pipeline for an edge config change.",
+          items: [
+            "Pull request reviewed by another Media Delivery engineer",
+            "Unit tests for edge logic (VCL, Compute code, CloudFront Functions)",
+            "Deploy to a staging service on each CDN with a test hostname",
+            "Run the conformance suite against every CDN",
+            "Progressive exposure: 1%, then 10%, then 50% of sessions",
+            "Nightly drift detection between live config and Terraform state",
+          ],
+          explain: "Review, test, stage, prove parity, expose slowly with automatic rollback, then keep watching for drift.",
         },
         {
           kind: "read",
@@ -1102,23 +1131,14 @@ const chapter: Chapter = {
           },
         },
         {
-          kind: "match",
-          prompt: "Match each failover mechanism to its speed and scope.",
-          pairs: [
-            ["CDN origin group", "One request; one CDN's misses"],
-            ["Player retry and pathway switch", "Seconds; one session"],
-            ["Steering table change", "1 to 3 min; a country or ASN group"],
-          ],
-          explain: "Fast, narrow mechanisms act first. The health controller moves whole groups more slowly and more carefully.",
-        },
-        {
           kind: "read",
           title: "Tuning origin failover",
-          body: "CloudFront **[[origin groups|Origin group / director]]** fail over when the primary returns a configured status code or cannot be reached. By default CloudFront tries to connect for up to 30 seconds (3 attempts of 10 s), and AWS itself notes that streaming may need faster failover.\n\nThis design sets a **2 s connection timeout, 1 attempt**, and failover on 500, 502, 503 and 504.",
+          body: "CloudFront **[[origin groups|Origin group / director]]** fail over when the primary returns a configured status code or cannot be reached. Before it gives up on an unreachable primary, CloudFront waits for its connection attempts:\n\n**Wait = attempts x timeout per attempt.**\n\nWorked example, this design's setting: **1 attempt x 2 s = at most 2 s**, with failover on 500, 502, 503 and 504. AWS itself notes that streaming may need faster failover than the default.",
           visual: { kind: "code", lang: "hcl", code: "resource \"aws_cloudfront_distribution\" \"video\" {\n  origin_group {\n    origin_id = \"video-origins\"\n    failover_criteria { status_codes = [500, 502, 503, 504] }\n    member { origin_id = \"s3-region-a\" }\n    member { origin_id = \"s3-region-b\" }\n  }\n  # origins, cache behaviors and OAC omitted\n}" },
         },
         {
           kind: "number",
+          teach: "Multiply the number of connection attempts by the timeout of each attempt.",
           prompt: "With CloudFront's defaults (3 connection attempts of 10 s each), how long can it wait before failing over to the secondary origin?",
           answer: 30,
           tolerance: 1,
@@ -1150,6 +1170,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall the safety rules: how many signal types must agree before a large action, and what a global drain needs.",
           prompt: "The RUM collector breaks and reports zero throughput for Fastly everywhere. What stops a global drain?",
           options: [
             "Nothing; the controller trusts RUM",
@@ -1189,8 +1210,13 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "Watch it work",
+          body: "You have built every part. Now watch the design work in two stories.\n\nFirst, one viewer in Sao Paulo presses play on an old episode, and you follow the request hop by hop. Second, the hardest day: a premiere where ~2M viewers (assumed) arrive within minutes.\n\nBy the end of this lesson you can trace a playback request end to end, and run a premiere from T-7 days to T+1 day.",
+        },
+        {
           kind: "reveal",
-          prompt: "A viewer in Sao Paulo, on a large Brazilian ISP, opens an old catalog episode in a web browser. Before reading on, list every hop until the first segment plays.",
+          prompt: "Try it first, using what you built in Lessons 2 to 5. A viewer in Sao Paulo, on a large Brazilian ISP, opens an old catalog episode in a web browser. List every hop until the first segment plays, then reveal.",
           answer: "1. Playback API: entitlement, geo, steering rank, sign token.\n2. DNS, TLS and HTTP to a nearby Fastly PoP.\n3. Multivariant playlist from cache.\n4. DRM license, in parallel where possible.\n5. Segment 1: edge validates the token, misses, shield misses, signed fetch from origin A.\n6. Later segments mostly hit; steering manifest reloads every 300 s.\n7. RUM and CDN logs reach Datadog, joined by session ID.",
         },
         {
@@ -1207,6 +1233,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall the token rules from Lesson 3: one check must happen before the cache is searched, so cached bytes never reach the wrong person.",
           prompt: "The request for segment 1 reaches the Sao Paulo edge. What does the edge do first?",
           options: [
             "Look up the cache key",
@@ -1244,6 +1271,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Recall the failover levels from Lessons 4 and 5: the player handles a failing CDN, the CDN's origin group handles a failing origin, and the health controller handles slow paths.",
           prompt: "Where can this request fail, and what responds?",
           pairs: [
             ["Edge returns 5xx", "Layer 3: player fails over to CloudFront"],
@@ -1260,8 +1288,15 @@ const chapter: Chapter = {
           callout: { type: "crunchyroll", text: "The 2017 post names weekend simulcast degradation as a known problem at the time. This design treats every big premiere as a planned event with a runbook." },
         },
         {
+          kind: "read",
+          title: "T-7 days and T-24 hours",
+          body: "**T-7 days.** Forecast peak concurrency from the previous episode and the season's trend, split by region. Reserve capacity with each CDN so that **any two can carry the load if the third fails**. Send start and license forecasts to partner teams.\n\n**T-24 hours.** Run a synthetic **start storm** (fake viewers pressing play) against the Playback API and license service at the forecast rate. In spikes, the data plane is usually not first to break. Login, entitlement, license and API autoscaling often break first, because they scale more slowly than CDNs.",
+          visual: { kind: "flow", spec: grow(PREMIERE, "all", ["t1", "t2", "t1>t2"]) },
+        },
+        {
           kind: "quiz",
-          prompt: "Predict: in a premiere spike, what usually breaks first?",
+          teach: "Think about which services must scale up when millions press play at once, and which of them scale more slowly than a CDN.",
+          prompt: "In a premiere spike, what usually breaks first?",
           options: [
             "CDN edge capacity",
             "Login, entitlement, license and API autoscaling",
@@ -1273,15 +1308,21 @@ const chapter: Chapter = {
         },
         {
           kind: "read",
-          title: "T-7 days and T-24 hours",
-          body: "**T-7 days.** Forecast peak concurrency from the previous episode and the season's trend, split by region. Reserve capacity with each CDN so that **any two can carry the load if the third fails**. Send the start and license forecast to partner teams.\n\n**T-24 hours.** Run a synthetic start storm against the Playback API and the license service at the forecast rate.",
-          visual: { kind: "flow", spec: grow(PREMIERE, "all", ["t1", "t2", "t1>t2"]) },
-        },
-        {
-          kind: "read",
           title: "T-hours and T-60 min",
           body: "**T-hours.** The package arrives and is validated. A failure pages Content Pipeline immediately.\n\n**T-60 min.** The verifier must report `verified-3-of-3`. If only 2-of-3, the premiere can proceed, but steering is told **not to rank first** the CDN whose primary origin lacks the package.",
           visual: { kind: "flow", spec: grow(PREMIERE, "all", ["t3", "t4", "t3>t4"]) },
+        },
+        {
+          kind: "quiz",
+          guess: true,
+          prompt: "Two million people start the same episode at exactly 20:00. At 20:01, which part of the episode is almost everyone watching?",
+          options: [
+            "The first minute or two",
+            "Random parts all over the episode",
+            "The last minute",
+          ],
+          answer: 0,
+          explain: "Everyone starts at segment 1 and moves forward at playback speed. So only the start of the episode is requested by the whole herd at the same moment. By the time the herd reaches minute 3, early viewers have already pulled it into the shield. That is why the warmer in the next step fetches only the first few minutes: **targeted pre-warming**.",
         },
         {
           kind: "read",
@@ -1290,25 +1331,20 @@ const chapter: Chapter = {
           visual: { kind: "flow", spec: grow(PREMIERE, "all", ["t5"]) },
         },
         {
-          kind: "quiz",
-          prompt: "Why does the warmer fetch only the first few minutes of each track?",
-          options: [
-            "Shields cannot store a whole episode",
-            "Viewers start at segment 1 and move at playback speed, so early viewers pull later segments through the shield first",
-            "Later segments are not encrypted",
-            "Request fees forbid more",
-          ],
-          answer: 1,
-          explain: "Only the start is truly synchronized. By the time the herd reaches minute 3, early viewers have already pulled it into the shield. This is targeted pre-warming.",
-        },
-        {
           kind: "read",
           title: "T-15 min and T0",
           body: "**T-15 min.** Change freeze on edge config and steering logic. A war room: an incident commander, one person per CDN dashboard, one on the control plane, vendor contacts on standby.\n\n**T0.** The entitlement flag flips and the API returns URLs. Steering uses a **premiere profile**: weights set in advance from the reservation plan. Live QoE can lower a CDN in a region, but cannot push any CDN above its reserved capacity.",
           visual: { kind: "flow", spec: grow(PREMIERE, "all", ["t6", "t7", "t6>t7"]) },
         },
         {
+          kind: "read",
+          title: "T0 to T+10 min: what to watch",
+          body: "Watch four things, in this order:\n\n1. **Start failure rate.** Can viewers start? If not, is it the API, the license or the edge?\n2. **Origin request rate.** It should spike briefly and fall as shields fill. If it stays high, a cache key is broken, often a token or CMCD parameter leaking into the key on one CDN.\n3. **Per-CDN errors** per region.\n4. **Per-CDN throughput** versus the reservation.",
+          visual: { kind: "flow", spec: grow(PREMIERE, "all", ["t8", "t7>t8"]) },
+        },
+        {
           kind: "order",
+          teach: "Start with the viewers, then check that caching is protecting the origin, then each CDN's health and its capacity.",
           prompt: "From T0 to T+10 min, what do you watch, in order?",
           items: [
             "Start failure rate: API, license or edge?",
@@ -1317,18 +1353,6 @@ const chapter: Chapter = {
             "Per-CDN throughput versus reservation",
           ],
           explain: "Users first (can they start?), then the origin (is caching working?), then each CDN's health and its capacity against the reservation.",
-        },
-        {
-          kind: "quiz",
-          prompt: "At T+5 min, origin requests from one CDN stay high instead of falling. Most likely cause?",
-          options: [
-            "The episode is too popular",
-            "A token or CMCD parameter is leaking into that CDN's cache key",
-            "The license service is slow",
-            "The shield warmed too early",
-          ],
-          answer: 1,
-          explain: "If the rate stays high, a cache key is broken, often a token or CMCD parameter on one CDN. Each value makes a new key, so the shield never fills.",
         },
         {
           kind: "widget",
@@ -1368,7 +1392,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Judge a design by how it fails",
-          body: "A design is judged by how it fails. For each failure, a design doc lists **detection**, **automatic response**, **expected user impact** and **residual risk**. \"Impact\" assumes the design works as specified.\n\nTry the next ones yourself before you reveal the answer.",
+          body: "A design is judged by how it fails, what it costs, and whether people will fund it. This lesson covers all three.\n\nFor each failure, a design doc lists **detection**, **automatic response**, **expected user impact** and **residual risk** (what can still go wrong). \"Impact\" assumes the design works as specified.\n\nBy the end you can reason through failures, read the cost envelope, defend the rejected alternatives and present a phased roadmap. Try the next two failures yourself, using Lessons 4 and 5, before you reveal.",
         },
         {
           kind: "reveal",
@@ -1379,11 +1403,6 @@ const chapter: Chapter = {
           kind: "reveal",
           prompt: "AWS Region A has an outage. Then: S3 is impaired in both AWS regions. What happens in each case?",
           answer: "Region A: origin 5xx and timeouts; origin groups fail over to Region B per request. Users see higher miss latency. Region B and GCS now carry all origin load.\nBoth S3 regions: steering moves traffic toward Media CDN on GCS. Quality drops while caches warm, and one CDN's capacity becomes the limit.",
-        },
-        {
-          kind: "reveal",
-          prompt: "The steering engine and the health controller are both down. What happens?",
-          answer: "Detection: the steering table age alert.\nResponse: the API keeps the last good table; players keep the previous steering manifest.\nImpact: none in the short term.\nResidual risk: stale weights if a CDN problem happens later.",
         },
         {
           kind: "read",
@@ -1423,6 +1442,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Use the Automatic response column of the two failure tables. Each response reuses a building block from an earlier lesson.",
           prompt: "Match each failure to its automatic response.",
           pairs: [
             ["Bad CDN config push", "Automatic rollback; steer away from the canary"],
@@ -1453,8 +1473,37 @@ const chapter: Chapter = {
         },
         {
           kind: "read",
+          title: "Cost: one formula",
+          body: "The cost envelope shows only the order of magnitude, so reviewers see where money goes. **All prices are assumptions.** Committed CDN prices for large media customers are private and differ by region.\n\nMost lines use one formula: **cost = GB x price per GB**. 1 PB = 1,000,000 GB.\n\nWorked example: 100 PB delivered at 0.004 USD per GB. 100 PB = 100,000,000 GB. 100,000,000 x 0.004 = **400,000 USD** a month.",
+        },
+        {
+          kind: "number",
+          teach: "Turn petabytes into gigabytes (1 PB = 1,000,000 GB), multiply by the price per GB, then express the result in millions of USD.",
+          prompt: "At the low assumed price of 0.002 USD per GB, what does 540 PB of CDN delivery cost per month, in millions of USD?",
+          answer: 1.08,
+          tolerance: 0.06,
+          unit: "M USD",
+          hint: "1 PB = 1,000,000 GB.",
+          explain: "540,000,000 GB x 0.002 = ~1.08M USD. At 0.006 it is ~3.2M USD. Compare storage: ~630 TB x 0.02 = ~13k USD.",
+        },
+        {
+          kind: "read",
+          title: "Origin egress: the bytes that miss",
+          body: "When a CDN misses, it fetches from the origin, and the cloud charges **origin egress** for those bytes. AWS does not charge it for CloudFront pulling from AWS origins, so only the non-AWS CDNs count.\n\n**Origin bytes = byte miss share x monthly bytes x non-AWS traffic share.**\n\nWorked example: 5% byte miss, 100 PB a month, 50% of traffic on non-AWS CDNs. 0.05 x 100 x 0.5 = **2.5 PB** leave the origin.",
+        },
+        {
+          kind: "number",
+          teach: "Multiply the three shares and the monthly total together: miss share x PB delivered x traffic share. Write percentages as decimals.",
+          prompt: "Origin egress to non-AWS CDNs: 2% byte miss x 540 PB x 60% traffic share. How many PB leave the origin per month?",
+          answer: 6.48,
+          tolerance: 0.3,
+          unit: "PB",
+          explain: "0.02 x 540 x 0.6 = ~6.5 PB. At ~0.05 USD per GB that is ~0.3M USD a month: the hidden second line.",
+        },
+        {
+          kind: "read",
           title: "The cost envelope",
-          body: "Only the order of magnitude, so reviewers see where money goes. **All prices are assumptions.** Committed CDN prices for large media customers are private and differ by region. AWS does not charge origin egress to CloudFront for AWS origins (~0). Observability logs at ~1M requests per second can reach six figures a month: budget it.",
+          body: "Here is the full table. Origin egress to CloudFront is ~0, because AWS does not charge it for AWS origins. Observability logs at ~1M requests per second can reach six figures a month: budget it.",
           visual: {
             kind: "table",
             headers: ["Line item", "Calculation (assumed)", "Monthly"],
@@ -1466,23 +1515,6 @@ const chapter: Chapter = {
               ["Storage", "~630 TB x ~0.02 USD per GB-month", "~13k USD"],
             ],
           },
-        },
-        {
-          kind: "number",
-          prompt: "At the low assumed price of 0.002 USD per GB, what does 540 PB of CDN delivery cost per month, in millions of USD?",
-          answer: 1.08,
-          tolerance: 0.06,
-          unit: "M USD",
-          hint: "1 PB = 1,000,000 GB.",
-          explain: "540,000,000 GB x 0.002 = ~1.08M USD. At 0.006 it is ~3.2M USD. Compare storage: ~630 TB x 0.02 = ~13k USD.",
-        },
-        {
-          kind: "number",
-          prompt: "Origin egress to non-AWS CDNs: 2% byte miss x 540 PB x 60% traffic share. How many PB leave the origin per month?",
-          answer: 6.48,
-          tolerance: 0.3,
-          unit: "PB",
-          explain: "0.02 x 540 x 0.6 = ~6.5 PB. At ~0.05 USD per GB that is ~0.3M USD a month: the hidden second line.",
         },
         {
           kind: "read",
@@ -1516,6 +1548,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Use the Kept as column of the alternatives table. Rejected as the main method does not always mean thrown away.",
           prompt: "Match each alternative to its fate in this design.",
           pairs: [
             ["Single CDN", "Rejected: a vendor outage becomes a full outage"],
@@ -1544,6 +1577,7 @@ const chapter: Chapter = {
         },
         {
           kind: "order",
+          teach: "Think about dependencies: what data quality-based steering needs before it can work, and what must already be safe before you spread traffic across CDNs.",
           prompt: "Put the phases in order.",
           items: [
             "Measure: CMCD sid, dashboards, SLOs, probes",
@@ -1582,7 +1616,13 @@ const chapter: Chapter = {
       minutes: 9,
       steps: [
         {
+          kind: "read",
+          title: "What this chapter covered",
+          body: "Here is what this chapter covered.\n\n- The **book's proposal**. Control plane and data plane fail differently, so each is protected its own way.\n- A premiere's origin risk is **synchronized concurrency on cold objects**. Shields, collapsing, warming and versioned paths fix it.\n- **Per-CDN shields** keep CDNs independent. **Four steering layers** each cover the one above.\n- A **publish gate** in code needs two verified origins.\n- Keep every CDN **warm**, size for **N minus one**, and limit automation.\n- **CDN delivery dominates cost.** Build in phases, measurement first.",
+        },
+        {
           kind: "quiz",
+          teach: "Multi-CDN exists so that one failure cannot stop all playback. Think about what one shared box in front of every CDN does to that.",
           prompt: "Why does this design reject one shared shield in front of all CDNs, even though it reduces origin requests?",
           options: [
             "Shared shields cannot do request collapsing",
@@ -1595,6 +1635,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Each stream asks for one video and one audio segment per segment duration. Requests per second = streams x 2 / segment seconds.",
           prompt: "A 2M-stream premiere with 4 s segments and separate audio and video. How many segment requests per second reach the CDNs?",
           answer: 1000000,
           tolerance: 50000,
@@ -1603,6 +1644,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Use the same formula, streams x 2 / segment seconds, with 6 s in place of 4 s.",
           prompt: "Same premiere with 6 s segments instead. How many requests per second now?",
           answer: 667000,
           tolerance: 15000,
@@ -1616,6 +1658,7 @@ const chapter: Chapter = {
         },
         {
           kind: "order",
+          teach: "Each layer is a fallback for the one above. The first decides at playback start; the last is coarse and bound by TTLs.",
           prompt: "Name the four steering layers, from main control to last fallback.",
           items: [
             "Playback-time ranking",
@@ -1627,6 +1670,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Ask what a viewer needs, besides the bytes, to actually play an encrypted segment, and when those things are issued.",
           prompt: "Why is it safe to warm CDN shields with a premiere episode 30 minutes before release?",
           options: [
             "Shields are private and nobody can reach them",
@@ -1644,6 +1688,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Think about the caches of a CDN that carries no traffic, and what a sudden failover to it would send to the origin.",
           prompt: "Why keep at least 10% of traffic on every CDN in every major region?",
           options: [
             "To meet each CDN's minimum contract",
@@ -1656,6 +1701,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall what the publish gate already guarantees about the origins before any viewer can ask for a segment.",
           prompt: "Why does the design not fail over to the secondary origin on 404 for segments?",
           options: [
             "CloudFront cannot fail over on 404",
@@ -1668,6 +1714,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Without shields, every PoP misses once on every object. Multiply CDNs x PoPs per CDN x objects.",
           prompt: "Without shields, 3 CDNs x 100 PoPs (assumed) each miss once on ~6,800 objects. About how many origin requests is that?",
           answer: 2040000,
           tolerance: 100000,
@@ -1676,6 +1723,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "Think back to how each plane is protected, what the cost table showed, and the shield decision.",
           prompt: "Which of these are key takeaways of this design? Select all that apply.",
           options: [
             "Protect the control plane with static stability: last-known-good tables and client fallback",

@@ -153,8 +153,16 @@ const chapter: Chapter = {
       minutes: 8,
       steps: [
         {
+          kind: "read",
+          title: "Video is a download with a clock",
+          body:
+            "A streaming player does not download the whole episode first. It downloads small pieces of video, each a few seconds long, called **segments**. It keeps a few of them ready in a **buffer** (a small store of video that is downloaded but not yet played).\n\n" +
+            "In this lesson you will see why the network decides video quality. By the end you can name the three network properties that matter, read an IP prefix, and count the packets in a segment.",
+        },
+        {
           kind: "quiz",
-          prompt: "A player needs about 4 seconds of video every 4 seconds. The network delivers each 4-second piece in 5 seconds. What happens?",
+          guess: true,
+          prompt: "Take a guess. A player plays 4 seconds of video every 4 seconds. The network needs 5 seconds to deliver each 4-second piece. What would you expect to happen?",
           options: [
             "The buffer drains and the viewer sees a spinner",
             "Nothing, the server speeds up on its own",
@@ -162,7 +170,7 @@ const chapter: Chapter = {
             "The player waits once at the start, then it is fine",
           ],
           answer: 0,
-          explain: "A video stream is a long download that must **keep pace with a clock**. If the network delivers more slowly than the video plays, the buffer drains and the viewer sees a spinner. This is true for the whole episode, not only at the start.",
+          explain: "Each piece arrives 1 second later than it is needed. The buffer loses 1 second of video every 4 seconds, so it empties, and then the viewer sees a spinner.\n\nSo a video stream is a long download that must **keep pace with a clock**, for the whole episode, not only at the start.",
         },
         {
           kind: "read",
@@ -197,10 +205,25 @@ const chapter: Chapter = {
             ["Capacity (bandwidth)", "Bits per second the narrowest link can carry"],
             ["Loss", "How often packets are dropped and resent"],
           ],
+          teach: "Distance is about time for a round trip. Capacity is about how many bits fit through the narrowest link each second. Loss is about packets that never arrive.",
           explain: "These three properties decide whether every segment arrives before the buffer runs out.",
         },
         {
+          kind: "read",
+          title: "Worked example: total egress",
+          body:
+            "**Egress** is the total traffic flowing out from the servers to viewers. To estimate it, multiply the number of streams by the bitrate of each stream.\n\n" +
+            "Example: a small event has 50,000 viewers at 5 Mbps each.\n\n" +
+            "50,000 x 5 Mbps = 250,000 Mbps. Since 1 Gbps = 1,000 Mbps, that is **250 Gbps**. And 1 Tbps = 1,000 Gbps = 1,000,000 Mbps.",
+          visual: {
+            kind: "code",
+            lang: "text",
+            code: "egress = streams x bitrate\n\n50,000 x 5 Mbps\n= 250,000 Mbps\n= 250 Gbps",
+          },
+        },
+        {
           kind: "number",
+          teach: "Multiply streams by bitrate, then convert units. 1 Tbps is 1,000,000 Mbps.",
           prompt: "At a big simulcast premiere, assume about 2M concurrent streams at about 4 Mbps average. What is the total egress?",
           answer: 8,
           tolerance: 0.5,
@@ -253,6 +276,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "A router compares every prefix that covers the address. The number after the slash says how many bits are fixed. Remember which one wins.",
           prompt: "A router learns 198.51.0.0/16 from neighbor A and 198.51.100.0/24 from neighbor B. Where does a packet for 198.51.100.7 go?",
           options: [
             "Neighbor A, because its prefix covers more addresses",
@@ -291,7 +315,21 @@ const chapter: Chapter = {
           },
         },
         {
+          kind: "read",
+          title: "Worked example: counting packets",
+          body:
+            "To count the packets in a file, divide its size by the data each packet carries (the MSS).\n\n" +
+            "Example: a playlist file of 146 KB, which is 146,000 bytes.\n\n" +
+            "146,000 / 1,460 = **100 packets**. The file is only complete when all 100 have arrived.",
+          visual: {
+            kind: "code",
+            lang: "text",
+            code: "packets = file size / MSS\n\n146,000 bytes / 1,460 bytes\n= 100 packets",
+          },
+        },
+        {
           kind: "number",
+          teach: "Divide the size in bytes by the data per packet. 1 MB is 1,000,000 bytes.",
           prompt: "A video segment is 2.5 MB. Each packet carries about 1,460 bytes of data. About how many packets does the segment need?",
           answer: 1700,
           tolerance: 100,
@@ -320,16 +358,25 @@ const chapter: Chapter = {
       minutes: 11,
       steps: [
         {
+          kind: "read",
+          title: "Who picks the path?",
+          body:
+            "A packet from a CDN server to a viewer's phone crosses several networks owned by different companies. Something has to decide which way it goes.\n\n" +
+            "That decision often explains why one country or one ISP suddenly gets worse video.\n\n" +
+            "By the end of this lesson you can explain how networks choose routes, how that system breaks, and what **anycast** (one address served from many places) gains and loses.",
+        },
+        {
           kind: "quiz",
-          prompt: "A link between two networks is full every night at 9 p.m. Will the internet's routing protocol move traffic away from it by itself?",
+          guess: true,
+          prompt: "Take a guess. A link between two networks is full every night at 9 p.m. Would you expect the internet's routing to move traffic away from it by itself?",
           options: [
             "Yes, routing measures congestion and avoids full links",
-            "No, routing picks paths by policy and path length, not congestion",
+            "No, routing picks paths by business rules and path length, not congestion",
             "Yes, but only when loss goes above 1 percent",
             "Only if the link is inside one cloud provider",
           ],
           answer: 1,
-          explain: "**BGP picks routes by policy and AS-path length, not by measured latency, loss or congestion.** It does not know that a link is full at 9 p.m. CDNs, RUM-based steering and multi-CDN exist partly to fix choices that BGP makes blindly.",
+          explain: "Most people expect yes, but the answer is no. The internet's routing protocol, **BGP**, picks routes by **policy** (business rules) and **AS-path length** (how many networks the route crosses). It does not measure latency, loss or congestion, so it does not know that a link is full at 9 p.m.\n\nCDNs, steering based on real viewer measurements, and multi-CDN exist partly to fix choices that BGP makes blindly. This lesson shows how.",
         },
         {
           kind: "read",
@@ -366,6 +413,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "BGP neighbors send each other two kinds of messages: one to say \"I can reach this\", and one to take that back.",
           prompt: "A network's link to a prefix breaks, so it can no longer reach 203.0.113.0/24. What does it send to its BGP neighbors?",
           options: ["An announcement with a longer AS path", "A withdrawal", "A DNS update", "Nothing; neighbors notice on their own"],
           answer: 1,
@@ -379,10 +427,11 @@ const chapter: Chapter = {
             "To pick among routes for one prefix, a router looks roughly at:\n\n" +
             "- **Local preference**, set by policy. It usually prefers paying customers, then peers, then transit providers. This rule is about money.\n" +
             "- **Shortest AS path.**\n" +
-            "- MED, internal cost to the exit, and tie-breakers.",
+            "- **MED** (a hint from the neighbor about which entry point it prefers), internal cost to the exit, and tie-breakers.",
         },
         {
           kind: "order",
+          teach: "Business policy is checked before anything else. Then the router looks at how many networks the route crosses. Small details only break ties at the end.",
           prompt: "Put BGP's route choice in order, from the first thing a router checks to the last.",
           items: [
             "Local preference (policy: customers, then peers, then transit)",
@@ -397,7 +446,8 @@ const chapter: Chapter = {
           title: "One CDN, two paths",
           body:
             "A viewer in Sao Paulo is on ISP AS 64500. The same CDN (AS 64510) is reachable two ways.\n\n" +
-            "The good path: the ISP **peers** with the CDN at the IX.br exchange and reaches a CDN edge in Sao Paulo.",
+            "The good path: the ISP **peers** with the CDN (connects to it directly, at a shared meeting point called the IX.br exchange) and reaches a CDN edge in Sao Paulo.\n\n" +
+            "The other path goes through **transit**: a third network that the ISP pays to carry its traffic anywhere. Lesson 3 covers both in detail.",
           visual: {
             kind: "flow",
             spec: { ...bgpPaths, focus: ["viewer", "isp", "edge", "viewer>isp", "isp>edge"], flow: ["viewer>isp", "isp>edge"] },
@@ -406,6 +456,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Local preference is the first thing BGP checks, before path length. Distance on a map is not part of the decision at all.",
           prompt: "The ISP's local preference prefers the paid transit path. Where do these Sao Paulo viewers get served from?",
           visual: {
             kind: "flow",
@@ -442,6 +493,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Remember the forwarding rule from lesson 1: when two prefixes cover the same address, the router picks one of them by how many bits are fixed. Pakistan Telecom announced a /24 inside YouTube's space.",
           prompt: "In 2008, why did much of the internet send YouTube traffic to Pakistan Telecom?",
           options: [
             "Pakistan Telecom had a shorter AS path to everyone",
@@ -477,6 +529,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Anycast does not add any new routing logic. Each viewer's network simply uses BGP's normal choice among the PoPs that announce the prefix.",
           prompt: "Three PoPs announce the same anycast prefix. Which PoP receives a given viewer's packets?",
           visual: { kind: "flow", spec: { ...anycast, focus: ["vde", "fra", "mia", "vde>fra"] } },
           options: [
@@ -500,8 +553,8 @@ const chapter: Chapter = {
           kind: "read",
           title: "Anycast trade-offs",
           body:
-            "Anycast is simple and fails over fast: if a PoP withdraws its announcement, BGP sends users to the next one. It also spreads DDoS traffic across sites.\n\n" +
-            "But you do not fully control the **catchment**: an ISP's policy can send users to a PoP on another continent. A BGP shift mid-session can move a TCP connection to a PoP with no state for it (rare; players retry the segment). And load is hard to steer finely, because a change moves whole networks at once.",
+            "Anycast is simple and fails over fast: if a PoP withdraws its announcement, BGP sends users to the next one. It also spreads **DDoS** (attack flood) traffic across sites.\n\n" +
+            "But you do not fully control the **catchment** (which users land on which PoP): an ISP's policy can send users to a PoP on another continent. A BGP shift mid-session can move a TCP connection to a PoP with no state for it (rare; players retry). And load is hard to steer finely: a change moves whole networks at once.",
           visual: {
             kind: "flow",
             spec: { ...anycast, focus: ["vde", "mia", "fra", "vde>mia"], flow: ["vde>mia"] },
@@ -514,6 +567,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "Anycast uses BGP to spread users, so it has BGP's strengths and BGP's blind spots. Think about who sets the policy that decides each ISP's path.",
           prompt: "Which statements about anycast are true? Select all that apply.",
           options: [
             "Failover is fast: withdraw the announcement and BGP moves users",
@@ -553,16 +607,25 @@ const chapter: Chapter = {
       minutes: 11,
       steps: [
         {
+          kind: "read",
+          title: "How bytes get into an ISP",
+          body:
+            "Your viewers sit inside **ISPs**: the companies that sell them home or mobile internet. Every video byte must enter that ISP's network somehow.\n\n" +
+            "There are four main ways in. They differ in who pays, how much capacity you control, and how good the video looks.\n\n" +
+            "By the end of this lesson you can compare transit, public peering, private peering and caches inside the ISP, and say which one serves video best.",
+        },
+        {
           kind: "quiz",
-          prompt: "Two networks agree to exchange traffic directly, and neither pays the other. Why would both sides agree?",
+          guess: true,
+          prompt: "Take a guess. Two networks agree to send traffic to each other directly, and neither pays the other. Why would you expect both sides to agree?",
           options: [
-            "Both save transit cost, and users get a shorter path",
+            "Both save money they would pay a middle network, and users get a shorter path",
             "A regulator forces every network to do it",
             "Only one side benefits; the other does it for goodwill",
-            "It lets them avoid BGP entirely",
+            "It lets them avoid routing entirely",
           ],
           answer: 0,
-          explain: "This is **settlement-free peering**. Both sides save the transit money they would otherwise pay, and their users get a shorter path. They still use BGP over the link.",
+          explain: "Without a direct link, both networks would pay a third network (a **transit provider**) to carry this traffic. With a direct link, both save that money, and their users get a shorter path.\n\nThis deal is called **settlement-free peering**. They still use BGP over the link.",
         },
         {
           kind: "read",
@@ -570,13 +633,6 @@ const chapter: Chapter = {
           body:
             "[[IP transit|Transit]] is a paid route to the whole internet, usually billed per Mbps (Chapter 16). Networks that reach everyone without buying transit are called **Tier 1**.\n\n" +
             "Transit reaches everyone. But it adds a network you do not control. Its links into the destination ISP can congest at peak. And every bit costs money.",
-        },
-        {
-          kind: "quiz",
-          prompt: "What do we call networks that can reach the whole internet without buying transit from anyone?",
-          options: ["Tier 1 networks", "Eyeball ISPs", "Internet Exchange Points", "Content networks"],
-          answer: 0,
-          explain: "**Tier 1** networks reach everyone without buying transit. Everyone else buys transit for at least part of the internet, usually billed per Mbps.",
         },
         {
           kind: "read",
@@ -610,6 +666,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "An IXP port is shared with every peer on that fabric. Think about which option gives capacity that only these two networks use.",
           prompt: "Traffic between your CDN and one large ISP now fills several 100 Gbps ports in the same building. Which interconnect fits best?",
           options: [
             "Buy more transit",
@@ -623,7 +680,9 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Four ways to reach an ISP",
-          body: "The more direct the interconnect, the more control you have over capacity, and usually the better the QoE and the lower the cost.",
+          body:
+            "The more direct the interconnect, the more control you have over capacity, and usually the better the **QoE** (quality of experience: fast start, no stalls, sharp picture) and the lower the cost.\n\n" +
+            "In the table, an **eyeball ISP** is a network whose customers are mostly viewers, not servers. The last row is new: a cache placed *inside* the ISP. The end of this lesson explains it.",
           visual: {
             kind: "table",
             headers: ["Interconnect", "Who pays", "Reach", "Capacity control", "Typical use in video"],
@@ -644,10 +703,25 @@ const chapter: Chapter = {
             ["PNI", "Large eyeball ISPs"],
             ["Embedded cache", "Biggest video platforms and CDNs"],
           ],
+          teach: "Look at the \"Reach\" and \"Capacity control\" columns. The bigger the ISP, the more direct and dedicated the connection should be.",
           explain: "Transit reaches everyone but gives little capacity control. An IXP port is shared. A PNI is dedicated to one network. An embedded cache sits inside the ISP, so popular bytes never cross an interconnect.",
         },
         {
+          kind: "read",
+          title: "Worked example: an event against an exchange",
+          body:
+            "How big is one video event compared with a big exchange? Divide the event's peak by the exchange's peak, then multiply by 100 to get a percent.\n\n" +
+            "Example: a sports stream peaks at 3 Tbps. A regional exchange peaks at 10 Tbps.\n\n" +
+            "3 / 10 x 100 = **30 percent**. One event would be almost a third of everything that exchange carries.",
+          visual: {
+            kind: "code",
+            lang: "text",
+            code: "share = event peak / exchange peak x 100\n\n3 Tbps / 10 Tbps x 100\n= 30 percent",
+          },
+        },
+        {
           kind: "number",
+          teach: "Divide our design peak by the exchange's record peak, then multiply by 100.",
           prompt: "Our assumed design peak is about 12 Tbps. The largest IXP in Europe peaked at 18.73 Tbps. What percent of that record peak is our design peak?",
           answer: 64,
           tolerance: 3,
@@ -681,6 +755,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "One style gets rid of traffic at the nearest exit, like a hot potato you drop fast. The other keeps it on its own backbone as long as it can.",
           prompt: "Google Cloud's Premium Tier keeps traffic on Google's backbone and enters or exits near the user. Which routing style is that?",
           options: ["Hot-potato routing", "Cold-potato routing", "Anycast routing", "Transit routing"],
           answer: 1,
@@ -713,6 +788,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "The whole point of a cache inside the ISP is that popular bytes never cross an interconnect. Netflix asks for peering for resilience, that is, as a backup.",
           prompt: "An ISP has both embedded OCAs and peering with Netflix. A popular title plays at the evening peak. What serves it?",
           visual: { kind: "flow", spec: { ...embedded, focus: ["emb", "ixc", "users", "emb>users", "ixc>users"] } },
           options: [
@@ -774,8 +850,17 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "The slowest part is near the viewer",
+          body:
+            "So far the packets crossed big networks. Now they reach the viewer's home or phone, and that last stretch is often the slowest part of the trip.\n\n" +
+            "Then there is physics: light needs time to travel, and no software can change that.\n\n" +
+            "By the end of this lesson you can tell bandwidth, throughput and latency apart, and estimate round-trip time, the data a path needs in flight, and how loss limits speed.",
+        },
+        {
           kind: "quiz",
-          prompt: "Rebuffering rises on one mobile ISP only, at that ISP's evening peak, on all of your CDNs at once. Where is the problem most likely?",
+          guess: true,
+          prompt: "Take a guess. Video stalls go up on one mobile ISP only, at that ISP's evening peak, and on all of your CDNs at the same time. Where would you expect the problem to be?",
           options: [
             "In one CDN's PoP",
             "In that ISP's network or access",
@@ -783,7 +868,7 @@ const chapter: Chapter = {
             "In the player's code on all devices",
           ],
           answer: 1,
-          explain: "If every CDN shows the same pattern on one ISP at that ISP's peak, the problem is almost certainly in **that ISP's network or access**. A multi-CDN switch will not fix it. A lower starting bitrate on that ASN might help.",
+          explain: "Look for what the failing sessions have in common. It is not one CDN, because all CDNs show it. It is one ISP, at that ISP's busy hour. So the problem is almost certainly in **that ISP's network or access**.\n\nA multi-CDN switch will not fix it. A lower starting bitrate on that ISP's network (its ASN) might help.",
         },
         {
           kind: "read",
@@ -809,25 +894,13 @@ const chapter: Chapter = {
             "Loss-based congestion control (next lesson) makes it worse: it keeps filling these queues until a packet drops.",
         },
         {
-          kind: "quiz",
-          prompt: "A home router has a huge queue and the link is full. What does the viewer experience?",
-          options: [
-            "Packets are dropped at once, so latency stays low",
-            "Packets wait in the queue, and latency rises to hundreds of milliseconds",
-            "The router asks the CDN to slow down",
-            "Nothing changes until the ISP's evening peak",
-          ],
-          answer: 1,
-          explain: "This is **bufferbloat**: packets wait instead of being dropped, so latency rises from tens to hundreds of milliseconds. Loss-based congestion control keeps filling the queue until something finally drops.",
-        },
-        {
           kind: "read",
           title: "What you can do",
           body:
             "You cannot fix a viewer's Wi-Fi. You *can*:\n\n" +
             "- measure QoE per ASN and connection type (Chapter 11)\n" +
-            "- offer low enough bitrate rungs (Chapter 7)\n" +
-            "- let ABR drop down before a stall (Chapter 10)\n" +
+            "- offer low enough bitrate **rungs**, the quality levels each video is encoded at (Chapter 7)\n" +
+            "- let **ABR** (adaptive bitrate: the player picks a lower rung when the network slows) drop down before a stall (Chapter 10)\n" +
             "- serve from as close as possible\n" +
             "- pick transport settings that cope with lossy links",
           callout: {
@@ -837,6 +910,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "The delivery team controls its own servers, its video encodings, its player and its measurements. It does not control anything inside the viewer's home.",
           prompt: "Which of these can a delivery team actually do about bad last miles? Select all that apply.",
           options: [
             "Measure QoE per ASN and connection type",
@@ -869,6 +943,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "One word is the most a link can carry. One is what a single flow really gets. One is delay in general, and one is a specific delay measured there and back.",
           prompt: "Match each word to its meaning.",
           pairs: [
             ["Bandwidth", "The maximum rate a link can carry"],
@@ -884,6 +959,7 @@ const chapter: Chapter = {
           body:
             "Light in fiber travels at roughly **200,000 km per second**, about two-thirds of its speed in vacuum.\n\n" +
             "That gives a simple rule: **about 1 ms of round-trip time for every 100 km of fiber path.**\n\n" +
+            "Worked example: London to Frankfurt is about 640 km. 640 / 100 = **at least 6.4 ms** RTT.\n\n" +
             "A same-city server often gives 5 to 20 ms. The only fix for distance is to move bytes closer. That is what caches do.",
           visual: {
             kind: "stats",
@@ -896,6 +972,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Use the rule of thumb: about 1 ms of round-trip time for every 100 km of fiber.",
           prompt: "Tokyo to the US East Coast is about 11,000 km in a straight line. What is the lowest possible RTT?",
           answer: 110,
           tolerance: 10,
@@ -908,15 +985,17 @@ const chapter: Chapter = {
           title: "The bandwidth-delay product",
           body:
             "To keep a path busy, a sender must have enough data **in flight** (sent but not yet acknowledged) to cover one full round trip.\n\n" +
-            "That amount is the [[bandwidth-delay product]] (BDP).",
+            "That amount is the [[bandwidth-delay product]] (BDP). Multiply the rate by the RTT in seconds, then divide by 8 to turn bits into bytes.\n\n" +
+            "Worked example: 10 Mbps and 100 ms RTT give 1,000,000 bits, which is **125 KB** in flight.",
           visual: {
             kind: "code",
             lang: "text",
-            code: "BDP = bandwidth x RTT\n\n20 Mbps x 150 ms\n= 20,000,000 x 0.15\n= 3,000,000 bits\n= about 375 KB in flight",
+            code: "BDP = bandwidth x RTT\n\n10 Mbps x 100 ms\n= 10,000,000 x 0.1\n= 1,000,000 bits\n= 1,000,000 / 8 = 125 KB in flight",
           },
         },
         {
           kind: "number",
+          teach: "BDP is the rate in bits per second times the RTT in seconds. Divide by 8 for bytes, and by 1,000 for KB.",
           prompt: "A viewer has 20 Mbps of throughput and 150 ms RTT to the server. How much data must be in flight to keep the path full?",
           answer: 375,
           tolerance: 20,
@@ -925,7 +1004,21 @@ const chapter: Chapter = {
           explain: "20,000,000 x 0.15 = 3,000,000 bits = **about 375 KB** in flight.",
         },
         {
+          kind: "read",
+          title: "When the window is too small",
+          body:
+            "The amount a sender may keep in flight is its **window**. If the window is smaller than the BDP, the sender stops and waits for ACKs (acknowledgements) every round trip. Then the window, not the link, sets the speed:\n\n" +
+            "**throughput = window / RTT**\n\n" +
+            "Worked example: a 32 KB window is about 262,000 bits. At 100 ms RTT: 262,000 / 0.1 = about **2.6 Mbps**, even on a 1 Gbps link.",
+          visual: {
+            kind: "code",
+            lang: "text",
+            code: "throughput = window / RTT\n\n32 KB = 32 x 1,024 x 8 = about 262,000 bits\n262,000 / 0.1 s\n= about 2.6 Mbps",
+          },
+        },
+        {
           kind: "number",
+          teach: "When the window is the limit, throughput is the window in bits divided by the RTT in seconds.",
           prompt: "Same path (150 ms RTT), but the sender or receiver can only keep 64 KB in flight. What is the maximum throughput?",
           answer: 3.5,
           tolerance: 0.3,
@@ -938,7 +1031,7 @@ const chapter: Chapter = {
           title: "Throughput under loss: the Mathis rule",
           body:
             "Loss lowers throughput, and higher RTT makes the effect worse.\n\n" +
-            "A classic 1997 model by Mathis, Semke, Mahdavi and Ott gives the steady-state throughput of a Reno-style TCP flow with random loss rate p.\n\n" +
+            "A classic 1997 model by Mathis, Semke, Mahdavi and Ott gives the steady-state throughput of a classic (Reno-style) TCP flow with random loss rate p.\n\n" +
             "With MSS = 1,460 bytes (11,680 bits), you can work it through by hand.",
           visual: {
             kind: "code",
@@ -963,12 +1056,13 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
-          prompt: "Use the Mathis model: RTT 20 ms, loss 1 in 1,000 packets, MSS 11,680 bits. About what throughput can a loss-based flow reach?",
-          answer: 22.5,
-          tolerance: 1.5,
+          teach: "Divide the MSS in bits by the RTT in seconds. Then multiply by 1.22 divided by the square root of the loss rate. For 1 in 100, the square root is 0.1.",
+          prompt: "Use the Mathis model: RTT 50 ms, loss 1 in 100 packets, MSS 11,680 bits. About what throughput can a loss-based flow reach?",
+          answer: 2.85,
+          tolerance: 0.2,
           unit: "Mbps",
-          hint: "11,680 / 0.02 x 1.22 / sqrt(0.001). sqrt(0.001) is about 0.0316.",
-          explain: "11,680 / 0.02 = 584,000. 1.22 / 0.0316 = about 38.6. 584,000 x 38.6 = **about 22.5 Mbps**. Our 4 Mbps average stream is fine here, and in danger at 100 ms RTT with 1 in 100 loss (about 1.4 Mbps).",
+          hint: "11,680 / 0.05 x 1.22 / sqrt(0.01). sqrt(0.01) is 0.1, so the second part is 12.2.",
+          explain: "11,680 / 0.05 = 233,600. 1.22 / 0.1 = 12.2. 233,600 x 12.2 = **about 2.85 Mbps**. Halving the RTT from 100 ms (about 1.4 Mbps) doubled the throughput. Our 4 Mbps average stream still does not fit at this loss rate. At 20 ms RTT with 1 in 1,000 loss, the same model gives about 22.5 Mbps.",
         },
         {
           kind: "widget",
@@ -1010,13 +1104,12 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
-          kind: "number",
-          prompt: "Before the first video byte, a new connection pays about 3 round trips. If the RTT is 150 ms, how long is that?",
-          answer: 450,
-          tolerance: 20,
-          unit: "ms",
-          hint: "3 x RTT",
-          explain: "3 x 150 ms = **450 ms**, before any video arrives. At 15 ms RTT the same cost is only 45 ms. Distance multiplies every round trip.",
+          kind: "read",
+          title: "The cost of getting started",
+          body:
+            "Almost all video today is carried by **TCP**, a protocol on the phone and the server that makes sure every byte arrives, in order.\n\n" +
+            "TCP is careful. It sets up each connection before sending, and it starts slowly so it does not flood the network. For video, that care costs time, and the cost grows with distance.\n\n" +
+            "By the end of this lesson you can estimate TCP's startup cost, explain why idle gaps hurt, and compare Reno, CUBIC and BBR.",
         },
         {
           kind: "read",
@@ -1035,6 +1128,16 @@ const chapter: Chapter = {
           visual: { kind: "sequence", spec: { ...tcpSeq, upTo: 5 }, caption: "TCP, then TLS, then the request" },
         },
         {
+          kind: "number",
+          teach: "A new connection pays about 3 round trips before the first video byte. Multiply that by the RTT.",
+          prompt: "A viewer's RTT to the server is 80 ms. About how long does a new connection wait before the first video byte arrives?",
+          answer: 240,
+          tolerance: 15,
+          unit: "ms",
+          hint: "3 x RTT",
+          explain: "3 x 80 ms = **240 ms**, before any video arrives. At 15 ms RTT the same cost is only 45 ms, and at 150 ms it is 450 ms. Distance multiplies every round trip.",
+        },
+        {
           kind: "read",
           title: "Slow start",
           body:
@@ -1044,7 +1147,21 @@ const chapter: Chapter = {
           visual: { kind: "sequence", spec: tcpSeq, caption: "Small window first, then it doubles; the next GET reuses the connection" },
         },
         {
+          kind: "read",
+          title: "Worked example: slow start",
+          body:
+            "How many round trips does slow start need to send a file? For a rough answer, ignore the \"- 1\" and find n where 2^n is about file size / 14.6 KB.\n\n" +
+            "Example: a 1 MB file (about 1,000 KB).\n\n" +
+            "1,000 / 14.6 = about 68. 2^6 = 64, which is close to 68, so it takes **about 6 round trips**. At 50 ms RTT, that is about 300 ms.",
+          visual: {
+            kind: "code",
+            lang: "text",
+            code: "2^n = file size / 14.6 KB\n\n1,000 KB / 14.6 KB = about 68\n2^6 = 64, so n = about 6 RTTs",
+          },
+        },
+        {
           kind: "number",
+          teach: "Divide the segment size by the starting window of 14.6 KB. Then find the power of 2 that is about that big.",
           prompt: "A 4-second segment at 5 Mbps is about 2.5 MB. Starting from 14.6 KB and doubling each round trip, about how many round trips does it take to send it (if the path never limits you)?",
           answer: 7.4,
           tolerance: 0.6,
@@ -1057,7 +1174,7 @@ const chapter: Chapter = {
           title: "Distance multiplies it",
           body:
             "At 150 ms RTT, slow start for that first segment takes about 1.1 seconds. Add the 3 handshake RTTs (450 ms), and the first segment from a distant server takes **over 1.5 seconds** before decoding can begin.\n\n" +
-            "This is one reason video start time depends so much on edge proximity, and why players **reuse connections**.",
+            "This is one reason video start time depends so much on edge proximity, and why players **reuse connections**: a reused connection skips the TCP and TLS handshakes and keeps a window that has already grown.",
           visual: {
             kind: "stats",
             items: [
@@ -1066,18 +1183,6 @@ const chapter: Chapter = {
               { value: ">1.5 s", label: "First segment, far server", note: "incl. 3 handshake RTTs" },
             ],
           },
-        },
-        {
-          kind: "quiz",
-          prompt: "Why do players keep one connection open and send the next GET on it?",
-          options: [
-            "To skip new handshakes and keep a window that has already grown",
-            "Because HTTP forbids more than one connection",
-            "To make the CDN cache the segment longer",
-            "Because new connections use more battery than video decoding",
-          ],
-          answer: 0,
-          explain: "A reused connection skips the TCP and TLS handshakes and keeps a congestion window that has already grown past 14.6 KB. A new connection pays about 3 RTTs plus slow start again.",
         },
         {
           kind: "read",
@@ -1094,6 +1199,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Think about what TCP does to its window after the connection sits idle for a while, and what that means for the next download.",
           prompt: "A player waits a few seconds with a full buffer, then downloads the next segment. It measures much less throughput than the path can carry. What is the likely cause?",
           options: [
             "TCP shrank its window during the idle gap, so the segment started in slow start again",
@@ -1130,6 +1236,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "CUBIC's growth is timed from the last loss, and loss is the only congestion signal it reacts to. Think about what that does to deep queues and to random Wi-Fi drops.",
           prompt: "Which statements about CUBIC are true? Select all that apply.",
           options: [
             "It is the Linux default",
@@ -1166,13 +1273,6 @@ const chapter: Chapter = {
           },
         },
         {
-          kind: "quiz",
-          prompt: "A viewer's Wi-Fi drops random packets that have nothing to do with congestion. Which algorithm mostly ignores isolated loss like this?",
-          options: ["Reno", "CUBIC", "BBR", "All three halve the window"],
-          answer: 2,
-          explain: "**BBR** models bandwidth and RTT, so it mostly ignores isolated loss. Reno halves its window. CUBIC cuts by a smaller factor and regrows fast, but it still treats loss as congestion.",
-        },
-        {
           kind: "read",
           title: "Reno, CUBIC and BBR side by side",
           body: "Keep this table in mind when a vendor tells you which algorithm they run.",
@@ -1190,32 +1290,32 @@ const chapter: Chapter = {
           },
         },
         {
-          kind: "match",
-          prompt: "Match each congestion control algorithm to how it grows its sending rate.",
-          pairs: [
-            ["Reno", "About +1 packet per RTT, halves on loss"],
-            ["CUBIC", "Cubic curve of time since the last loss"],
-            ["BBR", "Paces at the estimated bottleneck rate"],
-          ],
-          explain: "Reno and CUBIC are **loss-based**; CUBIC simply regrows much faster on long, fast paths. BBR is **model-based**: it measures bandwidth and RTT instead of waiting for loss.",
-        },
-        {
           kind: "quiz",
-          prompt: "Your viewers download segments from a CDN edge. Who decides whether they get CUBIC or BBR?",
-          options: ["The viewer's phone", "The viewer's ISP", "The CDN's edge servers, as the sender", "Your origin storage"],
+          teach: "Look at the row \"Reaction to random loss\". Two algorithms treat every loss as a sign of congestion. One builds a model of the path instead.",
+          prompt: "A viewer's Wi-Fi drops random packets that have nothing to do with congestion. Which algorithm mostly ignores isolated loss like this?",
+          options: ["Reno", "CUBIC", "BBR", "All three halve the window"],
           answer: 2,
-          explain: "Congestion control is a **server-side** choice: the sender's algorithm decides. For video, the CDN's edge servers decide what your viewers get.",
+          explain: "**BBR** models bandwidth and RTT, so it mostly ignores isolated loss. Reno halves its window. CUBIC cuts by a smaller factor and regrows fast, but it still treats loss as congestion.\n\nIn short: Reno and CUBIC are **loss-based**, and BBR is **model-based**.",
         },
         {
           kind: "read",
           title: "The sender decides",
           body:
+            "Congestion control runs on the **sender**, the machine that sends the bytes. For video downloads, the sender is the CDN's edge server, not the viewer's phone.\n\n" +
             "Google runs BBR for YouTube. Many CDNs tune or customize their congestion control, but details vary by vendor and change over time.\n\n" +
-            "If it matters to you, ask each CDN vendor which algorithm and settings they use for video traffic. Then measure the result with your own RUM data rather than trusting the claim.",
+            "So ask each CDN vendor which algorithm and settings they use for video traffic. Then measure the result with your own **RUM** data (real user measurements from players) rather than trusting the claim.",
           callout: {
             type: "mistake",
             text: "Assuming \"TCP is solved.\" Congestion control, initial window, idle restart, buffers and pacing all change video throughput. Two CDNs with identical PoPs can deliver different QoE from transport settings alone.",
           },
+        },
+        {
+          kind: "quiz",
+          teach: "The algorithm belongs to whichever machine is sending the bytes. In a segment download, think about which side sends the video.",
+          prompt: "Your viewers download segments from a CDN edge. Who decides whether they get CUBIC or BBR?",
+          options: ["The viewer's phone", "The viewer's ISP", "The CDN's edge servers, as the sender", "Your origin storage"],
+          answer: 2,
+          explain: "Congestion control is a **server-side** choice: the sender's algorithm decides. For video, the CDN's edge servers decide what your viewers get.",
         },
         {
           kind: "widget",
@@ -1245,8 +1345,17 @@ const chapter: Chapter = {
       minutes: 10,
       steps: [
         {
+          kind: "read",
+          title: "A newer transport",
+          body:
+            "TCP was designed decades before smartphones. It was not built for phones that move between networks or for video on lossy radio links.\n\n" +
+            "A newer transport, **QUIC**, fixes several of TCP's problems. It also brings new costs. Separately, packet size can quietly break video on some networks.\n\n" +
+            "By the end of this lesson you can weigh QUIC's benefits and costs for video, and recognize and diagnose a path MTU black hole.",
+        },
+        {
           kind: "quiz",
-          prompt: "A viewer walks out of the house mid-episode, and the phone moves from Wi-Fi to cellular. Over TCP, what happens to the download connection?",
+          guess: true,
+          prompt: "Take a guess. A viewer walks out of the house mid-episode, and the phone moves from Wi-Fi to cellular, so it gets a new IP address. What would you expect to happen to a TCP download connection?",
           options: [
             "It continues; TCP follows the phone",
             "It breaks, because a TCP connection is tied to the IP address and port",
@@ -1254,15 +1363,15 @@ const chapter: Chapter = {
             "The CDN moves it to another PoP automatically",
           ],
           answer: 1,
-          explain: "A TCP connection is identified by IP addresses and ports, so a new network means a new connection, with new handshakes and slow start. QUIC identifies a connection by an **ID**, so it can survive the move (**connection migration**).",
+          explain: "It breaks. A TCP connection is identified by the two IP addresses and ports. A new network means a new address, so the phone must open a new connection, with new handshakes and slow start.\n\nQUIC identifies a connection by an **ID** instead, so it can survive the move. This is called **connection migration**.",
         },
         {
           kind: "read",
           title: "Three problems with TCP for streaming",
           body:
             "- **Handshake round trips.** TCP plus TLS costs 2 RTTs before the request.\n" +
-            "- **Head-of-line blocking.** One lost packet holds back all later bytes, even for other HTTP/2 streams.\n" +
-            "- **Ossification.** TCP lives in kernels and is touched by middleboxes everywhere, so it changes very slowly.",
+            "- **Head-of-line blocking.** One lost packet holds back all later bytes, even for other HTTP/2 streams (separate requests sharing one connection).\n" +
+            "- **Ossification.** TCP lives in operating system kernels and is touched by **middleboxes** (firewalls and other devices in the path) everywhere, so it changes very slowly.",
         },
         {
           kind: "read",
@@ -1283,6 +1392,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "Go back over the five bullets in \"How QUIC works\": handshake, streams, connection IDs, where it runs, and encryption.",
           prompt: "Which of these are true about QUIC? Select all that apply.",
           options: [
             "Transport and TLS 1.3 handshakes are combined",
@@ -1343,6 +1453,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "TCP and TLS each need their own handshake, one after the other. QUIC does both in a single combined handshake.",
           prompt: "How many round trips does a brand-new connection need before the first request: TCP + TLS 1.3 versus QUIC?",
           options: ["3 versus 2", "2 versus 1", "1 versus 0", "2 versus 2"],
           answer: 1,
@@ -1372,10 +1483,12 @@ const chapter: Chapter = {
           title: "The MTU problem",
           body:
             "If a packet is bigger than the next link's [[MTU]], a router must **fragment** it (IPv4 only, often filtered) or drop it and send an ICMP \"packet too big\" message.\n\n" +
-            "**Path MTU discovery** (PMTUD) relies on those messages. It fails when a tunnel (VPN, GRE, IPsec) lowers the real MTU *and* a firewall drops the ICMP. This is a **PMTUD black hole**.",
+            "**Path MTU discovery** (PMTUD) relies on those messages. It fails when a tunnel (VPN, GRE, IPsec) lowers the real MTU *and* a firewall drops the ICMP. This is a **PMTUD black hole**.\n\n" +
+            "In a black hole, only packets bigger than the tunnel's MTU vanish, with no error. Packets smaller than that still pass.",
         },
         {
           kind: "quiz",
+          teach: "Only full-size packets are dropped. Think about which requests and replies fit in small packets, and which need many full-size ones.",
           prompt: "What is the classic symptom of a PMTUD black hole?",
           options: [
             "Everything is slow, all the time, for every user",
@@ -1397,7 +1510,7 @@ const chapter: Chapter = {
           kind: "read",
           title: "Inside the cloud",
           body:
-            "Cloud networks use larger MTUs internally. On AWS, many EC2 instance types support **9,001-byte jumbo frames** inside a VPC. But traffic leaving through an internet gateway is limited to **1,500 bytes**.\n\n" +
+            "Cloud networks use larger MTUs internally. On AWS, many EC2 instance types support **9,001-byte jumbo frames** inside a **VPC** (a private network inside AWS). But traffic leaving through an internet gateway is limited to **1,500 bytes**.\n\n" +
             "So tests between two instances in one VPC can look much faster than real traffic from a CDN shield over the internet. When you design origin-to-CDN networking, test along the real path.",
           callout: {
             type: "mistake",
@@ -1406,6 +1519,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Inside a VPC the packets are bigger and the path is short. Real traffic to a CDN shield leaves through an internet gateway.",
           prompt: "Your packager in AWS benchmarks very fast from another instance in the same VPC. Which test better predicts what a CDN shield will see?",
           options: [
             "The same test, repeated with more instances in the VPC",
@@ -1437,16 +1551,25 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "From a lost packet to a spinner",
+          body:
+            "Every network loses some packets. TCP resends them, so the bytes still arrive. But resending takes time, and time is what a video player cannot spare.\n\n" +
+            "This lesson follows one lost packet all the way to the viewer's screen. Then it looks behind the CDN, at the cloud networks that carry traffic from the origin.\n\n" +
+            "By the end you can trace how loss becomes a spinner, list the levers your team controls, and reason about shield-to-origin networks.",
+        },
+        {
           kind: "quiz",
-          prompt: "Which loss hurts a segment download more: one packet lost in the middle, or the last few packets of the response lost?",
+          guess: true,
+          prompt: "Take a guess. Some packets of a segment were lost and resent, so the segment arrived late. When would you expect the viewer to actually see a spinner?",
           options: [
-            "One packet in the middle",
-            "The last few packets",
-            "They hurt exactly the same",
-            "Neither; TCP hides all loss",
+            "As soon as any packet is lost",
+            "Only if the player runs out of downloaded video before the segment arrives",
+            "Never, because TCP resends lost packets",
+            "Only at the start of the episode",
           ],
           answer: 1,
-          explain: "**Tail loss.** If the last packets are lost, nothing later triggers fast retransmission. The sender waits for a **retransmission timeout** (RTO), often hundreds of milliseconds, then restarts from a small window.",
+          explain: "Remember the buffer from lesson 1. A late segment is fine while the player still has video stored. The viewer sees a spinner only when the buffer empties before the next segment is ready.\n\nSo the real question is always: does the segment take **longer to download than to play**?",
         },
         {
           kind: "read",
@@ -1477,8 +1600,8 @@ const chapter: Chapter = {
           kind: "read",
           title: "The worst case: tail and burst loss",
           body:
-            "The worst case is **tail** or **burst** loss. If the last packets of a response are lost, nothing later triggers fast retransmission.\n\n" +
-            "The sender waits for a **retransmission timeout** (RTO), often hundreds of milliseconds. Then it restarts from a small window. The flow pauses, and the buffer drains.",
+            "Normally, packets that arrive *after* a gap tell the sender something is missing, so it resends quickly (**fast retransmission**).\n\n" +
+            "The worst case is **tail** or **burst** loss. If the last packets of a response are lost, nothing later triggers fast retransmission. The sender waits for a **retransmission timeout** (RTO), often hundreds of milliseconds. Then it restarts from a small window. The flow pauses, and the buffer drains.",
           visual: {
             kind: "flow",
             spec: { ...lossChain, focus: ["loss", "tail", "rto", "drain", "stall", "loss>tail", "tail>rto", "rto>drain", "drain>stall"], flow: ["loss>tail", "tail>rto", "rto>drain", "drain>stall"] },
@@ -1486,7 +1609,21 @@ const chapter: Chapter = {
           },
         },
         {
+          kind: "read",
+          title: "Worked example: download time versus play time",
+          body:
+            "To check the margin, turn the segment size into megabits (multiply MB by 8), then divide by the throughput.\n\n" +
+            "Example: a 2 MB segment is 16 Mbit. At 4 Mbps of throughput, it takes 16 / 4 = **4 seconds**.\n\n" +
+            "If that segment holds 4 seconds of video, there is zero margin: any loss at all makes it late.",
+          visual: {
+            kind: "code",
+            lang: "text",
+            code: "download time = size in Mbit / throughput\n\n2 MB x 8 = 16 Mbit\n16 Mbit / 4 Mbps = 4 s\nplay time 4 s, so margin = 0 s",
+          },
+        },
+        {
           kind: "number",
+          teach: "Multiply the size in MB by 8 to get megabits, then divide by the throughput in Mbps.",
           prompt: "A 4-second segment at 6 Mbps is 3 MB. At a steady 8 Mbps of throughput, how long does the download take?",
           answer: 3,
           tolerance: 0.2,
@@ -1519,18 +1656,6 @@ const chapter: Chapter = {
           },
         },
         {
-          kind: "match",
-          prompt: "Match each lever to what it does against loss.",
-          pairs: [
-            ["Edge close to the viewer", "Lower RTT, so faster recovery at the same loss"],
-            ["CDN choice per country and ASN", "Avoids a congested path into one ISP"],
-            ["BBR and pacing on the CDN", "Less reaction to random loss"],
-            ["Lower bitrate rungs", "Survive bad paths"],
-            ["Player retry logic", "Retry on another host or CDN"],
-          ],
-          explain: "Each lever attacks a different link in the chain: RTT, path choice, sender behavior, the bitrate the path must carry, and recovery in the player.",
-        },
-        {
           kind: "widget",
           widget: "tcp-throughput",
           title: "A lossy mobile path",
@@ -1555,7 +1680,21 @@ const chapter: Chapter = {
             "Assume the book's model: 540 PB per month delivered, with a 95 percent cache hit ratio by bytes. Then about 5 percent, **27 PB per month**, comes from origin.",
         },
         {
+          kind: "read",
+          title: "Worked example: a monthly volume as a rate",
+          body:
+            "To turn bytes per month into an average rate: multiply by 8 for bits, then divide by the seconds in a month. A 30-day month has 2,592,000 seconds. One PB is 10^15 bytes.\n\n" +
+            "Example: 10 PB per month.\n\n" +
+            "10 x 10^15 x 8 = 8 x 10^16 bits. Divide by 2,592,000: about 3.1 x 10^10 bits per second, which is **about 31 Gbps**.",
+          visual: {
+            kind: "code",
+            lang: "text",
+            code: "rate = bytes x 8 / seconds\n\n10 x 10^15 x 8 = 8 x 10^16 bits\n8 x 10^16 / 2,592,000 s\n= about 31 Gbps",
+          },
+        },
+        {
           kind: "number",
+          teach: "Multiply the bytes by 8 for bits, divide by the seconds in 30 days, then divide by 10^9 for Gbps.",
           prompt: "27 PB per month comes from origin. Averaged over a 30-day month (2,592,000 seconds), what is the average origin egress?",
           answer: 83,
           tolerance: 5,
@@ -1592,6 +1731,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Two of these are dedicated physical links. One uses anycast addresses for APIs. One is Google's cold-potato tier.",
           prompt: "Match each cloud networking product to what it does.",
           pairs: [
             ["AWS Global Accelerator", "Two static anycast IPs, then the AWS backbone; for control-plane APIs"],
@@ -1631,6 +1771,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Boxes in two clouds help only if the fetches really use different paths. Ask what happens if that one region or that one link fails.",
           prompt: "The diagram shows origins in AWS and GCP. But every CDN shield fetches from us-east-1 over one interconnect. What is the risk?",
           visual: { kind: "flow", spec: { ...clouds, focus: ["cf", "fs", "s3", "cf>s3", "fs>s3"] } },
           options: [
@@ -1674,6 +1815,18 @@ const chapter: Chapter = {
       minutes: 10,
       steps: [
         {
+          kind: "read",
+          title: "What this chapter covered",
+          body:
+            "Here is what this chapter covered:\n\n" +
+            "- **BGP** picks routes by policy and path length, not congestion.\n" +
+            "- The more direct the path into an ISP, the better for video.\n" +
+            "- About **1 ms RTT per 100 km**. **BDP = bandwidth x RTT**. Throughput falls with RTT and loss.\n" +
+            "- TCP startup costs 3 RTTs plus slow start. The sender picks CUBIC or BBR.\n" +
+            "- QUIC starts faster, at a CPU cost. A **PMTUD black hole** stalls only large transfers.\n" +
+            "- Origin traffic is the miss share of all bytes.",
+        },
+        {
           kind: "reveal",
           prompt: "Why can a viewer with a 500 Mbps fiber connection still rebuffer on a stream that needs only 6 Mbps? Think first.",
           answer:
@@ -1682,6 +1835,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "In the Mathis model, throughput is MSS divided by RTT, times a loss term. If the loss term stays the same, compare 1/RTT for the two paths.",
           prompt: "Using the Mathis model, at the same loss rate, how many times more throughput does a flow get at 20 ms RTT than at 100 ms RTT?",
           answer: 5,
           tolerance: 0.5,
@@ -1691,6 +1845,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "BDP is the rate in bits per second times the RTT in seconds. Divide by 8 for bytes.",
           prompt: "A viewer has 25 Mbps of path capacity and 120 ms RTT. What is the bandwidth-delay product?",
           answer: 375,
           tolerance: 20,
@@ -1700,6 +1855,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "When the window is the limit, throughput is the window in bits divided by the RTT in seconds. 64 KB is about 524,000 bits.",
           prompt: "Same viewer (120 ms RTT), but the server's send buffer is capped at 64 KB. What throughput can the flow reach at most?",
           answer: 4.4,
           tolerance: 0.3,
@@ -1709,6 +1865,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "Recall QUIC's handshake, its loss recovery and its connection IDs. Then recall what it costs the server compared with kernel TCP.",
           prompt: "Which are reasons QUIC helps video playback on mobile networks? Select all that apply.",
           options: [
             "Fewer handshake RTTs, so faster startup",
@@ -1721,6 +1878,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "Think about where QUIC runs, what some networks do to UDP, which devices support it, and what encryption hides from packet captures.",
           prompt: "Which are real costs or risks of enabling QUIC? Select all that apply.",
           options: [
             "Higher server CPU use",
@@ -1734,6 +1892,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "A tunnel lowers the real MTU. Small packets, like handshakes and manifests, pass. Think about which problem drops only full-size packets.",
           prompt: "Users on one enterprise VPN report that the Crunchyroll app loads the episode page but video never starts. The manifest returns 200. What should you suspect?",
           options: [
             "A path MTU problem (PMTUD black hole)",
@@ -1751,6 +1910,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "The origin serves only the misses: 100% minus the hit ratio. Then multiply by 8 for bits and divide by the seconds in 30 days.",
           prompt: "540 PB delivered per month, 95 percent byte hit ratio. What is the average origin egress (30-day month)?",
           answer: 83,
           tolerance: 5,
@@ -1760,6 +1920,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Compare the miss share at 90 percent with the miss share at 95 percent. Origin traffic scales with the miss share.",
           prompt: "The hit ratio drops to 90 percent. What is the average origin egress now?",
           answer: 167,
           tolerance: 8,
@@ -1769,6 +1930,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "BGP never measures how fast or how full a path is. Recall the first two things a router checks.",
           prompt: "Key takeaway check: how does BGP choose between routes?",
           options: [
             "By measured latency",
@@ -1781,6 +1943,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Congestion control belongs to the machine that sends the bytes. In a segment download, which side sends?",
           prompt: "Key takeaway check: who chooses CUBIC or BBR for your viewers' video downloads?",
           options: ["The viewer's device", "The CDN's servers", "The ISP", "The origin bucket"],
           answer: 1,

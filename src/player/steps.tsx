@@ -10,7 +10,7 @@ import { Callout } from "@/ui";
 import { WIDGETS } from "@/widgets/registry";
 import { Inline, Text } from "./Text";
 import { shuffledIndexes } from "./grade";
-import { IconBolt, IconCheck, IconExpand, IconFlask, IconX } from "./icons";
+import { IconBolt, IconCheck, IconExpand, IconFlask, IconSpark, IconX } from "./icons";
 import { WideCtx, splitsVisual } from "./layoutCtx";
 
 export type Phase = "answer" | "retry" | "done";
@@ -22,6 +22,12 @@ export interface ViewCtx {
   seed: string;
   /** Register a key handler for this step (digits, letters, Backspace). Return true if handled. */
   keys: (fn: ((e: KeyboardEvent) => boolean) | null) => void;
+  /** Unscored warm-up ("Take a guess"): neutral result colors, no red. */
+  guess: boolean;
+  /** Rendered right under the prompt: the "I'm not sure, teach me" link and its card. */
+  assist?: ReactNode;
+  /** The reader went Back to this step: it shows the final answer, read-only. */
+  past?: boolean;
 }
 
 /* ---------------- Shared pieces ---------------- */
@@ -99,7 +105,28 @@ function VisualModal({ visual, onClose }: { visual: VisualT; onClose: () => void
 
 const Eyebrow = ({ children }: { children: ReactNode }) => <div className="lp-eyebrow">{children}</div>;
 
-type TileState = "idle" | "sel" | "good" | "bad" | "missed" | "dim" | "ruled" | "done";
+/** Eyebrow, prompt and the teach-me slot. A guess gets a calm accent label and a "no score" note instead. */
+function PromptHead({ label, prompt, ctx }: { label: string; prompt: string; ctx: ViewCtx }) {
+  return (
+    <>
+      {ctx.past && <p className="lp-past">You are looking back. Your answer is saved.</p>}
+      {ctx.guess ? (
+        <div className="lp-guess">
+          <div className="lp-guess-row">
+            <span className="lp-guess-pill"><IconSpark size={14} />Take a guess</span>
+            {label !== "Question" && <span className="lp-guess-kind">{label}</span>}
+          </div>
+          <p className="lp-guess-note">We haven't covered this yet. No score.</p>
+        </div>
+      ) : <Eyebrow>{label}</Eyebrow>}
+      <h2 className="lp-prompt"><Inline text={prompt} /></h2>
+      {ctx.assist}
+    </>
+  );
+}
+
+/** idle..done: scored states. ans / picked / nope: the neutral states a guess uses instead of good / bad. */
+type TileState = "idle" | "sel" | "good" | "bad" | "missed" | "dim" | "ruled" | "done" | "ans" | "picked" | "nope";
 
 function Tile(p: {
   state: TileState; onClick?: () => void; disabled?: boolean; badge?: ReactNode; text: string; reduced: boolean;
@@ -107,7 +134,7 @@ function Tile(p: {
 }) {
   const anim =
     p.reduced ? {} :
-    p.state === "bad" ? { x: [0, -6, 6, -4, 4, 0], transition: { duration: 0.32 } } :
+    p.state === "bad" || p.state === "nope" ? { x: [0, -6, 6, -4, 4, 0], transition: { duration: 0.32 } } :
     p.state === "good" ? { scale: [1, 1.03, 1], transition: { duration: 0.18 } } : {};
   return (
     <motion.div className="lp-tile-wrap" animate={anim} layoutId={p.layoutId} transition={p.layoutId ? { layout: { type: "spring", stiffness: 195, damping: 28 } } : undefined}>
@@ -119,6 +146,7 @@ function Tile(p: {
         <span className="lp-tile-text"><Inline text={p.text} links={false} /></span>
         {p.tag && <span className="lp-tile-tag">{p.tag}</span>}
         {(p.state === "good" || p.state === "done") && <span className="lp-tile-mark good" aria-hidden="true"><IconCheck size={p.state === "done" ? 14 : 18} /></span>}
+        {p.state === "ans" && <span className="lp-tile-mark ans" aria-hidden="true"><IconCheck size={16} /></span>}
         {(p.state === "bad" || p.state === "ruled") && <span className="lp-tile-mark bad" aria-hidden="true"><IconX size={p.state === "ruled" ? 14 : 18} /></span>}
       </button>
     </motion.div>
@@ -149,18 +177,19 @@ export function QuizView({ step, ans, setAns, ruled, ctx }: { step: QuizStep; an
   });
   return (
     <StepLayout visual={step.visual}>
-      <Eyebrow>Question</Eyebrow>
-      <h2 className="lp-prompt"><Inline text={step.prompt} /></h2>
+      <PromptHead label="Question" prompt={step.prompt} ctx={ctx} />
       <div className="lp-options" role="radiogroup" aria-label="Options">
         {step.options.map((o, i) => {
           let st: TileState = "idle";
-          if (locked) st = i === step.answer ? "good" : i === ans ? "bad" : "dim";
+          if (locked && ctx.guess) st = i === step.answer ? "ans" : i === ans ? "picked" : "dim";
+          else if (locked) st = i === step.answer ? "good" : i === ans ? "bad" : "dim";
           else if (ctx.phase === "retry" && i === ans) st = "bad";
           else if (ruled.includes(i)) st = "ruled";
           else if (i === ans) st = "sel";
           return (
             <Tile key={i} state={st} text={o} reduced={ctx.reduced} role="radio" checked={i === ans} badge={i + 1}
-              disabled={locked || st === "ruled"} onClick={() => setAns(i)} tag={st === "ruled" ? "Not this one" : undefined} />
+              disabled={locked || st === "ruled"} onClick={() => setAns(i)}
+              tag={st === "ruled" ? "Not this one" : st === "picked" || (st === "ans" && i === ans) ? "Your guess" : undefined} />
           );
         })}
       </div>
@@ -179,17 +208,18 @@ export function MultiView({ step, ans, setAns, ctx }: { step: MultiStep; ans: nu
   });
   return (
     <StepLayout visual={step.visual}>
-      <Eyebrow>Select all that apply</Eyebrow>
-      <h2 className="lp-prompt"><Inline text={step.prompt} /></h2>
+      <PromptHead label="Select all that apply" prompt={step.prompt} ctx={ctx} />
       <div className="lp-options" role="group" aria-label="Options, select all that apply">
         {step.options.map((o, i) => {
           const picked = ans.includes(i), right = step.answers.includes(i);
           let st: TileState = picked ? "sel" : "idle";
-          if (locked) st = right ? (picked ? "good" : "missed") : picked ? "bad" : "dim";
+          if (locked && ctx.guess) st = right ? "ans" : picked ? "picked" : "dim";
+          else if (locked) st = right ? (picked ? "good" : "missed") : picked ? "bad" : "dim";
           return (
             <Tile key={i} state={st} text={o} reduced={ctx.reduced} role="checkbox" checked={picked} check="box"
               badge={<span className="lp-box">{picked && <IconCheck size={14} />}</span>}
-              disabled={locked} onClick={() => toggle(i)} tag={st === "missed" ? "Also correct" : undefined} />
+              disabled={locked} onClick={() => toggle(i)}
+              tag={st === "missed" ? "Also correct" : ctx.guess && locked && picked ? "Your guess" : undefined} />
           );
         })}
       </div>
@@ -203,17 +233,16 @@ export function NumberView({ step, ans, setAns, ctx, revealLine }: { step: Numbe
   const ref = useRef<HTMLInputElement>(null);
   const locked = ctx.phase === "done";
   useEffect(() => {
-    if (typeof matchMedia !== "undefined" && matchMedia("(pointer: fine)").matches) ref.current?.focus({ preventScroll: true });
-  }, []);
+    if (!locked && typeof matchMedia !== "undefined" && matchMedia("(pointer: fine)").matches) ref.current?.focus({ preventScroll: true });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (ctx.phase === "answer" && ans) ref.current?.select();
     if (ctx.phase === "done") ref.current?.blur();
   }, [ctx.phase]); // eslint-disable-line react-hooks/exhaustive-deps
-  const tone = locked ? (ctx.ok ? "good" : "bad") : ctx.phase === "retry" ? "bad" : ans ? "sel" : "idle";
+  const tone = locked ? (ctx.guess ? "guess" : ctx.ok ? "good" : "bad") : ctx.phase === "retry" ? "bad" : ans ? "sel" : "idle";
   return (
     <StepLayout visual={step.visual}>
-      <Eyebrow>Estimate</Eyebrow>
-      <h2 className="lp-prompt"><Inline text={step.prompt} /></h2>
+      <PromptHead label="Estimate" prompt={step.prompt} ctx={ctx} />
       <label className={`lp-num st-${tone}`}>
         <span className="sr-only">Your answer{step.unit ? ` in ${step.unit}` : ""}</span>
         <input
@@ -222,7 +251,7 @@ export function NumberView({ step, ans, setAns, ctx, revealLine }: { step: Numbe
         />
         {step.unit && <span className="lp-num-unit">{step.unit}</span>}
       </label>
-      {locked && revealLine && <div className={`lp-num-answer ${ctx.ok ? "good" : ""}`}>{revealLine}</div>}
+      {locked && revealLine && <div className={`lp-num-answer ${ctx.guess ? "guess" : ctx.ok ? "good" : ""}`}>{revealLine}</div>}
     </StepLayout>
   );
 }
@@ -232,7 +261,7 @@ export function NumberView({ step, ans, setAns, ctx, revealLine }: { step: Numbe
 export function OrderView({ step, ans, setAns, ctx }: { step: OrderStep; ans: number[]; setAns: (v: number[]) => void; ctx: ViewCtx }) {
   const bank = useMemo(() => shuffledIndexes(step.items.length, ctx.seed), [step.items.length, ctx.seed]);
   const locked = ctx.phase === "done";
-  const showCorrect = locked && !ctx.ok;
+  const showCorrect = locked && (!ctx.ok || ctx.guess);
   const toggle = (item: number) => { if (locked) return; setAns(ans.includes(item) ? ans.filter((x) => x !== item) : [...ans, item]); };
   useEffect(() => {
     ctx.keys((e) => {
@@ -247,13 +276,12 @@ export function OrderView({ step, ans, setAns, ctx }: { step: OrderStep; ans: nu
   const slots = step.items.map((_, k) => (showCorrect ? k : ans[k]));
   return (
     <>
-      <Eyebrow>Put in order</Eyebrow>
-      <h2 className="lp-prompt"><Inline text={step.prompt} /></h2>
-      {showCorrect && <div className="lp-subnote">The correct order:</div>}
+      <PromptHead label="Put in order" prompt={step.prompt} ctx={ctx} />
+      {showCorrect && <div className={`lp-subnote ${ctx.guess ? "guess" : ""}`}>{ctx.guess ? "How it actually goes:" : "The correct order:"}</div>}
       <ol className="lp-slots" aria-label="Your order">
         {slots.map((item, k) => {
           const filled = item !== undefined;
-          const st: TileState = !filled ? "idle" : locked ? "good" : ctx.phase === "retry" ? "sel" : "sel";
+          const st: TileState = !filled ? "idle" : locked ? (ctx.guess ? "ans" : "good") : "sel";
           return (
             <li key={k} className={`lp-slot ${filled ? "filled" : "empty"}`}>
               <span className="lp-slot-n" aria-hidden="true">{k + 1}</span>
@@ -288,14 +316,18 @@ export function OrderView({ step, ans, setAns, ctx }: { step: OrderStep; ans: nu
 
 const LETTERS = "abcdefgh";
 
-export function MatchView({ step, ctx, onDone }: { step: MatchStep; ctx: ViewCtx; onDone: (mistakes: number) => void }) {
+export function MatchView({ step, ctx, onDone, onMiss, startMistakes = 0 }: {
+  step: MatchStep; ctx: ViewCtx; onDone: (mistakes: number) => void;
+  /** Called on every wrong pair, so the player can keep the count if the reader leaves and comes back. */
+  onMiss?: (mistakes: number) => void; startMistakes?: number;
+}) {
   const n = step.pairs.length;
   const right = useMemo(() => shuffledIndexes(n, ctx.seed + ":r"), [n, ctx.seed]);
   const [selL, setSelL] = useState<number | null>(null);
   const [selR, setSelR] = useState<number | null>(null);
   const [matched, setMatched] = useState<number[]>([]);
   const [flash, setFlash] = useState<{ l: number; r: number; ok: boolean } | null>(null);
-  const mistakes = useRef(0);
+  const mistakes = useRef(startMistakes);
   const locked = ctx.phase === "done";
   const allDone = locked || matched.length === n;
 
@@ -303,7 +335,7 @@ export function MatchView({ step, ctx, onDone }: { step: MatchStep; ctx: ViewCtx
     if (selL === null || selR === null) return;
     const ok = selL === selR;
     setFlash({ l: selL, r: selR, ok });
-    if (!ok) mistakes.current++;
+    if (!ok) { mistakes.current++; onMiss?.(mistakes.current); }
     const t = setTimeout(() => {
       setFlash(null); setSelL(null); setSelR(null);
       if (ok) { const next = [...matched, selL]; setMatched(next); if (next.length === n) onDone(mistakes.current); }
@@ -327,14 +359,13 @@ export function MatchView({ step, ctx, onDone }: { step: MatchStep; ctx: ViewCtx
 
   const stateOf = (pair: number, side: "l" | "r"): TileState => {
     if (allDone || matched.includes(pair)) return "done";
-    if (flash && (side === "l" ? flash.l : flash.r) === pair) return flash.ok ? "good" : "bad";
+    if (flash && (side === "l" ? flash.l : flash.r) === pair) return flash.ok ? "good" : ctx.guess ? "nope" : "bad";
     if ((side === "l" ? selL : selR) === pair) return "sel";
     return "idle";
   };
   return (
     <>
-      <Eyebrow>Match the pairs</Eyebrow>
-      <h2 className="lp-prompt"><Inline text={step.prompt} /></h2>
+      <PromptHead label="Match the pairs" prompt={step.prompt} ctx={ctx} />
       <div className="lp-match" role="group" aria-label="Tap one item on the left, then its partner on the right">
         {step.pairs.map((_, row) => {
           // Once every pair is found, the right column slides into line with its partners.
@@ -362,6 +393,7 @@ export function RevealView({ step, ctx, self, setSelf }: { step: RevealStep; ctx
   useEffect(() => { if (shown) ref.current?.scrollIntoView({ block: "nearest", behavior: ctx.reduced ? "auto" : "smooth" }); }, [shown, ctx.reduced]);
   return (
     <StepLayout visual={step.visual}>
+      {ctx.past && <p className="lp-past">You are looking back. Your answer is saved.</p>}
       <Eyebrow>Think first</Eyebrow>
       <h2 className="lp-prompt"><Inline text={step.prompt} /></h2>
       {!shown && <p className="lp-think">Form your answer in your head, or say it out loud. Then press Reveal.</p>}

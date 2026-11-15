@@ -171,19 +171,24 @@ const chapter: Chapter = {
       id: "ch13-l1",
       title: "A wall, not a hill",
       goal: "Explain why a simulcast premiere is a flash crowd, name the three kinds of spike, and read the public record of big events with care.",
-      minutes: 9,
+      minutes: 10,
       steps: [
         {
+          kind: "read",
+          title: "Premiere night",
+          body: "Every week, a new anime episode is released at one fixed minute, and a huge crowd presses play at once. This lesson shows why that minute is the hardest one for a delivery team.\n\nBy the end, you will be able to explain what makes a premiere different from a normal busy evening, name the three kinds of traffic spike, and read the published numbers from big events with care.",
+        },
+        {
           kind: "quiz",
-          prompt: "Night A: 2M people watch across the whole catalog, building up slowly over the evening. Night B: 1M people press play on one brand-new episode at 17:00 sharp. Which night is harder for the delivery team?",
+          guess: true,
+          prompt: "Take a guess. Night A: 2M people watch many different shows, and the crowd builds slowly over the evening. Night B: 1M people press play on one brand-new episode at 17:00 sharp. Which night would you expect to be harder for the delivery team?",
           options: [
             "Night A, because it has twice the viewers",
-            "Night B, because every cache is cold and everyone arrives in the same minutes",
+            "Night B, because everyone arrives in the same minutes and asks for something brand new",
             "They are the same, because only bytes per second matter",
-            "Night A, because the long tail has the worst hit ratio",
           ],
           answer: 1,
-          explain: "Night B. The evening peak builds slowly, is spread over many titles and runs on warm caches. The premiere puts everyone on one new title: every cache is cold in the same second, start and sign-in rates are very high, and any error triggers synchronized retries.",
+          explain: "Night B. On Night A the crowd grows slowly and is spread over many titles that were watched before, so nearby copies already exist: the caches are **warm**. On Night B everyone wants one new title in the same minutes. No nearby copy exists yet, so every cache is **cold** in the same second, start and sign-in rates are very high, and any error makes everyone retry at once.",
         },
         {
           kind: "read",
@@ -197,6 +202,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "Go back to the three facts in the simulcast definition: when it happens, how new the content is, and how many titles people want at once.",
           prompt: "Which of these make a simulcast premiere special for the delivery team? Select all that apply.",
           options: [
             "The release time is fixed and public",
@@ -211,7 +217,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "The flash crowd",
-          body: "Together these create a **flash crowd**: a very large number of clients arriving in a very short time, all asking for the same few objects.\n\nA normal evening peak arrives slowly and is spread over thousands of titles. A flash crowd is the opposite on both axes: it arrives at once, and it asks for one title.",
+          body: "Together these create a **flash crowd**: a very large number of clients arriving in a very short time, all asking for the same few objects.\n\nA normal evening peak arrives slowly and is spread over thousands of titles. A flash crowd is the opposite on both axes: it arrives at once, and it asks for one title.\n\nWe call the release minute **T0**. T-30 s is 30 seconds before it; T+2 min is two minutes after.",
           visual: {
             kind: "compare",
             left: { title: "Evening peak", points: ["Builds over hours", "Spread over thousands of titles", "Caches already warm"] },
@@ -234,6 +240,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Signing in is **control plane** work: user-specific requests that a cache cannot answer. Delivering video bytes is **data plane** work, served from CDN caches. Compare the percentages.",
           prompt: "Look at the Downdetector split. Which part of the system does the largest category point to?",
           options: [
             "The CDN data plane that serves segments",
@@ -269,6 +276,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "For each spike type, ask two things: does the content exist before T0, and where in the stream are the viewers? The table's last column follows from those answers.",
           prompt: "Match each spike type to its main risk.",
           pairs: [
             ["VOD premiere", "Cold caches and 404s from early publish"],
@@ -285,7 +293,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "How steep is the wall?",
-          body: "Two public data points:\n- Hotstar's architects said at AWS re:Invent 2019 that traffic could grow by more than **1 million users per minute**. Peak concurrency reached **25.3 million** on July 10, 2019.\n- Netflix's Tom Brady roast had about **1.8 million** concurrent streams. The Jake Paul vs Mike Tyson fight on November 15, 2024 peaked at about **65 million**, as reported from Netflix data.",
+          body: "Two public data points:\n- Hotstar's architects said at AWS re:Invent 2019 that traffic could grow by more than **1 million users per minute**. Peak concurrency reached **25.3 million** on July 10, 2019.\n- Netflix's Tom Brady roast had about **1.8 million** concurrent streams. The Jake Paul vs Mike Tyson fight on November 15, 2024 peaked at about **65 million**, as reported from Netflix data.\n\nTo compare two peaks, divide the bigger by the smaller. Example: a 20M peak after a 5M peak is 20 / 5 = **4x**.",
           visual: {
             kind: "stats",
             items: [
@@ -297,6 +305,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Growth between two events is a ratio: the second peak divided by the first. Use the two Netflix numbers, both in millions.",
           prompt: "Netflix went from about 1.8M concurrent streams to about 65M within one year. Roughly how many times bigger was the second event?",
           answer: 36,
           tolerance: 2,
@@ -326,6 +335,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "A NAT gateway is ordinary network plumbing that lets private servers reach the internet. It is not a video part. Think about what \"half used at a tenth of the load\" means at full load.",
           prompt: "Disney+ Hotstar found a NAT gateway using 50% of its bandwidth at only 10% of peak load. What is the lesson?",
           options: [
             "Bottlenecks hide in boring places, so test the whole path",
@@ -376,12 +386,21 @@ const chapter: Chapter = {
       minutes: 11,
       steps: [
         {
-          kind: "number",
-          prompt: "Guess first. A big premiere has about 2M concurrent streams at an average of about 4 Mbps. What is peak egress?",
-          answer: 8,
-          tolerance: 0.5,
-          unit: "Tbps",
-          explain: "2,000,000 x 4 Mbps = 8,000,000 Mbps = **8 Tbps**. All values in this lesson are the book's assumed Crunchyroll model.",
+          kind: "read",
+          title: "Numbers on one page",
+          body: "Before you design for a premiere, you need its size in numbers. This lesson does the back-of-envelope math with the book's assumed Crunchyroll model.\n\nBy the end, you will be able to work out starts per second, total bandwidth, request rates, the size of the hot data, and the load on one busy PoP. Each calculation is first shown worked out with other numbers, then you try it.",
+        },
+        {
+          kind: "quiz",
+          guess: true,
+          prompt: "Take a guess. At T0, 1M people want a brand-new episode in the same minutes, from thousands of empty caches around the world. What would you expect to be the hard part?",
+          options: [
+            "Finding enough disk to store the episode",
+            "Getting thousands of empty caches to fetch the same new file without all asking the origin at once",
+            "Encoding the video fast enough",
+          ],
+          answer: 1,
+          explain: "The hard part is **coordination**. Later in this lesson you will see that the whole episode is under 10 GB, small enough for one server's memory, so storage is easy. The danger is that thousands of empty caches all get the first request for the same file in the same second, and each one may ask the **origin** (the source storage) for it.",
         },
         {
           kind: "read",
@@ -404,7 +423,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "How the premiere viewers arrive",
-          body: "Assume the 1M premiere viewers arrive in three waves. The first two minutes are the steepest part of the wall.",
+          body: "Assume the 1M premiere viewers arrive in three waves. The first two minutes are the steepest part of the wall.\n\n**Starts per second** = new starts / seconds in the window. Worked example, the last window: 20 minutes = 1,200 s, so 300,000 / 1,200 = **250 starts/s**.",
           visual: {
             kind: "table",
             headers: ["Window", "New starts", "Average starts per second"],
@@ -418,6 +437,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Convert the window to seconds first, then divide the number of new starts by it, as in the worked example.",
           prompt: "300,000 new starts arrive in the first 2 minutes. What is the average rate in starts per second?",
           answer: 2500,
           tolerance: 100,
@@ -439,6 +459,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Remember what clients do when something fails during the spike: they retry. Think about what one failure does to the number of attempts per second.",
           prompt: "A load test shows your system handles 5,000 starts/s. Why is that not the whole answer?",
           options: [
             "It must handle 5,000 starts/s and stay healthy; any failure makes retries multiply the rate",
@@ -452,7 +473,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Egress: 8 Tbps, design for 12",
-          body: "2M x 4 Mbps = **8 Tbps**. The design target is **~12 Tbps** (1.5x). The extra half covers:\n- forecast error,\n- a CDN failure that moves its share to the others (Lesson 5),\n- higher bitrates when big-TV viewers all pick 1080p.",
+          body: "**[[Egress]]** is the traffic leaving the CDN toward viewers: viewers x average bitrate. Worked example, the normal evening: 1M x 4 Mbps = 4,000,000 Mbps = 4 Tbps. At the premiere peak: 2M x 4 Mbps = **8 Tbps**.\n\nThe design target is **~12 Tbps** (1.5x). The extra half covers:\n- forecast error,\n- a CDN failure that moves its share to the others (Lesson 5),\n- higher bitrates when big-TV viewers all pick 1080p.",
           visual: {
             kind: "stats",
             items: [
@@ -462,25 +483,13 @@ const chapter: Chapter = {
           },
         },
         {
-          kind: "multi",
-          prompt: "Which reasons does the 1.5x headroom (12 Tbps for an 8 Tbps peak) cover? Select all that apply.",
-          options: [
-            "The forecast could be wrong",
-            "A CDN fails and its share moves to the others",
-            "Big-TV viewers all pick 1080p, raising the average bitrate",
-            "Storage replication between AWS and GCP",
-            "Lowering the 95th-percentile bill",
-          ],
-          answers: [0, 1, 2],
-          explain: "Headroom covers forecast error, a CDN failure that moves its share elsewhere, and higher bitrates. Replication and billing are separate concerns.",
-        },
-        {
           kind: "read",
           title: "Request rate",
-          body: "With [[CMAF]] and separate audio, each viewer fetches one video [[segment]] and one audio segment every 4 s. That is **0.5 requests per second** per viewer.\n\nThe whole platform, at 2M viewers, makes **1M req/s**.",
+          body: "With [[CMAF]] and separate audio, each viewer fetches one video [[segment]] and one audio segment every 4 s. That is 2 / 4 = **0.5 requests per second** per viewer.\n\nRequests per second = viewers x 0.5. Worked example, the whole platform: 2M x 0.5 = **1M req/s**.",
         },
         {
           kind: "number",
+          teach: "Multiply viewers by requests per viewer per second, as in the worked example. Use only the premiere episode's viewers.",
           prompt: "The premiere episode alone has about 1M viewers at 0.5 requests per second each. How many requests per second does that episode create?",
           answer: 500000,
           tolerance: 20000,
@@ -488,22 +497,14 @@ const chapter: Chapter = {
           explain: "1M x 0.5 = **500,000 req/s** for the premiere episode. The whole platform: 2M x 0.5 = 1M req/s.",
         },
         {
-          kind: "number",
-          prompt: "Each new start pulls 3 video and 3 audio segments in its first 2 seconds to fill its buffer. At the design peak of 5,000 starts/s, how many extra requests per second does that add?",
-          answer: 30000,
-          tolerance: 1500,
-          unit: "req/s",
-          explain: "5,000 x 6 = **30,000 req/s**. Small next to 1M req/s of steady state.",
-        },
-        {
           kind: "read",
           title: "The start storm is not a request-rate problem",
-          body: "30,000 req/s is small next to the steady state of 1M req/s. So the start storm is mainly a **cold-cache and control-plane** problem, not a CDN request-rate problem.\n\nThe rest of this chapter follows those two threads.",
+          body: "New viewers also fill their buffer. If each start pulls 3 video and 3 audio segments in its first 2 seconds, the design peak adds 5,000 starts/s x 6 = **30,000 req/s**.\n\nThat is small next to the steady 1M req/s. So the start storm is mainly a **cold-cache and control-plane** problem, not a CDN request-rate problem.\n\nThe rest of this chapter follows those two threads.",
         },
         {
           kind: "read",
           title: "CDN quotas exist",
-          body: "From outside, a CDN looks infinite. Its account limits are not. CloudFront's documented default quotas are **150 Gbps** and **250,000 requests per second** per distribution. Both can be raised on request.",
+          body: "From outside, a CDN looks infinite. Its account limits are not. CloudFront's documented default quotas are **150 Gbps** and **250,000 requests per second** per distribution. Both can be raised on request.\n\nWorked example: a CDN carrying 1.5 Tbps = 1,500 Gbps would need 1,500 / 150 = **10x** the default bandwidth quota.",
           callout: {
             type: "industry",
             text: "Every CDN has some version of this. **CDN capacity for an event is arranged in advance**, never assumed.",
@@ -511,6 +512,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Find a third of 8 Tbps, convert it to Gbps (1 Tbps = 1,000 Gbps), then divide by the 150 Gbps default.",
           prompt: "If CloudFront carried a third of the 8 Tbps peak, roughly how many times the default 150 Gbps quota would that be?",
           answer: 18,
           tolerance: 1.5,
@@ -520,10 +522,11 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "The working set",
-          body: "How much data is actually hot? Assume a 7-rung ladder: 0.4, 0.8, 1.5, 2.5, 4, 6 and 8 Mbps.\n\nThe sum of the video bitrates is **23.2 Mbps**. The episode is 1,440 s long.",
+          body: "How much data is actually hot? Assume a 7-rung ladder: 0.4, 0.8, 1.5, 2.5, 4, 6 and 8 Mbps. The sum of the video bitrates is **23.2 Mbps**. The episode is 1,440 s long.\n\nSize = bitrate x seconds / 8 (8 bits = 1 byte). Worked example, the 4 Mbps rung alone: 4 x 1,440 = 5,760 Mbit; 5,760 / 8 = **720 MB**.",
         },
         {
           kind: "number",
+          teach: "Use the same method as the worked example, with the sum of all seven rungs as the bitrate. 1,000 MB is about 1 GB.",
           prompt: "All 7 video renditions of the episode: 23.2 Mbps x 1,440 s. About how many GB is that? (8 bits = 1 byte.)",
           answer: 4.2,
           tolerance: 0.3,
@@ -541,6 +544,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Compare the size of the hot set with the memory of one server. Then think about what happens in the same second across thousands of empty caches.",
           prompt: "One episode's hot set is under 10 GB. So what is the real problem at T0?",
           options: [
             "Coordination: thousands of empty caches get the first request for the same object at once",
@@ -554,10 +558,11 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Hot objects inside a PoP",
-          body: "Inside a [[PoP]], CDNs usually map each object to one owner server with [[consistent hashing]]. In a flash crowd this can create a **hot object**: one object that one server must serve to a huge crowd.\n\nTake a big PoP serving 3% of the premiere audience (assumed): **30,000 viewers**.",
+          body: "Inside a [[PoP]], CDNs usually map each object to one owner server with [[consistent hashing]]. In a flash crowd this can create a **hot object**: one object that one server must serve to a huge crowd.\n\nPoP traffic = viewers x bitrate. Worked example, a small PoP: 10,000 viewers x 4 Mbps = 40,000 Mbps = **40 Gbps**.\n\nNow take a big PoP serving 3% of the premiere audience (assumed): **30,000 viewers**.",
         },
         {
           kind: "number",
+          teach: "Multiply viewers by bitrate as in the worked example, then convert Mbps to Gbps (1 Gbps = 1,000 Mbps).",
           prompt: "30,000 viewers in one PoP, each at about 4 Mbps. How much traffic does that PoP serve?",
           answer: 120,
           tolerance: 5,
@@ -593,24 +598,30 @@ const chapter: Chapter = {
       id: "ch13-l3",
       title: "Before the bell",
       goal: "Plan a staged publish, avoid the 404 trap, pre-warm shields correctly and pre-scale the services behind the CDN.",
-      minutes: 10,
+      minutes: 11,
       steps: [
         {
+          kind: "read",
+          title: "Do the work before T0",
+          body: "The premiere minute, **T0**, is the worst moment to discover a problem. The best way to survive T0 is to do the work before it. By the end of this lesson, you will be able to plan a safe release order, avoid a trap where a stored \"not found\" answer breaks the premiere, and say what to warm and what to scale before T0.",
+        },
+        {
           kind: "quiz",
-          prompt: "At T-30 s a test script asks a CDN edge for the new episode's playlist. The packager has not written it yet, so the origin returns 404. What happens at T0 when real viewers on that edge press play?",
+          guess: true,
+          prompt: "Take a guess. At T-30 s a test script asks one CDN edge for the new episode's playlist. The file is not written yet, so the origin answers 404 (\"not found\"). CDN edges can keep answers for a short time. What would you expect real viewers on that edge to get at T0?",
           options: [
-            "They get the playlist, because the origin has it now",
-            "They can get a cached 404 from that edge, although the origin now has the file",
-            "The CDN automatically purges all 404s at T0",
+            "The playlist, because the origin has it now",
+            "The stored 404 from that edge, although the origin now has the file",
+            "The CDN automatically clears all 404s at T0",
             "The player waits quietly until the playlist exists",
           ],
           answer: 1,
-          explain: "CDNs cache errors too. CloudFront caches error responses for 10 seconds by default. The early 404 sits in the edge cache past T0, so real viewers get \"not found\" for a file that now exists. This is the **404 trap**.",
+          explain: "CDNs cache errors too. CloudFront caches error responses for 10 seconds by default. The early 404 sits in the edge cache past T0, so real viewers get \"not found\" for a file that now exists. This is the **404 trap**, and this lesson shows how to prevent it.",
         },
         {
           kind: "read",
           title: "Separate \"exists\" from \"visible\"",
-          body: "The best way to survive T0 is to do the work before T0.\n\n**Staged publish** means the episode's bytes are in [[origin]] storage, replicated to every origin and verified long before the episode is *visible* to users.",
+          body: "**Staged publish** means the episode's bytes are in [[origin]] storage, replicated to every origin and verified long before the episode is *visible* to users.\n\nThink of a shop that stocks its shelves overnight but unlocks the door only at opening time.",
           visual: staged(0, "Step 1: segments go to every origin first."),
         },
         {
@@ -633,6 +644,7 @@ const chapter: Chapter = {
         },
         {
           kind: "order",
+          teach: "Each layer may point only to things that already exist below it. Start with the files nothing else depends on, and finish with what users can see.",
           prompt: "Put the staged publish in the correct order.",
           items: [
             "Write segments to all origins and verify replication",
@@ -646,7 +658,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "The 404 trap",
-          body: "Suppose a test script, a fan guessing URLs, or an app pre-fetching the next manifest asks for it at T-30 s, before it exists. The origin returns 404.\n\nCloudFront, by default, **caches error responses for 10 seconds** ([[negative caching]]). The Error Caching Minimum TTL can be set per status code. For 404, the origin can prevent caching with `no-store`, `no-cache` or `private`. Other CDNs have their own defaults.",
+          body: "Suppose a test script, a fan guessing URLs, or an app pre-fetching the next manifest asks for it at T-30 s, before it exists. The origin returns 404.\n\nCloudFront, by default, **caches error responses for 10 seconds**. Caching errors is called **[[negative caching]]**. The Error Caching Minimum TTL can be set per status code. For 404, the origin can prevent caching with `no-store`, `no-cache` or `private`. Other CDNs have their own defaults.",
         },
         {
           kind: "read",
@@ -664,6 +676,7 @@ const chapter: Chapter = {
         },
         {
           kind: "order",
+          teach: "A fix that makes the mistake impossible is stronger than one that only shortens how long the mistake lasts. The list in the last step was already sorted.",
           prompt: "Rank the 404-trap fixes from strongest to weakest.",
           items: [
             "Never hand out URLs before objects exist",
@@ -674,26 +687,26 @@ const chapter: Chapter = {
           explain: "The strongest fix is structural: no URL exists before its object. Then the API refuses early, then URLs cannot be guessed, and last, negative caching is tuned so an early 404 does not live long.",
         },
         {
-          kind: "quiz",
-          prompt: "Why not simply set negative caching to zero on manifest paths?",
-          options: [
-            "Very short error caching sends more requests to an origin that may already be struggling, and uncacheable responses cannot satisfy queued requests",
-            "CDNs do not allow a TTL of zero",
-            "A zero TTL breaks HLS players",
-            "It would cache the 404 forever",
-          ],
-          answer: 0,
-          explain: "CloudFront warns that very short error caching sends more requests to the origin. Fastly notes that an uncacheable response cannot satisfy queued requests, so they may go upstream one after another, which \"can create extreme response times of several minutes\".",
+          kind: "reveal",
+          prompt: "Why not simply set negative caching to zero on manifest paths? Think about what zero means for the origin, then reveal.",
+          answer: "Zero has costs too. CloudFront warns that very short error caching sends more requests to an origin that may already be struggling. Fastly notes that an uncacheable response cannot satisfy queued requests, so they may go upstream one after another, which \"can create extreme response times of several minutes\". So keep negative caching short and deliberate, not zero by reflex.",
         },
         {
           kind: "read",
           title: "Pre-warming: shields first",
-          body: "**[[Pre-warming]]** (cache priming) means fetching objects through the CDN before users ask, so the first real request is a hit.\n- **Shield pre-warm.** Send synthetic requests for the first minutes of every rendition through each CDN to its shield. Cheap (a few GB per CDN) and high value: after it, every edge miss at T0 is served by the shield.\n- **Edge pre-warm.** Much harder. [[Anycast]] and DNS steering send your test client to one PoP, not all.",
+          body: "**[[Pre-warming]]** (cache priming) means fetching objects through the CDN before users ask, so the first real request is a hit.\n\n**Shield pre-warm:** send synthetic requests for the first minutes of every rendition through each CDN to its shield. It is cheap (a few GB per CDN) and high value. After it, every edge miss at T0 is served by the shield, like a regional warehouse stocked before the shops open.",
           visual: herd(["w", "w>s1", "w>s2", "w>s3", "s1", "s2", "s3"], undefined, "The pre-warm job fills each CDN's shield, not every edge."),
         },
         {
+          kind: "read",
+          title: "Edge pre-warm is much harder",
+          body: "Making every edge PoP fetch the first segments is much harder. [[Anycast]] and DNS steering send your test client to one PoP, not all. You would need probes in hundreds of networks or a vendor push feature.\n\nOne more fact matters here. Inside a PoP, when many viewers ask for the same missing file at once, the PoP sends only **one** request upstream and the others wait for it. This is **[[request collapsing]]** (Lesson 4 goes deeper).",
+          visual: herd(["u", "e1", "e2", "e3", "u>e1", "u>e2", "u>e3"], undefined, "Each client, test probes included, reaches one PoP."),
+        },
+        {
           kind: "quiz",
-          prompt: "To warm every edge PoP you would need probes in hundreds of networks or a vendor push feature. With a warm shield and in-PoP collapsing, what does a cold edge PoP actually cost at T0?",
+          teach: "The shield already holds the first segments, and the PoP sends one request upstream for many viewers. Count what the first viewer at a cold PoP has to wait for.",
+          prompt: "With a warm shield and in-PoP collapsing, what does a cold edge PoP actually cost at T0?",
           options: [
             "One shield round trip for its first viewer",
             "One origin request per viewer",
@@ -729,6 +742,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Reactive autoscaling waits for load to rise, then starts new machines. Compare that delay with how fast Hotstar's traffic grew, and recall what the cloud provider answered.",
           prompt: "Why did reactive autoscaling fail Hotstar?",
           options: [
             "Traffic rose over 1M users per minute, faster than boot plus reaction time, and the cloud returned insufficient-capacity errors",
@@ -766,11 +780,17 @@ const chapter: Chapter = {
       id: "ch13-l4",
       title: "Under the herd",
       goal: "Count origin requests at T0 for four cache designs, explain request collapsing, and spot what silently breaks it.",
-      minutes: 11,
+      minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "The crowd at the door",
+          body: "At T0, thousands of empty caches get the first request for the same few files in the same second. If each one asks the origin, the origin drowns.\n\nBy the end of this lesson, you will be able to count origin requests at T0 for four cache designs, explain how caches cooperate so the origin sees only a handful, and spot the small mistakes that silently break that cooperation.",
+        },
+        {
           kind: "quiz",
-          prompt: "At T0, thousands of empty caches get the first request for segment 1 in the same second. There is no request collapsing and no shield. Who fetches segment 1 from the origin?",
+          guess: true,
+          prompt: "Take a guess. Thousands of empty caches get a request for segment 1 in the same second. Nothing makes them cooperate, and nothing sits between them and the origin. Who would you expect to fetch segment 1 from the origin?",
           options: [
             "Every cache server that gets a request",
             "One server per PoP",
@@ -778,7 +798,7 @@ const chapter: Chapter = {
             "Only one request in total",
           ],
           answer: 0,
-          explain: "Without collapsing, every cache server that misses goes upstream on its own. Without a shield, upstream is the origin. That is the [[thundering herd]].",
+          explain: "Every cache server that gets a request. Without cooperation, each server that misses goes upstream on its own. With no middle layer, upstream is the origin. A crowd of identical requests stampeding to the origin is called the **[[thundering herd]]**.",
         },
         {
           kind: "read",
@@ -796,7 +816,13 @@ const chapter: Chapter = {
           },
         },
         {
+          kind: "read",
+          title: "Counting the herd",
+          body: "If every cache server fetches every hot object for itself:\n\norigin requests = PoPs x servers per PoP x objects\n\nWorked example, a small CDN: 10 PoPs x 20 servers x 5 objects = **1,000** origin requests, all within a few seconds.",
+        },
+        {
           kind: "number",
+          teach: "Use the formula from the worked example with this lesson's numbers: PoPs, servers per PoP and hot objects.",
           prompt: "Design A: no collapsing, no shield. Every one of the 30 servers in each of 300 PoPs fetches all 48 objects from the origin. How many origin requests at T0?",
           answer: 432000,
           tolerance: 5000,
@@ -805,8 +831,20 @@ const chapter: Chapter = {
         },
         {
           kind: "read",
+          title: "How request collapsing works",
+          body: "**[[Request collapsing]]** (request coalescing): when many requests for the same uncached object arrive together, the cache sends **one** request upstream and makes the others wait for its response.\n\nCloudFront documents that requests with the same cache key that arrive before the first response returns are paused, and all get the original response. The first is logged as `Miss`, the collapsed ones as `Hit`.",
+          visual: herd(["u", "e1", "u>e1", "e1>s1", "s1"], ["u>e1", "e1>s1"], "Inside each PoP, many misses become one upstream fetch."),
+        },
+        {
+          kind: "read",
+          title: "Collapsing one tier up",
+          body: "A **[[shield]]** is a cache layer between the edges and the origin. [[Origin Shield]] extends collapsing one tier up, consolidating requests \"resulting in as few as one request going to your origin\".\n\nFastly describes the same mechanism. It notes that clustering inside a PoP plus shielding create \"up to four opportunities for Fastly to collapse requests\".",
+          visual: herd(["s1", "s2", "s3", "o", "s1>o", "s2>o", "s3>o"], ["u>e1", "e1>s1", "s1>o"], "Each shield sends one miss per object to the origin."),
+        },
+        {
+          kind: "read",
           title: "Four designs, four herds",
-          body: "Design A asks the origin for about 720 GB within seconds, a burst of hundreds of terabits per second. Design C asks for a quarter of a gigabyte.\n\nThe difference is not more servers. It is **[[request collapsing]]** at each tier and a **[[shield]]** in front of the origin.",
+          body: "With collapsing, each tier sends one request per object. So count the fetchers, then multiply by 48. Row B shows how: 300 PoPs x 48.\n\nDesign A asks the origin for about 720 GB within seconds, a burst of hundreds of terabits per second. Design C asks for a quarter of a gigabyte. The difference is not more servers. It is **collapsing** at each tier and a **shield** in front of the origin.",
           visual: {
             kind: "table",
             headers: ["Design", "Who fetches from origin", "Origin requests at T0", "Origin bytes"],
@@ -820,23 +858,12 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "With collapsing at the shield, each CDN sends one request per object to the origin. Count the fetchers, then multiply by the hot objects, as row B does.",
           prompt: "Design C: each PoP collapses, and each of the 3 CDNs has one shield that also collapses. How many origin requests at T0 for the 48 hot objects?",
           answer: 144,
           tolerance: 2,
           unit: "requests",
           explain: "One fetch per CDN per object: 3 x 48 = **144**, about 240 MB. From 432,000 to 144.",
-        },
-        {
-          kind: "read",
-          title: "How request collapsing works",
-          body: "**[[Request collapsing]]** (request coalescing): when many requests for the same uncached object arrive together, the cache sends **one** request upstream and makes the others wait for its response.\n\nCloudFront documents that requests with the same cache key that arrive before the first response returns are paused, and all get the original response. The first is logged as `Miss`, the collapsed ones as `Hit`.",
-          visual: herd(["u", "e1", "u>e1", "e1>s1", "s1"], ["u>e1", "e1>s1"], "Inside each PoP, many misses become one upstream fetch."),
-        },
-        {
-          kind: "read",
-          title: "Collapsing one tier up",
-          body: "[[Origin Shield]] extends this one tier up, consolidating requests \"resulting in as few as one request going to your origin\".\n\nFastly describes the same mechanism. It notes that clustering inside a PoP plus shielding create \"up to four opportunities for Fastly to collapse requests\".",
-          visual: herd(["s1", "s2", "s3", "o", "s1>o", "s2>o", "s3>o"], ["u>e1", "e1>s1", "s1>o"], "Each shield sends one miss per object to the origin."),
         },
         {
           kind: "widget",
@@ -863,6 +890,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Collapsing needs one shared cache key and a cacheable response. Each fix restores one of those two things for its cause.",
           prompt: "Match each collapse-breaker to its fix.",
           pairs: [
             ["Per-user token in the cache key", "Validate at the edge, then drop it from the key"],
@@ -884,6 +912,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Caching and collapsing both work only when requests share the same cache key. Ask what a value that differs per session does to the key.",
           prompt: "A new app release adds `?sid=<session id>` to every segment URL. The CDN keys on all query parameters. What happens at the next premiere?",
           options: [
             "Every request has a unique key, so nothing collapses and hit ratio falls toward zero",
@@ -906,6 +935,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Two clocks run at once: the CDN waits for the origin, and the player waits for the CDN. Work out which clock runs out first, and whether a brand-new episode has an older copy to serve.",
           prompt: "The player's segment timeout is 4 s. The CDN's origin timeout is 10 s. The primary origin hangs at T0. What happens?",
           options: [
             "Players give up and retry before the CDN fails over, so a synchronized retry storm starts",
@@ -935,6 +965,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "A shared shield cuts origin misses. Now think about which vendor sits in front of every CDN, and why teams use several CDNs in the first place.",
           prompt: "What is the main cost of using one CloudFront Origin Shield as the shared origin for all your CDNs?",
           options: [
             "Coupling: CloudFront is in every CDN's path, which partly defeats multi-CDN",
@@ -966,8 +997,14 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "Two kinds of room",
+          body: "A premiere needs two kinds of room: bandwidth at the CDN, and capacity in your own services for sign-in, access checks and licenses. Neither is unlimited, and neither appears by itself at T0.\n\nBy the end of this lesson, you will be able to plan CDN capacity so one vendor can fail, read a 95th-percentile bill, and name the ways to flatten the spike on sign-in, entitlement and DRM licenses.",
+        },
+        {
           kind: "quiz",
-          prompt: "A big football match streams in the same region, at the same minute as your premiere, on the same CDN. What happens to that CDN's PoPs?",
+          guess: true,
+          prompt: "Take a guess. A big football match streams in the same region, at the same minute as your premiere, on the same CDN. What would you expect to happen in that CDN's PoPs?",
           options: [
             "Both events compete for the same servers and ISP ports, so capacity can run short",
             "Nothing; CDN capacity is effectively unlimited",
@@ -975,7 +1012,7 @@ const chapter: Chapter = {
             "Your traffic gets priority because you pay per GB",
           ],
           answer: 0,
-          explain: "From outside a CDN looks infinite. It is not. Each PoP has a fixed number of servers and fixed uplinks to each ISP, shared with every other customer.",
+          explain: "They compete. From outside a CDN looks infinite, but it is not. Each PoP has a fixed number of servers and fixed uplinks to each ISP, shared with every other customer. Two big events in one region at one minute fight for the same ports.",
         },
         {
           kind: "read",
@@ -983,22 +1020,14 @@ const chapter: Chapter = {
           body: "Each PoP has a fixed number of servers and fixed uplinks to each ISP, shared with every other customer. So large services plan big events **jointly with vendors**:\n- share an event calendar with forecast Gbps per region per CDN, weeks ahead,\n- get capacity confirmed,\n- raise account quotas,\n- name a war-room contact at each vendor.\n\nReservation terms are contract details that vendors do not publish. The practice of telling them early is standard.",
         },
         {
-          kind: "multi",
-          prompt: "Which belong in event planning with your CDN vendors? Select all that apply.",
-          options: [
-            "A forecast of Gbps per region per CDN, weeks ahead",
-            "Capacity confirmed by the vendor",
-            "Raised account quotas",
-            "A named war-room contact at each vendor",
-            "Trust that default quotas are enough",
-            "Wait for the CDN to autoscale during the spike",
-          ],
-          answers: [0, 1, 2, 3],
-          explain: "Forecast, confirmation, quota raises and a war-room contact. Default quotas (CloudFront: 150 Gbps, 250,000 req/s per distribution) are far below a big premiere.",
+          kind: "read",
+          title: "How 95th-percentile billing works",
+          body: "Many CDN contracts use **[[95th percentile billing]]**. Every 5 minutes, the vendor records your traffic rate: one **sample**. At month end it sorts the samples, throws away the top 5%, and bills the highest one left.\n\nThere are 12 five-minute samples per hour. Worked example, one day: 24 h x 12 = **288 samples**.",
         },
         {
           kind: "number",
-          prompt: "Many CDN contracts bill on the 95th percentile of 5-minute samples. How many 5-minute samples are in a 30-day month?",
+          teach: "Start from the one-day example and scale it to 30 days.",
+          prompt: "How many 5-minute samples are in a 30-day month?",
           answer: 8640,
           tolerance: 50,
           unit: "samples",
@@ -1007,16 +1036,22 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Spikes on a 95th-percentile bill",
-          body: "With [[95th percentile billing]], the top 5% of the 8,640 samples (432 samples = **36 hours**) is discarded.\n\nIf a month's above-normal spikes total under 36 hours, they fall in the discarded part, and the evening peak sets the bill. But **billing is not capacity**: the vendor must still *have* the capacity for those minutes.",
+          body: "The top 5% of the 8,640 samples (432 samples = **36 hours**) is discarded.\n\nIf a month's above-normal spikes total under 36 hours, they fall in the discarded part, and the evening peak sets the bill. But **billing is not capacity**: the vendor must still *have* the capacity for those minutes.",
         },
         {
           kind: "read",
           title: "Split before T0",
-          body: "The split across CDNs should be **decided before T0**, not discovered by reactive [[steering]] during the spike:\n- DNS answers are cached for their [[TTL]].\n- [[RUM]] needs minutes to show a trend.\n- Moving a big share onto a cold CDN at T+1 min creates a second cold-cache event.\n\nWorked example (assumed): 8 Tbps split 40/35/25 across CDNs A, B and C, so 3.2 / 2.8 / 2.0 Tbps.",
+          body: "The split across CDNs should be **decided before T0**, not discovered by reactive [[steering]] during the spike:\n- DNS answers are cached for their [[TTL]].\n- [[RUM]] needs minutes to show a trend.\n- Moving a big share onto a cold CDN at T+1 min creates a second cold-cache event.\n\nOur example (assumed): 8 Tbps split 40/35/25 across CDNs A, B and C, so 3.2 / 2.8 / 2.0 Tbps.",
+        },
+        {
+          kind: "read",
+          title: "When one CDN fails",
+          body: "If a CDN fails, its traffic moves to the others **in proportion** to their shares.\n\nWorked example: 10 Tbps split 50/30/20. The 50% CDN fails. The 30% CDN now takes 30 / (30 + 20) = 60% of all traffic: 10 x 0.6 = **6 Tbps**. That is 6 / 3 = **2x** its plan. The 20% CDN takes 10 x 0.4 = 4 Tbps, also 2x.",
         },
         {
           kind: "number",
-          prompt: "CDN A (40%) fails and its share moves to B and C in proportion. What does B (35%) now carry, out of the 8 Tbps?",
+          teach: "Divide B's share by the shares that are left (B plus C), then multiply by the total, as in the worked example.",
+          prompt: "Back to our 40/35/25 split of 8 Tbps. CDN A (40%) fails and its share moves to B and C in proportion. What does B (35%) now carry?",
           answer: 4.67,
           tolerance: 0.1,
           unit: "Tbps",
@@ -1024,17 +1059,9 @@ const chapter: Chapter = {
           explain: "8 x 35/60 = **4.67 Tbps**. C carries 8 x 25/60 = 3.33 Tbps.",
         },
         {
-          kind: "number",
-          prompt: "B planned for 2.8 Tbps and now carries 4.67 Tbps. How many times its planned share is that?",
-          answer: 1.67,
-          tolerance: 0.05,
-          unit: "x",
-          explain: "4.67 / 2.8 ≈ **1.67x**. C is also 3.33 / 2.0 ≈ 1.67x. Both must be ready for it.",
-        },
-        {
           kind: "read",
           title: "N+1 for CDNs",
-          body: "This is the **N+1 rule for CDNs**: reserve with each vendor enough for its share after the largest other vendor fails. It is the same reason the design target is 12 Tbps for an 8 Tbps peak.",
+          body: "B planned 2.8 Tbps and now carries 4.67: 4.67 / 2.8 ≈ **1.67x**. C too: 3.33 / 2.0 ≈ 1.67x.\n\nThis is the **N+1 rule for CDNs**: reserve with each vendor enough for its share after the largest other vendor fails. It is the same reason the design target is 12 Tbps for an 8 Tbps peak.",
           visual: {
             kind: "table",
             headers: ["CDN", "Planned share", "Planned", "If A fails"],
@@ -1056,18 +1083,6 @@ const chapter: Chapter = {
           body: "A global T0 lands at different local times. Saturday morning in the US may be evening in Europe and late night in Australia.\n\nThe region where the premiere hits local prime time is the most likely to run short. So forecasts must be **per region per CDN**, not one global number.",
         },
         {
-          kind: "quiz",
-          prompt: "Why decide the CDN split before T0 instead of letting reactive steering find it during the spike?",
-          options: [
-            "DNS answers are cached, RUM needs minutes, and moving share onto a cold CDN at T+1 min creates a second cold-cache event",
-            "Steering is not allowed during premieres",
-            "Reactive steering costs more per GB",
-            "CDNs bill extra for traffic that moves",
-          ],
-          answer: 0,
-          explain: "Reactive steering is too slow and too blunt for the first minutes. Worse, moving a big share onto a cold CDN repeats the cold-cache herd at the worst time.",
-        },
-        {
           kind: "read",
           title: "Why the control plane breaks first",
           body: "After warm-up, the CDN absorbs nearly all segment traffic. The **[[control plane]]** is mostly not cacheable. Every start needs user-specific answers:\n- a valid session (refresh it if expired),\n- an [[entitlement]] and geo check from the playback API,\n- possibly a personalized or signed manifest,\n- a [[DRM]] license.",
@@ -1087,7 +1102,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Control-plane math",
-          body: "At the design peak of **5,000 starts/s** (assumed per-start counts). Small next to 1M segment requests/s. But each call is a database read, a crypto operation or a third-party call, and none is absorbed by a cache.",
+          body: "Rates at the design peak of **5,000 starts/s** (assumed per-start counts). Small next to 1M segment requests/s. But each call is a database read, a crypto operation or a third-party call, and no cache absorbs it.\n\nRetries multiply rates. Worked example: the playback API at 5,000/s under a 3x retry storm becomes 5,000 x 3 = **15,000/s**.",
           visual: {
             kind: "table",
             headers: ["Call", "Calls per start", "Peak rate", "Cacheable at CDN?"],
@@ -1101,6 +1116,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Take the highest license rate in the table and apply the retry factor, as in the worked example.",
           prompt: "Licenses run at up to 10,000/s (2 per start). Then a 3x retry storm hits the license path. How many license requests per second?",
           answer: 30000,
           tolerance: 1000,
@@ -1119,6 +1135,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "Good options move work earlier, spread it out in time, or switch it off. Bad options pile work onto the exact moment of T0.",
           prompt: "Which of these flatten the control-plane spike at T0? Select all that apply.",
           options: [
             "Refresh sessions before T0 at a random time",
@@ -1168,21 +1185,22 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
-          kind: "quiz",
-          prompt: "A live boxing match. A player slightly ahead of the packager asks for segment N+1 before it exists. Multiply that by millions of players every 2 seconds. What does the origin see?",
-          options: [
-            "A 404 storm: huge numbers of requests for segments that do not exist yet",
-            "Nothing, because CDNs never forward requests for missing files",
-            "A smooth load, because live viewers spread across the DVR window",
-            "Only manifest requests",
-          ],
-          answer: 0,
-          explain: "Every player that is a little early asks for a segment that is not there yet. Uncached 404s all reach the origin, every 2 seconds, from millions of players. This lesson shows how live systems handle it.",
-        },
-        {
           kind: "read",
           title: "What live changes",
-          body: "Sport, concerts, convention panels or a premiere watch party may be truly live. Live changes three things:\n- bytes are created **during** the event,\n- everyone watches the **same moment**,\n- **latency** matters.",
+          body: "So far the episode existed before T0. Sport, concerts, convention panels or a premiere watch party may be truly **live**. Live changes three things:\n- bytes are created **during** the event,\n- everyone watches the **same moment**,\n- **latency** (how far the viewer is behind real life) matters.\n\nBy the end, you will be able to describe a live pipeline, set cache rules for live objects, and work out what low-latency modes do to the CDN.",
+        },
+        {
+          kind: "quiz",
+          guess: true,
+          prompt: "Take a guess. A live boxing match makes a new video piece every 2 seconds. A player that is slightly early asks for the next piece before it exists. Multiply that by millions of players, every 2 seconds. What would you expect the origin to see?",
+          options: [
+            "A storm of requests for pieces that do not exist yet",
+            "Nothing, because CDNs never forward requests for missing files",
+            "A smooth load, because live viewers spread out over time",
+            "Only playlist requests",
+          ],
+          answer: 0,
+          explain: "A **404 storm**: huge numbers of requests for segments that do not exist yet. Every player that is a little early asks for a segment that is not there. If those 404s are not cached, they all reach the origin, every 2 seconds, from millions of players. This lesson shows how live systems handle it.",
         },
         {
           kind: "read",
@@ -1207,20 +1225,8 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Redundant pipelines, epoch locking",
-          body: "From summaries of Netflix's \"Live Origin\" post: two independent regional pipelines (feed, encoder, packager) run side by side. **Epoch locking** aligns their segments, so the origin can pick a good segment from either.\n\nFailover is **server-side**, which keeps players simple.",
+          body: "From summaries of Netflix's \"Live Origin\" post: two independent regional pipelines (feed, encoder, packager) run side by side. **Epoch locking** aligns their segments, so the origin can pick a good segment from either.\n\nFailover is **server-side**, which keeps players simple: they never need to know a pipeline failed.",
           visual: live(["i1", "i2", "p1", "p2", "lo", "p1>lo", "p2>lo"], ["v>i2", "i2>p2", "p2>lo"], "The live origin takes a good segment from either pipeline."),
-        },
-        {
-          kind: "quiz",
-          prompt: "Why does Netflix fail over between pipelines in the Live Origin rather than in the player?",
-          options: [
-            "Server-side failover keeps players simple; the origin can pick a good segment from either aligned pipeline",
-            "Players cannot reach two regions",
-            "It lowers CDN egress",
-            "HLS forbids two pipelines",
-          ],
-          answer: 0,
-          explain: "Epoch locking aligns the two pipelines' segments, so the origin can swap one for the other with no player logic. Players stay simple.",
         },
         {
           kind: "read",
@@ -1250,6 +1256,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Ask of each object: does it change after it is written, and how soon? Things that never change can be cached long; things that change every few seconds cannot.",
           prompt: "Match each live object to its typical cache rule.",
           pairs: [
             ["Master playlist", "Minutes"],
@@ -1261,7 +1268,13 @@ const chapter: Chapter = {
           explain: "Segments never change once written, so they cache long. The media playlist changes every segment, so it caches for about half a segment. A future-segment 404 will soon be a 200, so it must not live long.",
         },
         {
+          kind: "read",
+          title: "How far behind live?",
+          body: "In classic HLS, the player starts a safe distance behind the newest segment. The rule: `HOLD-BACK` \"MUST be at least three times the Target Duration\" (the segment length).\n\nWorked example, 2-second segments: 3 x 2 = **6 s** behind the live edge, before encode, package and CDN time are added. For sport, viewers can learn about a goal from social media before they see it.",
+        },
+        {
           kind: "number",
+          teach: "Multiply the segment length by the factor in the HOLD-BACK rule, as in the worked example.",
           prompt: "Classic HLS says `HOLD-BACK` MUST be at least three times the Target Duration. With 6-second segments, at least how many seconds behind the live edge does the player sit (before encode, package and CDN time)?",
           answer: 18,
           tolerance: 0.5,
@@ -1281,6 +1294,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Check what `PART-HOLD-BACK` is measured against: the part target, not the segment. Then compare 1.5 s with 2x and 3x of that target.",
           prompt: "In the example playlist, `PART-TARGET=0.5` and `PART-HOLD-BACK=1.5`. Does that meet the spec?",
           options: [
             "Yes: 1.5 s is 3x the part target, so it meets the MUST (2x) and the SHOULD (3x)",
@@ -1292,7 +1306,13 @@ const chapter: Chapter = {
           explain: "`PART-HOLD-BACK` is measured against the part target (0.5 s), not the segment. It MUST be at least 1.0 s and SHOULD be at least 1.5 s. 1.5 s meets both.",
         },
         {
+          kind: "read",
+          title: "Counting LL-HLS requests",
+          body: "Classic HLS with 2 s segments: every 2 s, each viewer reloads the playlist once and fetches one segment. That is 0.5 + 0.5 = **1 req/s** per viewer. Worked example: 1M viewers x 1 = **1M req/s**.\n\nWith LL-HLS, the same happens for every **part**. With 0.5 s parts, each viewer reloads the playlist and fetches a part every 0.5 s.",
+        },
+        {
           kind: "number",
+          teach: "Add the playlist and part requests per viewer per second, then multiply by the number of viewers, as in the worked example.",
           prompt: "1M viewers on LL-HLS with 0.5 s parts, video only. Each viewer makes about 2 playlist requests and 2 part requests per second. Total requests per second, in millions?",
           answer: 4,
           tolerance: 0.2,
@@ -1314,6 +1334,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "Think about what blocked reloads and parts do: many players wait for the same thing, each request stays open, and parts arrive bit by bit. Also recall how often the media playlist changes.",
           prompt: "Which CDN features become critical for LL-HLS? Select all that apply.",
           options: [
             "Collapsing blocked requests with the same `_HLS_msn` and `_HLS_part`",
@@ -1328,10 +1349,11 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "LL-DASH",
-          body: "**[[LL-DASH]]** uses the same ideas. The DASH-IF \"Low-latency Modes for DASH\" change request (2020) uses **chunked CMAF** delivered with **HTTP chunked transfer encoding**, signalled with `@availabilityTimeOffset`.\n\nA `ServiceDescription` carries a target latency, \"typically 2 to 10 seconds\". Segment duration \"shall not exceed 50% of the value of the target latency and should not exceed 30%\".",
+          body: "**[[LL-DASH]]** uses the same ideas. The DASH-IF \"Low-latency Modes for DASH\" change request (2020) uses **chunked CMAF** delivered with **HTTP chunked transfer encoding**, signalled with `@availabilityTimeOffset`.\n\nA `ServiceDescription` carries a target latency, \"typically 2 to 10 seconds\". Segment duration \"shall not exceed 50% of the value of the target latency and should not exceed 30%\".\n\nWorked example, a 10 s target: segments at most 5 s (shall), ideally at most 3 s (should).",
         },
         {
           kind: "number",
+          teach: "The \"shall\" limit is a percentage of the target latency. Apply it to 4 s, as in the worked example.",
           prompt: "Apply the DASH-IF rule. With a target latency of 4 s, what is the longest segment duration allowed by the \"shall\" limit?",
           answer: 2,
           tolerance: 0.1,
@@ -1370,19 +1392,25 @@ const chapter: Chapter = {
       id: "ch13-l7",
       title: "Rehearse the premiere",
       goal: "Load test a premiere layer by layer, run a game day, and follow a premiere-day runbook that feeds the next forecast.",
-      minutes: 9,
+      minutes: 10,
       steps: [
         {
+          kind: "read",
+          title: "Practise before the big night",
+          body: "You cannot wait for the premiere to learn whether the plan works. Teams rehearse: they load test, break things on purpose, and follow a **runbook** (a written, step-by-step plan with times and owners).\n\nBy the end of this lesson, you will be able to test a premiere layer by layer, design a game day, and follow a premiere-day runbook that feeds the next forecast.",
+        },
+        {
           kind: "quiz",
-          prompt: "You want to prove the platform survives an 8 Tbps premiere. Should you generate 8 Tbps from your own load generators?",
+          guess: true,
+          prompt: "Take a guess. You want to prove the platform survives an 8 Tbps premiere. Would you generate 8 Tbps of fake traffic from your own machines?",
           options: [
-            "No: test by layer, because synthetic terabits cost real money, can disturb other customers, and the test itself can cause an outage",
+            "No: test each layer separately, because fake terabits cost real money, can disturb others, and the test itself can cause an outage",
             "Yes, it is the only real proof",
             "Yes, but only from one region",
             "No, because load testing is unnecessary when the CDN says it is fine",
           ],
           answer: 0,
-          explain: "You cannot and should not generate 8 Tbps yourself. Split the test by layer, and get CDN capacity from vendor confirmation and past-event data.",
+          explain: "No. You cannot and should not generate 8 Tbps yourself. Synthetic terabits cost real money, share the CDN with other customers, and can break shared cloud limits. Instead, split the test by layer, and get CDN capacity from vendor confirmation and past-event data.",
         },
         {
           kind: "read",
@@ -1407,6 +1435,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Each layer fails in its own way. Pick the test that can actually reach that layer: your own synthetic load, the vendor's word, or failures injected in staging.",
           prompt: "Match each layer to how you test it.",
           pairs: [
             ["Control plane", "Synthetic clients at 2-3x forecast, DRM vendor included"],
@@ -1458,6 +1487,7 @@ const chapter: Chapter = {
         },
         {
           kind: "order",
+          teach: "Work that needs outside parties starts days ahead; the last checks happen minutes before T0. Use the times in the runbook table.",
           prompt: "Put these premiere-day actions in time order.",
           items: [
             "Forecast per region and share it with vendors and partner teams",
@@ -1478,7 +1508,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Measure it, do not just survive it",
-          body: "A good premiere ends with numbers, not just relief.",
+          body: "A good premiere ends with numbers, not just relief. One key number is the **forecast error** = (actual - forecast) / forecast.\n\nWorked example: forecast 2,000 starts/s, saw 2,200. Error = 200 / 2,000 = **10%** too low.",
           callout: {
             type: "mistake",
             text: "Treating the premiere as an incident to survive instead of a process to measure. If the team cannot say afterwards \"we forecast 2,500 starts/s, saw 3,100, the origin got 210 requests in the first two minutes, and license errors peaked at 0.4%\", next week's plan is a guess again.",
@@ -1486,6 +1516,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Use the forecast error formula from the worked example: the gap between actual and forecast, divided by the forecast.",
           prompt: "In that example, the team forecast 2,500 starts/s and saw 3,100. By what percent was the forecast too low?",
           answer: 24,
           tolerance: 1,
@@ -1523,8 +1554,13 @@ const chapter: Chapter = {
       id: "ch13-l8",
       title: "Checkpoint",
       goal: "Answer the chapter's review questions with the numbers and reasons behind them.",
-      minutes: 8,
+      minutes: 9,
       steps: [
+        {
+          kind: "read",
+          title: "What this chapter covered",
+          body: "Here is what this chapter covered:\n- A premiere is a **flash crowd**: fixed time, brand-new title, demand on one episode. The hot set is under 10 GB, so the problem is coordination.\n- **Request collapsing** and shields cut origin requests at T0 thousands of times. A unique value in the cache key breaks it.\n- **Staged publish** prevents the 404 trap. **Pre-warm shields**, not every edge.\n- **Plan CDN capacity in advance**, N+1 across CDNs. The **control plane** often fails first.\n- **Live** and LL-HLS raise request rates sharply.",
+        },
         {
           kind: "reveal",
           prompt: "Why is a simulcast premiere harder than a normal evening peak with twice the viewers?",
@@ -1532,6 +1568,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "With collapsing at every tier, each CDN's shield sends one request per hot object to the origin. Count the shields, then multiply by the hot objects.",
           prompt: "With the chapter's assumptions (48 hot objects, 3 CDNs), how many requests reach the origin at T0 with one shield per CDN and collapsing?",
           answer: 144,
           tolerance: 2,
@@ -1540,6 +1577,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Collapsing and caching work only when many requests share one cache key.",
           prompt: "Which single mistake destroys that benefit?",
           options: [
             "A per-user token (or any unique parameter) in the cache key",
@@ -1557,6 +1595,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "The failed CDN's traffic moves in proportion. Divide the 35% share by the shares that remain, then multiply by the total.",
           prompt: "A 40/35/25 split of an 8 Tbps peak. The 40% CDN fails. What must the 35% CDN carry?",
           answer: 4.67,
           tolerance: 0.1,
@@ -1565,6 +1604,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Think about when the moved traffic arrives, and what a cold cache sends to the origin.",
           prompt: "Why must that 35% CDN's shield already be warm?",
           options: [
             "The moved traffic arrives mid-spike; a cold shield would send a new herd to the origin at the worst time",
@@ -1577,6 +1617,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Compare cost and benefit: how hard is each one to warm, and what does each one save at T0 when PoPs already collapse requests?",
           prompt: "Why is pre-warming shields usually worth more than pre-warming every edge PoP?",
           options: [
             "Shield warm-up is cheap and removes almost all origin load; edge warm-up needs probes in hundreds of networks, risks pollution, and saves only one shield round trip per PoP",
@@ -1589,6 +1630,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "Good options move work earlier, spread it out in time, or switch it off. Watch for an option that piles work onto the exact moment of T0.",
           prompt: "Pick the ways to flatten the control-plane spike at T0. Select all that apply.",
           options: [
             "Scheduled scale-up before T0",
@@ -1603,6 +1645,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Count requests per viewer per second in each mode, playlist plus media, then compare the two totals.",
           prompt: "LL-HLS with 0.5 s parts versus classic HLS with 2 s segments. About how many times more requests per viewer?",
           answer: 4,
           tolerance: 0.3,
@@ -1611,6 +1654,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "Think about many players waiting for the same part, requests held open, and parts that arrive bit by bit. Recall how often the media playlist changes.",
           prompt: "Which CDN features become critical with LL-HLS?",
           options: [
             "Collapsing blocked requests with the same `_HLS_msn` and `_HLS_part`",
@@ -1623,6 +1667,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "A 30-day month has 8,640 five-minute samples, and the top 5% are discarded. Turn that 5% into hours and compare it with the spikes. Then recall whether billing and capacity are the same thing.",
           prompt: "Spikes happen 6 times a month for 1 hour each. With 95th-percentile billing on 5-minute samples, do they set the bill?",
           options: [
             "No: 6 hours is less than the 36 hours discarded, but the capacity must still exist",
@@ -1635,6 +1680,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "These are the per-distribution limits the chapter compared with a third of the 8 Tbps peak. Recall whether they can be changed.",
           prompt: "What are CloudFront's documented default quotas per distribution?",
           options: [
             "150 Gbps and 250,000 requests per second, both raisable",
@@ -1647,6 +1693,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Size = bitrate x seconds / 8 (8 bits = 1 byte). 1,000 MB is about 1 GB.",
           prompt: "Under 10 GB, the hot set of one episode. What is the size of all 7 video renditions alone (23.2 Mbps total x 1,440 s)?",
           answer: 4.2,
           tolerance: 0.3,

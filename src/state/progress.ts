@@ -20,6 +20,10 @@ const KEY = "delivery-academy:v1";
 const empty: ProgressState = { done: {}, xp: 0, days: [], dailyGoal: 1, resume: null, widgets: {}, missed: {} };
 let state: ProgressState = load();
 const subs = new Set<() => void>();
+// Pick up changes saved by another tab so a later save here does not overwrite them.
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (e) => { if (e.key === KEY) { state = load(); subs.forEach((f) => f()); } });
+}
 
 function load(): ProgressState {
   try { const raw = localStorage.getItem(KEY); return raw ? { ...empty, ...JSON.parse(raw) } : { ...empty }; } catch { return { ...empty }; }

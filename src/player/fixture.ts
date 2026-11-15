@@ -1,5 +1,7 @@
 /**
  * Test chapter for the lesson player: route #ch99-1 (every step kind) and #ch99-2 (short).
+ * ch99-1 also covers teach-first: a guess step (step 2), `teach` on most questions, a number step with only a
+ * `hint` (teach falls back to it) and an order step with neither (teach says "look back").
  * Not part of the course. Numbers follow the running example in CONTRIBUTING.md.
  */
 import type { Chapter, FlowSpec, SequenceSpec } from "@/content/types";
@@ -60,6 +62,17 @@ const FIXTURE: Chapter = {
         },
         {
           kind: "quiz",
+          guess: true,
+          prompt: "A minute later, a second viewer in Tokyo asks for the same segment. What would you expect?",
+          options: ["Slower than the first viewer", "About the same speed", "Faster than the first viewer"],
+          answer: 2,
+          explain:
+            "The first request was a **MISS**: the edge had to fetch the segment from further away, then it kept a copy. " +
+            "The second viewer gets that copy straight from the edge, a **HIT**, so it is faster. This is the whole idea of a cache.",
+        },
+        {
+          kind: "quiz",
+          teach: "A CDN has layers. The edge is closest to the viewer. Behind it sits a second, regional cache, and only behind that is the origin.",
           prompt: "The edge does not have the segment. Where does it ask first?",
           visual: { kind: "flow", spec: { ...path, focus: ["edge", "shield", "edge>shield"] } },
           options: ["The origin, directly", "The shield", "The viewer's ISP", "Another viewer's player"],
@@ -80,6 +93,7 @@ const FIXTURE: Chapter = {
           prompt: "Which of these make a cache HIT more likely?",
           options: ["Many viewers watch the same episode", "A longer cache lifetime (TTL)", "A unique query string on every request", "A shield layer in front of the origin"],
           answers: [0, 1, 3],
+          teach: "A HIT needs two things: the copy is already there, and the request matches it. Think about which options make the same URL repeat, or keep copies longer.",
           explain: "Popular content, a longer TTL and a shield all raise the hit ratio. A unique query string makes every URL different, so each request is a MISS unless the [[cache key]] ignores it.",
         },
         {
@@ -100,6 +114,7 @@ const FIXTURE: Chapter = {
         {
           kind: "match",
           prompt: "Match each term to its meaning.",
+          teach: "Think of distance from the viewer: closest cache, middle cache, then the source. The last term is about time, not place.",
           pairs: [
             ["Edge", "Cache closest to the viewer"],
             ["Shield", "Cache that protects the origin"],
@@ -133,6 +148,7 @@ const FIXTURE: Chapter = {
             caption: "Two ways to count hits",
           },
           options: ["Request hit ratio", "Byte hit ratio"],
+          teach: "The bill is for data sent. Ask which ratio counts data, and which counts only the number of requests.",
           answer: 1,
           explain: "Video is billed and served **by bytes**. A small manifest and a 2 MB segment count the same in a request ratio, but not in a byte ratio.",
         },

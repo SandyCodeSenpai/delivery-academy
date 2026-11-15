@@ -137,7 +137,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "One press of play",
-          body: "A fan in São Paulo presses play on a new episode one hour after it aired in Tokyo. Typically about two seconds later, the opening scene is on screen in 1080p, with Portuguese subtitles. It does not stop once in 24 minutes.\n\nThat simple moment hides a long chain of systems. This chapter draws the whole map once. Every later chapter zooms into one part of it.",
+          body: "A fan in São Paulo presses play on a new episode one hour after it aired in Tokyo. Typically about two seconds later, the opening scene is on screen in 1080p, with Portuguese subtitles. It does not stop once in 24 minutes.\n\nThat simple moment hides a long chain of systems. This chapter draws the whole map once. Every later chapter zooms into one part of it.\n\nBy the end of this lesson you can name the three problems that make video delivery hard, and say what a CDN is.",
         },
         {
           kind: "read",
@@ -145,8 +145,14 @@ const chapter: Chapter = {
           body: "The file arrived from a Japanese studio. It was checked, encoded into many versions, cut into small pieces, encrypted and stored in two clouds. Then it was copied, on demand, through two or three layers of caches, until a server a few milliseconds from the fan held the exact bytes the player wanted.\n\nYour goal is not depth on one box. It is to draw every box at a whiteboard, name who owns it, explain why it exists, and do the rough numbers for a platform the size of Crunchyroll.",
         },
         {
+          kind: "read",
+          title: "Bits and bytes: a worked example",
+          body: "Video speed is measured in **Mbps** (megabits per second). File size is measured in **bytes**. One byte is 8 bits.\n\nWorked example: 30 minutes of video at 2 Mbps.\n- Seconds: 30 x 60 = 1,800 s\n- Megabits: 2 Mb/s x 1,800 s = 3,600 Mb\n- Megabytes: 3,600 / 8 = **450 MB**\n\nAnd 1,000 MB is about 1 GB.",
+        },
+        {
           kind: "number",
-          prompt: "Predict first. One hour of 1080p video at an average of 4 Mbps. About how many gigabytes is that?",
+          teach: "Multiply the bitrate by the number of seconds to get megabits. Divide by 8 for megabytes, then by 1,000 for gigabytes.",
+          prompt: "Your turn. One hour of 1080p video at an average of 4 Mbps. About how many gigabytes is that?",
           answer: 1.8,
           tolerance: 0.15,
           unit: "GB",
@@ -170,7 +176,8 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
-          prompt: "Problem 2: timing. A web page takes 3 seconds to load. A video pauses for 3 seconds in a fight scene. Which is true?",
+          guess: true,
+          prompt: "Take a guess before Problem 2. A web page takes 3 seconds to load. A video pauses for 3 seconds in a fight scene. How would you expect a viewer to judge each?",
           options: [
             "Both are fine; 3 seconds is normal on the internet",
             "The page is fine, but the paused video is a failure",
@@ -182,11 +189,17 @@ const chapter: Chapter = {
         },
         {
           kind: "read",
+          title: "Problem 2: timing",
+          body: "A video player cannot wait. It must receive each piece of the video **before** the screen needs it. If a piece is late, the picture freezes. That freeze is called **rebuffering**, or a stall.\n\nSo video delivery is a **soft real-time system**: it has deadlines, and a missed deadline hurts the viewer, even though nothing crashes. And it runs over the public internet, which you do not control.",
+        },
+        {
+          kind: "read",
           title: "Problem 3: distance",
           body: "The internet is a **network of networks**. Bytes that travel far cross more links, more congestion and more chances of loss.\n\nThe fix is to keep copies close to viewers. That means caches in many places. That means a distributed system with thousands of nodes you do not fully control.",
         },
         {
           kind: "match",
+          teach: "Each problem has one main effect: one is about the bill, one is about deadlines, and one is about how far the bytes travel.",
           prompt: "Match each problem to what it means.",
           pairs: [
             ["Volume", "Egress is often the biggest bill"],
@@ -202,6 +215,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "The delivery layer is the CDN plus the systems around it that store, route and protect the bytes on their way. Encoding, DRM and players are owned by partner teams.",
           prompt: "Which of these is part of the delivery layer, not a partner team's system?",
           options: [
             "Encoding the bitrate ladder",
@@ -220,6 +234,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "Every delivery decision is judged in two currencies. This doc already talks about one of them.",
           prompt: "A design doc promises faster start times and says nothing else. Which questions should you add? Select all that apply.",
           options: [
             "What does it add to the egress or CDN bill?",
@@ -251,17 +266,9 @@ const chapter: Chapter = {
       minutes: 10,
       steps: [
         {
-          kind: "order",
-          prompt: "Before you see the map, guess it. Put the life of one new episode in order.",
-          items: [
-            "Licensor delivers the mezzanine file",
-            "Ingest: receive, validate, QC",
-            "Transcode into many renditions",
-            "Package and encrypt",
-            "Store at the origin",
-            "Serve through the shield and CDN edge",
-          ],
-          explain: "Content is prepared once (licensor to packaging), stored at the origin, and then served many times through caches. The next steps walk each box.",
+          kind: "read",
+          title: "From studio file to streamable files",
+          body: "A studio in Japan finishes an episode. A few hours later, fans around the world watch it on phones, TVs and laptops. Something has to turn one big studio file into files that every device can play.\n\nThis lesson walks that preparation, one box at a time. By the end you can follow an episode from the studio's file through checking, encoding, packaging and encryption.",
         },
         {
           kind: "read",
@@ -283,13 +290,14 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
-          prompt: "What can go wrong with the mezzanine file? Select all that apply.",
+          guess: true,
+          prompt: "Take a guess. A partner sends you this big file just before release. What could go wrong with the mezzanine file itself? Select all that apply.",
           options: [
             "It arrives late",
             "It arrives broken",
             "It has the wrong audio track layout",
             "It has burned-in subtitles when a clean version was expected",
-            "The CDN edge cache is cold",
+            "The CDN edge has no copy yet (a cold cache)",
           ],
           answers: [0, 1, 2, 3],
           explain: "The first four are mezzanine problems. A cold edge cache comes much later on the path. For a simulcast, a **late file is the most common cause of a late release**, and it has nothing to do with the CDN.",
@@ -302,6 +310,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "QC at ingest checks the file itself, before any viewer sees it. Ask which option is about the file, and which is about serving it much later.",
           prompt: "Which of these is NOT a QC check at ingest?",
           options: ["Checksums", "Audio and video sync", "Black frames and silent gaps", "Cache hit ratio"],
           answer: 3,
@@ -319,16 +328,22 @@ const chapter: Chapter = {
           ], caption: "Example ladder from the book, and so on down" },
         },
         {
+          kind: "read",
+          title: "Why a ladder: ABR",
+          body: "Why make so many versions? Because viewers' networks differ, and they change from minute to minute.\n\n**Adaptive bitrate streaming** ([[ABR]]): the player measures its network, picks the best rendition it can sustain, and can switch up or down every few seconds. A phone on a weak train connection drops to a lower rung instead of freezing.\n\nNote: more renditions mean **more** storage, not less.",
+        },
+        {
           kind: "quiz",
-          prompt: "Why make many renditions of the same video?",
+          teach: "An ABR player picks the highest rendition whose bitrate fits under the network speed it measures. Compare each rung of the ladder with 2 Mbps.",
+          prompt: "A viewer is watching at 720p (3 Mbps). Their Wi-Fi drops to about 2 Mbps. Using the example ladder, what does the ABR player do?",
           options: [
-            "So the player can pick the best one its network can sustain, and switch every few seconds",
-            "So each device gets its file from a different CDN",
-            "Because DRM needs one rendition per key",
-            "To make storage cheaper",
+            "Keeps 720p and waits for the network to recover",
+            "Switches down to 480p (1.2 Mbps), which the network can sustain",
+            "Asks the CDN to compress the 720p file further",
+            "Switches up to 1080p to fill the buffer faster",
           ],
-          answer: 0,
-          explain: "This is **adaptive bitrate streaming** ([[ABR]]): the player measures its network, picks the best rendition it can sustain, and can switch up or down every few seconds. More renditions actually mean more storage, not less.",
+          answer: 1,
+          explain: "1.2 Mbps fits under 2 Mbps; 3 Mbps does not. The player picks the best rendition it can sustain, and can switch back up a few seconds after the network recovers. That is why one mezzanine becomes a whole ladder.",
         },
         {
           kind: "read",
@@ -354,12 +369,13 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Packaging, part 1: segments",
-          body: "**Packaging** takes encoded video and audio and puts them in the shape the player expects. Two things happen.\n\nFirst, the streams are cut into **[[segments|segment]]**: small files of a few seconds each. Our assumed model uses **4 to 6 seconds** for VOD.",
+          body: "**Packaging** takes encoded video and audio and puts them in the shape the player expects. Two things happen.\n\nFirst, the streams are cut into **[[segments|segment]]**: small files of a few seconds each. Our assumed model uses **4 to 6 seconds** for **VOD** (video on demand, as opposed to live).\n\nWorked example: a 10-minute clip cut into 4-second segments. 10 x 60 = 600 s. 600 / 4 = **150 segments**.",
           visual: { kind: "flow", spec: map(["pkg", "tx>pkg"]) },
         },
         {
           kind: "number",
-          prompt: "A 24-minute episode is cut into 6-second segments. How many segments does one rendition have?",
+          teach: "Turn the episode length into seconds first. Then divide by the length of one segment.",
+          prompt: "Your turn. A 24-minute episode is cut into 6-second segments. How many segments does one rendition have?",
           answer: 240,
           tolerance: 1,
           unit: "segments",
@@ -378,6 +394,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "HLS and DASH are the two streaming formats, and each has its own manifest. Of the other two terms, one is a manifest and one is a segment format.",
           prompt: "Match each format term to its meaning.",
           pairs: [
             ["HLS", "Apple format, RFC 8216, master + media playlists"],
@@ -395,6 +412,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "To a cache, encrypted segments are just bytes. Think about who receives the keys, and from which service.",
           prompt: "A CDN edge caches an encrypted segment. What does the CDN need to do that?",
           options: [
             "The DRM content key",
@@ -413,6 +431,20 @@ const chapter: Chapter = {
             left: { title: "Static", points: ["All files written once, ahead of time", "Stored at the origin"] },
             right: { title: "Just-in-time (JIT)", points: ["Packager builds segments on the first request", "Right format made on demand"] },
           },
+        },
+        {
+          kind: "order",
+          teach: "Content is prepared once, then stored, then served many times. Follow the map: the top row first, then the origin, then the caches.",
+          prompt: "Now put the life of one new episode in order.",
+          items: [
+            "Licensor delivers the mezzanine file",
+            "Ingest: receive, validate, QC",
+            "Transcode into many renditions",
+            "Package and encrypt",
+            "Store at the origin",
+            "Serve through the shield and CDN edge",
+          ],
+          explain: "Content is prepared once (licensor to packaging), stored at the origin, and then served many times through caches. The next lesson walks the serving half.",
         },
         {
           kind: "summary",
@@ -435,11 +467,18 @@ const chapter: Chapter = {
       minutes: 10,
       steps: [
         {
+          kind: "read",
+          title: "Serving the episode",
+          body: "Lesson 2 prepared the files and stored them. Now the other half of the map: getting those files to millions of screens, many times over.\n\nWe will walk the serving path box by box: origin, shield, CDN edge, ISP and player. By the end you can say what each box does, and why a middle cache layer exists.",
+          visual: { kind: "flow", spec: map(["oa", "ob", "sh", "edge", "isp", "pl", "oa>sh", "ob>sh", "sh>edge", "edge>isp", "isp>pl"]) },
+        },
+        {
           kind: "quiz",
-          prompt: "A new episode is watched in 300 cities. Each city's edge misses on segment 1. With no middle cache layer, how many requests for that segment can reach the origin?",
+          guess: true,
+          prompt: "Take a guess. A new episode is watched in 300 cities. Each city has a cache server, and none of them has segment 1 yet, so each one asks the central storage for it. How many requests for segment 1 would you expect the central storage to get?",
           options: ["1", "About 300", "About 2M, one per viewer", "0, the CDN loads it in advance"],
           answer: 1,
-          explain: "Without a middle layer, every edge location that misses asks the origin. So 300 cities could cause **300 origin requests per segment**. This lesson walks the serving half of the map, and shows the fix.",
+          explain: "Each city's cache server is an **edge** location. Without a middle layer, every edge location that misses asks the origin (the central storage). So 300 cities could cause **300 origin requests per segment**. This lesson walks the serving half of the map, and shows the fix.",
         },
         {
           kind: "read",
@@ -454,6 +493,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Think about how object storage is billed, and about who the origin is designed to serve.",
           prompt: "Why not point every player straight at the S3 bucket?",
           options: [
             "S3 cannot serve files over HTTP",
@@ -487,28 +527,16 @@ const chapter: Chapter = {
           },
         },
         {
-          kind: "quiz",
-          prompt: "Which two layers can CloudFront put between its edges and your origin?",
-          options: [
-            "Regional edge caches (built in) and Origin Shield (optional)",
-            "Shield PoP and parent cache",
-            "Lambda@Edge and CloudFront Functions",
-            "Only Origin Shield",
-          ],
-          answer: 0,
-          explain: "CloudFront has two such layers: regional edge caches are a built-in mid tier, and Origin Shield is an optional extra layer in front of the origin.",
-        },
-        {
           kind: "read",
           title: "Request collapsing",
           body: "That merging of identical requests is **[[request collapsing]]** (or **coalescing**). Many viewers ask for the same missing object at the same time. The cache sends **one** fetch upstream instead of many.\n\nIt is what makes a synchronized premiere survivable (Chapters 5, 6 and 13).",
         },
         {
-          kind: "number",
-          prompt: "Same 300 cities, but now with a shield that collapses misses. In the best case, how many requests for segment 1 reach the origin?",
-          answer: 1,
-          tolerance: 0.5,
-          unit: "requests",
+          kind: "quiz",
+          teach: "With a shield, edges ask the shield, not the origin. Collapsing merges identical misses that arrive at the same time into one upstream fetch.",
+          prompt: "Same 300 cities, but now there is a shield that collapses misses. In the best case, how many requests for segment 1 reach the origin?",
+          options: ["About 300, one per city", "About 2M, one per viewer", "As few as 1", "About 150, half the cities"],
+          answer: 2,
           explain: "Edges ask the shield. The shield merges identical misses, \"resulting in as few as one request going to your origin\", as AWS puts it.",
         },
         {
@@ -518,11 +546,17 @@ const chapter: Chapter = {
           visual: { kind: "flow", spec: map(["edge", "sh>edge", "edge>isp"]) },
         },
         {
+          kind: "read",
+          title: "More than a cache",
+          body: "The edge does more than caching. It also:\n- **terminates TLS**: the encrypted HTTPS connection from the viewer ends here\n- **checks URL tokens**: proof that this viewer may fetch this file\n- **applies cache rules**: what to keep, and for how long\n- **logs every request**\n\nVendors build edges differently. Akamai's 2010 paper describes servers deep inside many networks around the world. Google's Media CDN uses the same infrastructure that serves YouTube. Chapter 5 compares them.",
+        },
+        {
           kind: "multi",
+          teach: "The edge handles each viewer request as it arrives. Ask which jobs happen per request, and which happen once, long before any viewer arrives.",
           prompt: "Besides caching, what else does the edge do? Select all that apply.",
           options: ["Terminates TLS", "Checks URL tokens", "Applies cache rules", "Logs every request", "Transcodes the mezzanine"],
           answers: [0, 1, 2, 3],
-          explain: "The edge terminates TLS, checks URL tokens, applies cache rules and logs every request. Transcoding happens once, long before. Vendors build edges differently: Akamai's 2010 paper describes servers deep inside many networks around the world, and Google's Media CDN uses the same infrastructure that serves YouTube. Chapter 5 compares them.",
+          explain: "The edge terminates TLS, checks URL tokens, applies cache rules and logs every request. Transcoding happens once per asset, long before any viewer arrives (Lesson 2).",
         },
         {
           kind: "read",
@@ -538,16 +572,6 @@ const chapter: Chapter = {
           visual: { kind: "flow", spec: map(["pl", "isp>pl"]) },
         },
         {
-          kind: "quiz",
-          prompt: "True or false: the CDN streams the video to the player.",
-          options: [
-            "True: the CDN pushes one continuous stream to each player",
-            "False: the CDN serves small files over HTTP, and the player creates the stream",
-          ],
-          answer: 1,
-          explain: "Modern streaming is just **HTTP downloads of small files**. The player creates the illusion of a stream by downloading the next file before the current one ends.",
-        },
-        {
           kind: "read",
           title: "Streaming is just files",
           body: "The CDN serves files. The player downloads the next segment before the current one ends, and that makes it look like a stream.\n\nThis is why everything we know about **HTTP caching** (RFC 9111) applies to video.",
@@ -561,6 +585,7 @@ const chapter: Chapter = {
         },
         {
           kind: "order",
+          teach: "A miss walks up the layers toward the source of truth. Then the bytes walk back down the same way.",
           prompt: "A segment is in no cache yet. Order the hops of its first fetch, starting with the player's request.",
           items: [
             "Player asks the CDN edge PoP",
@@ -593,8 +618,14 @@ const chapter: Chapter = {
       minutes: 11,
       steps: [
         {
+          kind: "read",
+          title: "Deciding versus delivering",
+          body: "So far we followed the bytes. But before the first byte moves, some services must decide things. Is this user allowed to watch? Which CDN should serve them? Which keys unlock the video?\n\nThis lesson splits every streaming system into two halves: one that **decides** and one that **delivers**. By the end you can tell which half a request belongs to, and predict how each half fails and spikes.",
+        },
+        {
           kind: "quiz",
-          prompt: "During an incident, people already watching keep watching. But nobody can start a new episode. Where do you look first?",
+          guess: true,
+          prompt: "Take a guess. During an incident, people already watching keep watching. But nobody can start a new episode. Where would you look first?",
           options: [
             "The CDN edge caches",
             "The services that decide: playback API, entitlement, DRM license",
@@ -620,6 +651,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "Data plane items are the same bytes for every viewer. Control plane items are decisions made for one user or one session.",
           prompt: "Which of these are data plane? Select all that apply.",
           options: ["Video segments", "DRM license", "Subtitle files", "CDN steering decision", "Thumbnails", "URL signing"],
           answers: [0, 2, 4],
@@ -645,6 +677,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Keys never travel through the CDN. Think about which service hands out keys (Lesson 2), and whether that is a decision or shared bytes.",
           prompt: "The player has the manifest, but the segments are encrypted. Where does it go next, and which plane is that?",
           visual: { kind: "sequence", spec: seq(7) },
           options: [
@@ -670,6 +703,7 @@ const chapter: Chapter = {
         },
         {
           kind: "order",
+          teach: "Decide first, then fetch the list of files, then get what unlocks them, then the bytes flow.",
           prompt: "Put the calls of a playback start in order.",
           items: [
             "Play request to the playback API",
@@ -703,6 +737,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "The table has a row for what drives each plane's spikes. Data plane load is the bytes flowing to people who are already watching.",
           prompt: "What drives a spike in data plane load?",
           options: [
             "The number of people pressing play at once",
@@ -725,6 +760,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Starts need the deciding services. Playing sessions need a steady flow of segments. Which of the two is broken here?",
           prompt: "New starts work fine. But sessions already playing stall and drop quality. Which plane is in trouble?",
           options: ["Control plane", "Data plane", "Neither: it is always the player", "Both, equally"],
           answer: 1,
@@ -744,6 +780,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "A manifest that is the same for every viewer can be cached. Ask what happens to caching when each viewer gets a different one.",
           prompt: "A team wants to bake a per-user CDN choice into every manifest. What changes?",
           options: [
             "Nothing: manifests are always data plane",
@@ -775,16 +812,9 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
-          kind: "quiz",
-          prompt: "Why use edge, shield and origin layers? Why not just one very big origin?",
-          options: [
-            "The platform delivers thousands of times its catalog size, so copies near viewers win",
-            "No single cloud bucket can store the catalog",
-            "DRM requires exactly three layers",
-            "Object storage cannot serve HTTP",
-          ],
-          answer: 0,
-          explain: "It comes down to a ratio: the **size of the catalog** compared to the **bytes delivered**. The next steps work it out.",
+          kind: "read",
+          title: "Why layers of caches?",
+          body: "Why have edges, shields and an origin at all? Why not one very big origin?\n\nThe answer is a ratio: the **size of the catalog** (every episode stored once) compared to the **bytes delivered** each month. In this lesson you work that ratio out yourself.\n\nThen you meet the four features of Crunchyroll's traffic that drive most of its delivery design.",
         },
         {
           kind: "read",
@@ -797,8 +827,14 @@ const chapter: Chapter = {
           ] },
         },
         {
+          kind: "read",
+          title: "Sizing one rendition: a worked example",
+          body: "Use the method from Lesson 1: bitrate x seconds, then divide by 8.\n\nWorked example: one 6 Mbps rendition of a 24-minute episode.\n- Seconds: 24 x 60 = 1,440 s\n- Megabits: 1,440 s x 6 Mb/s = 8,640 Mb\n- Bytes: 8,640 / 8 = 1,080 MB, about **1.1 GB**\n\nFor the whole ladder, use the **sum** of all the rendition bitrates instead of one.",
+        },
+        {
           kind: "number",
-          prompt: "Video only, all 7 renditions together (23 Mbps), for a 24-minute episode. About how many GB?",
+          teach: "Same method as the worked example: seconds x total bitrate gives megabits. Divide by 8 for megabytes, then by 1,000 for gigabytes.",
+          prompt: "Your turn. Video only, all 7 renditions together (23 Mbps), for a 24-minute episode. About how many GB?",
           answer: 4.1,
           tolerance: 0.15,
           unit: "GB",
@@ -808,7 +844,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Add the audio",
-          body: "Audio, 5 tracks: 1,440 s x 0.128 Mb/s x 5 = 922 Mb, about 0.12 GB. Subtitles are a few hundred KB: ignore them.\n\nTotal: about **4.2 GB per episode**, packaged once.",
+          body: "Audio, 5 tracks: 1,440 s x 0.128 Mb/s x 5 = 922 Mb, about 0.12 GB. Subtitles are a few hundred KB: ignore them.\n\nTotal: about **4.2 GB per episode**, packaged once.\n\nTo size a whole catalog, multiply by the number of episodes. Example: 1,000 episodes x 3 GB = 3,000 GB = **3 TB** (1,000 GB = 1 TB).",
           visual: { kind: "table", headers: ["Part", "Math", "Size"], rows: [
             ["Video, all renditions", "1,440 s x 23 Mb/s = 33,120 Mb", "about 4.1 GB"],
             ["Audio, 5 tracks", "1,440 s x 0.128 Mb/s x 5 = 922 Mb", "about 0.12 GB"],
@@ -818,24 +854,17 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
-          prompt: "50,000 episodes x 4.2 GB. How big is one copy of the catalog, in TB?",
+          teach: "Multiply the number of episodes by the size of one episode. Then turn GB into TB: 1,000 GB = 1 TB.",
+          prompt: "Your turn. 50,000 episodes x 4.2 GB. How big is one copy of the catalog, in TB?",
           answer: 210,
           tolerance: 10,
           unit: "TB",
           explain: "50,000 x 4.2 GB = 210,000 GB, about **210 TB**. Even if you double it for two packaging formats and add old versions, the catalog is well under 1 PB.",
         },
         {
-          kind: "number",
-          prompt: "540 PB delivered per month, catalog 0.21 PB. Roughly how many times its own catalog does the platform deliver each month?",
-          answer: 2500,
-          tolerance: 150,
-          unit: "x",
-          explain: "540 / 0.21 is about 2,570, so **roughly 2,500 times** per month.",
-        },
-        {
           kind: "read",
           title: "Caches, not file servers",
-          body: "Every month the platform delivers roughly **2,500 times** its own catalog. The same bytes are sent over and over.\n\nThat repetition is why the delivery layer is **a set of caches, not a set of big file servers**.",
+          body: "Now compare. One copy of the catalog is about 210 TB, or **0.21 PB**. The platform delivers about **540 PB** a month.\n\n540 / 0.21 is about 2,570. So every month the platform delivers roughly **2,500 times** its own catalog. The same bytes are sent over and over.\n\nThat repetition is why the delivery layer is **a set of caches, not a set of big file servers**.",
           visual: { kind: "flow", spec: funnel(), caption: "The caching funnel" },
         },
         {
@@ -852,7 +881,8 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
-          prompt: "For video, which hit ratio matters for cost and origin capacity?",
+          guess: true,
+          prompt: "Take a guess. One cache miss is a 2 MB video segment. Another is a 2 KB manifest. For video, which hit ratio would you expect to matter for cost and origin capacity?",
           options: ["By requests", "By bytes", "Either: they are always equal", "Only the origin's"],
           answer: 1,
           explain: "**By bytes.** A 2 MB segment miss matters far more than a 2 KB manifest miss. Our assumed target is **95% or more by bytes** for VOD, and near 100% for a simulcast episode after warm-up.",
@@ -875,6 +905,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "A premiere is a fixed time, worldwide, for a brand-new file. Think about what the caches hold one minute before, and which plane every new start touches (Lesson 4).",
           prompt: "Why is a simulcast premiere the defining delivery challenge? Select all that apply.",
           options: [
             "Many people want the same new file at the same minute",
@@ -896,7 +927,13 @@ const chapter: Chapter = {
           body: "One episode can have several audio dubs and ten or more subtitle languages (assumed model). Every audio track is another set of segments. Every subtitle language is another set of small text files. This multiplies:\n- **Storage**: more files per episode\n- **Cache fragmentation**: viewers split across tracks\n- **Manifest size**: many audio and subtitle groups",
         },
         {
+          kind: "read",
+          title: "Muxed or demuxed audio",
+          body: "There are two ways to package audio with video:\n- **Muxed**: the audio is mixed into each video segment. One file carries both.\n- **Demuxed**: audio and video are separate segment files. The player fetches one of each and plays them together.\n\nRemember the cache rule: a cache can reuse a file only when the next viewer asks for the **exact same** file.",
+        },
+        {
           kind: "quiz",
+          teach: "With muxed audio, each file holds one video rendition plus one audio language. Count how many different files the viewers in Mexico now ask for.",
           prompt: "In Mexico, some viewers watch the Spanish dub and some the Japanese audio. Audio is muxed into each video segment. What happens to the cache?",
           options: [
             "Nothing: they share all segments",
@@ -910,10 +947,11 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Subtitles and territories",
-          body: "Crunchyroll long used the styled **ASS** (Advanced SubStation Alpha) subtitle format. For Fall 2025, Anime News Network reported a move to a much simpler, unstyled format. Crunchyroll blamed the visible problems on \"internal system problems\".\n\nAnime licenses are sold **per territory**, and Crunchyroll serves fans in more than 200 countries and territories. Every play request needs a **geo check**: is this title licensed where the viewer is? It lives in the control plane, backed at the CDN by signed URLs and sometimes geo rules. Content Protection owns most of it.",
+          body: "Crunchyroll long used the styled **ASS** (Advanced SubStation Alpha) subtitle format. For Fall 2025, Anime News Network reported a move to a much simpler, unstyled format; Crunchyroll blamed the visible problems on \"internal system problems\".\n\nAnime licenses are sold **per territory**, and Crunchyroll serves fans in more than 200 countries and territories. Every play request needs a **geo check**: is this title licensed where the viewer is? It lives in the control plane, backed at the CDN by signed URLs and sometimes geo rules. Content Protection owns most of it.",
         },
         {
           kind: "match",
+          teach: "Each feature stresses one part of the system: the caches at release time, the deep layers behind the edge, the number of files, or the control plane.",
           prompt: "Match each feature of Crunchyroll's shape to its delivery effect.",
           pairs: [
             ["Simulcast", "Same new file, same minute, cold caches"],
@@ -956,12 +994,12 @@ const chapter: Chapter = {
       id: "ch01-l6",
       title: "The numbers, worked through",
       goal: "Do the back-of-envelope numbers for bytes, egress, request rates and control-plane load at Crunchyroll scale.",
-      minutes: 11,
+      minutes: 12,
       steps: [
         {
           kind: "read",
           title: "Numbers you can say out loud",
-          body: "All values in this lesson are **assumed**, from the course's shared model. They are not published Crunchyroll data.\n\nLearn to do them in your head. In a design review, the person who can say \"that is about 400 Gbps to the shields\" earns trust.",
+          body: "All values in this lesson are **assumed**, from the course's shared model. They are not published Crunchyroll data.\n\nLearn to do them in your head. In a design review, the person who can say \"that is about 400 Gbps to the shields\" earns trust.\n\nBy the end you can work out bytes, egress, request rates and control-plane load for a platform this size. Every calculation starts with a worked example.",
           visual: { kind: "stats", items: [
             { value: "4 Mbps", label: "average bitrate", note: "assumed" },
             { value: "300M h", label: "viewing per month", note: "assumed" },
@@ -970,46 +1008,33 @@ const chapter: Chapter = {
           ] },
         },
         {
+          kind: "read",
+          title: "Hours to petabytes: a worked example",
+          body: "Start with bytes. One viewing hour at 4 Mbps is about **1.8 GB** (4 Mbps x 3,600 s, Lesson 1).\n\nWorked example: a smaller service streams 1M hours a month.\n- 1M h x 1.8 GB = 1.8M GB\n- 1,000 GB = 1 TB, and 1,000 TB = 1 PB, so 1M GB = 1 PB\n- Result: **1.8 PB per month**",
+        },
+        {
           kind: "number",
-          prompt: "One viewing hour is 1.8 GB (4 Mbps x 3,600 s). The platform streams 300M hours a month. How many PB per month?",
+          teach: "Multiply hours by GB per hour. Then remember that 1M GB is 1 PB.",
+          prompt: "Your turn. The platform streams 300M hours a month at 1.8 GB per hour. How many PB per month?",
           answer: 540,
           tolerance: 20,
           unit: "PB",
           explain: "300M x 1.8 GB = 540M GB = **540 PB per month**.",
         },
         {
-          kind: "number",
-          prompt: "Spread 540 PB evenly over a 30-day month (about 2.59M seconds). What is the average egress in Tbps?",
-          answer: 1.7,
-          tolerance: 0.15,
-          unit: "Tbps",
-          hint: "First get GB/s, then multiply by 8 for Gbps.",
-          explain: "540 PB / 2.59M s is about 208 GB/s. x 8 = about 1,670 Gbps, so about **1.7 Tbps** on average.",
-        },
-        {
-          kind: "number",
-          prompt: "Evening peak: 1M concurrent streams at 4 Mbps. What is the peak egress in Tbps?",
-          answer: 4,
-          tolerance: 0.2,
-          unit: "Tbps",
-          explain: "1M x 4 Mbps = 4M Mbps = **4 Tbps**.",
-        },
-        {
-          kind: "number",
-          prompt: "Peak 4 Tbps, monthly average 1.7 Tbps. What is the peak-to-average ratio?",
-          answer: 2.4,
-          tolerance: 0.2,
-          unit: "x",
-          explain: "4 / 1.7 is about **2.4**. The normal peak is about 2.4 times the monthly average.",
+          kind: "read",
+          title: "Average egress",
+          body: "**Egress rate** is how fast bytes leave the network, in bits per second. 1 **Tbps** (terabit per second) = 1,000 **Gbps**.\n\nSpread 540 PB evenly over a 30-day month (about 2.59M seconds):\n- 540 PB / 2.59M s = about 208 GB/s\n- Bytes to bits, x 8: about 1,670 Gbps\n- Result: about **1.7 Tbps** on average",
         },
         {
           kind: "read",
-          title: "Why peaks matter",
-          body: "That **peak-to-average ratio** matters because CDN contracts and capacity are often **sized and billed by peaks**, not averages. Chapter 16 covers [[95th percentile billing]].",
+          title: "Peak egress",
+          body: "But viewing is not even: most people watch in the evening. Peak egress is **concurrent streams x bitrate**.\n\nEvening peak: 1M streams x 4 Mbps = 4M Mbps = **4 Tbps**. That is 4 / 1.7, about **2.4 times** the average: the **peak-to-average ratio**.\n\nIt matters because CDN contracts and capacity are often **sized and billed by peaks**, not averages. Chapter 16 covers [[95th percentile billing]].",
         },
         {
           kind: "number",
-          prompt: "Simulcast spike: 2M concurrent streams at 4 Mbps. Peak egress in Tbps?",
+          teach: "Peak egress is concurrent streams times bitrate. As a check, 1M streams x 1 Mbps is 1 Tbps.",
+          prompt: "Your turn. Simulcast spike: 2M concurrent streams at 4 Mbps. Peak egress in Tbps?",
           answer: 8,
           tolerance: 0.3,
           unit: "Tbps",
@@ -1018,7 +1043,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Design for 12",
-          body: "The spike is 8 Tbps, but design for about **12 Tbps**. The headroom covers:\n- a bigger-than-expected premiere\n- a CDN that loses a PoP\n- a shift of traffic from one CDN to another during failover",
+          body: "The spike is 8 Tbps, but design for about **12 Tbps**. The headroom covers:\n- a bigger-than-expected premiere\n- a CDN that loses a PoP\n- a shift of traffic from one CDN to another during failover\n- uneven traffic across regions and vendors",
           visual: { kind: "stats", items: [
             { value: "4 Tbps", label: "evening peak" },
             { value: "8 Tbps", label: "simulcast spike" },
@@ -1026,8 +1051,14 @@ const chapter: Chapter = {
           ], caption: "All assumed" },
         },
         {
+          kind: "read",
+          title: "Losing a CDN: a worked example",
+          body: "Headroom is about failure. Worked example: two CDNs, each sized at exactly half of a 6 Tbps spike.\n- Each CDN carries 6 / 2 = 3 Tbps, and it is full\n- One CDN fails at the spike. Its 3 Tbps must go somewhere\n- The other CDN has no free room\n- Result: you are **3 Tbps short**, at the worst moment",
+        },
+        {
           kind: "number",
-          prompt: "Three CDNs, each sized at exactly one third of 8 Tbps. One fails at the spike. How many Tbps short are you?",
+          teach: "Each CDN carries an equal share and has no spare room. When one fails, its whole share has nowhere to go.",
+          prompt: "Your turn. Three CDNs, each sized at exactly one third of 8 Tbps. One fails at the spike. How many Tbps short are you?",
           answer: 2.7,
           tolerance: 0.15,
           unit: "Tbps",
@@ -1040,20 +1071,18 @@ const chapter: Chapter = {
           callout: { type: "staff", text: "Headroom is not waste. If each of three CDNs is sized at exactly one third of 8 Tbps, losing one leaves you 2.7 Tbps short in the worst possible moment. This is why \"design for 12\" is a reliability statement, not a cost mistake." },
         },
         {
-          kind: "number",
-          prompt: "Every stream downloads one video segment per segment duration. 2M streams, 6-second segments. How many thousand video segment requests per second?",
-          answer: 333,
-          tolerance: 15,
-          unit: "k req/s",
-          explain: "2M / 6 = about **333,000 video segment requests per second**.",
+          kind: "read",
+          title: "Request rate: a worked example",
+          body: "Bytes are one load. **Requests per second** are another: every request costs CPU, log lines and sometimes a fee.\n\nEvery stream downloads one video segment per segment duration. Worked example: 1M streams, 5-second segments.\n- Video: 1M / 5 = **200,000 requests/s**\n- If audio is a separate (**demuxed**) track, each stream also fetches one audio segment per 5 s: add the same again\n- Total: **400,000 requests/s**",
         },
         {
           kind: "number",
-          prompt: "Now the audio is a separate (demuxed) track, so each stream also fetches one audio segment per 6 s. Total thousand requests per second?",
+          teach: "Divide the number of streams by the segment length for video. Demuxed audio adds the same number again.",
+          prompt: "Your turn. 2M streams, 6-second segments, demuxed audio. How many thousand segment requests per second in total?",
           answer: 667,
           tolerance: 20,
           unit: "k req/s",
-          explain: "Add the same again for audio: 333k + 333k = about **667,000 requests per second**.",
+          explain: "Video: 2M / 6 = about **333,000 video segment requests per second**. Audio adds the same again: 333k + 333k = about **667,000 requests per second**.",
         },
         {
           kind: "read",
@@ -1065,8 +1094,14 @@ const chapter: Chapter = {
           ], caption: "2M streams, assumed" },
         },
         {
+          kind: "read",
+          title: "Edge misses: a worked example",
+          body: "How much traffic gets past the edge? Only misses travel on to the shield tier. The **miss share** is 100% minus the hit ratio.\n\nWorked example: the 4 Tbps evening peak, with a 95% edge byte hit ratio.\n- Miss share: 100% - 95% = 5%\n- 5% of 4 Tbps = 0.2 Tbps\n- Result: **200 Gbps** of misses to the shields",
+        },
+        {
           kind: "number",
-          prompt: "Edge byte hit ratio is 95%. At an 8 Tbps spike, how many Gbps of edge misses reach the shield tier?",
+          teach: "Edge misses are the miss share of all traffic. To turn Tbps into Gbps, multiply by 1,000.",
+          prompt: "Your turn. Edge byte hit ratio is 95%. At the 8 Tbps simulcast spike, how many Gbps of edge misses reach the shield tier?",
           answer: 400,
           tolerance: 20,
           unit: "Gbps",
@@ -1081,7 +1116,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "The cold-cache picture",
-          body: "The cold-cache picture matters more than the steady-state ratio. Assume (for illustration) **300 edge locations** across all CDNs serve the episode. At release, each misses on segment 1 of each rendition.\n\nWithout collapsing, each location could send many parallel misses before the first fill completes. With collapsing, each sends **one**, and the shield sends **one** to origin.",
+          body: "The cold-cache picture matters more than the steady-state ratio. Assume (for illustration) **300 edge locations** across all CDNs serve the episode. At release, each misses on segment 1 of each rendition.\n\nWithout collapsing, each location could send many parallel misses before the first fill completes. With collapsing, each sends **one**, and the shield sends **one** to origin. So 2M viewers become about 300 shield requests, and about **1 origin request per object per shield**.",
           visual: { kind: "flow", spec: {
             nodes: [
               { id: "vw", label: "2M viewers", sub: "ask for segment 1", kind: "viewer", col: 0, row: 1 },
@@ -1098,28 +1133,19 @@ const chapter: Chapter = {
           } },
         },
         {
-          kind: "quiz",
-          prompt: "With collapsing at the edges and the shield, 2M viewers ask for segment 1 of one rendition. About how many requests reach the origin, per object per shield?",
-          options: ["About 2M", "About 300", "About 1", "Zero"],
-          answer: 2,
-          explain: "2M viewers become about 300 shield requests (one per edge location), and about **1 origin request per object per shield**.",
+          kind: "read",
+          title: "Control-plane load: a worked example",
+          body: "Now the deciding services. Their load is the **rate of new starts**, and each start makes about **4 calls**: playback API, entitlement, manifest or steering, DRM license.\n\nWorked example: 1M viewers join a smaller premiere, 20% of them in the first minute.\n- Starts: 20% of 1M = 200,000 in 60 s = about **3,300 starts/s**\n- Calls: 3,300 x 4 = about **13,000 requests/s**",
         },
         {
           kind: "number",
-          prompt: "Control plane at a premiere: 2M viewers join over 10 minutes, with 30% in the first minute. How many starts per second at the front of the spike?",
-          answer: 10000,
-          tolerance: 500,
-          unit: "starts/s",
-          hint: "30% of 2M, divided by 60 seconds.",
-          explain: "30% of 2M = 600,000 starts in 60 seconds = **10,000 starts per second**.",
-        },
-        {
-          kind: "number",
-          prompt: "Each start makes about 4 control plane calls (playback API, entitlement, manifest or steering, DRM license). Requests per second?",
+          teach: "First find the starts per second in the first minute. Then multiply by the calls each start makes.",
+          prompt: "Your turn. 2M viewers join a premiere over 10 minutes, with 30% in the first minute. Each start makes about 4 control-plane calls. How many control-plane requests per second at the front of the spike?",
           answer: 40000,
           tolerance: 2000,
           unit: "req/s",
-          explain: "10,000 starts/s x 4 calls = **about 40,000 requests per second**, to services that cannot be cached.",
+          hint: "30% of 2M, divided by 60 seconds, then x 4.",
+          explain: "30% of 2M = 600,000 starts in 60 seconds = **10,000 starts per second**. x 4 calls = **about 40,000 requests per second**, to services that cannot be cached.",
         },
         {
           kind: "read",
@@ -1165,8 +1191,14 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "Same boxes, different owners",
+          body: "Every large streamer has every box on our map. Yet Netflix, YouTube and the others run them very differently.\n\nThis lesson covers three ways to own the edge, where the Media Delivery team sits among its partner teams, and a checklist to review any change against the whole path. By the end you can place a company in one pattern and spot the risky handoffs between teams.",
+        },
+        {
           kind: "quiz",
-          prompt: "Netflix, YouTube and a typical large streamer all have every box on the map. Where do they differ most?",
+          guess: true,
+          prompt: "Take a guess. Netflix, YouTube and a typical large streamer all have every box on the map. Where would you expect them to differ most?",
           options: ["Who owns the edge", "Whether they use segments", "Whether they encrypt", "Whether they have an origin"],
           answer: 0,
           explain: "Every large streamer has every box from the map. They differ mainly in **who owns the edge**. There are three patterns.",
@@ -1178,6 +1210,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "A standard CDN learns what is popular from requests. Netflix has extra knowledge about its members, and it uses quiet hours.",
           prompt: "What lets Netflix place new content on its appliances before anyone asks for it?",
           options: [
             "It can predict what members will watch, so it pushes content in off-peak fill windows",
@@ -1211,6 +1244,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Each pattern buys something and pays for it. Look again at the Cost column of the table.",
           prompt: "Match each pattern to its main weakness.",
           pairs: [
             ["Own CDN", "Huge capital and operations effort"],
@@ -1256,6 +1290,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Each partner team touches the bytes path at one point: the files, their protection, the player, or security at the edge.",
           prompt: "Match each partner team to one handoff with Media Delivery.",
           pairs: [
             ["Content Pipeline", "File layout and publish timing"],
@@ -1268,11 +1303,12 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Incidents live at the boundaries",
-          body: "Most real delivery incidents happen **at team boundaries**, not inside one team's box.",
+          body: "Most real delivery incidents happen **at team boundaries**, not inside one team's box.\n\nTwo terms first. A **query string** is the part of a URL after the `?`. A cache treats every different URL as a different file. A **[[retry storm]]** is when many players retry a failed request at the same moment, multiplying the load on one place.",
           callout: { type: "staff", text: "A packaging change that adds a query string to segment URLs destroys cache hit ratio. A new token format that the CDN cannot validate breaks playback in one region. A player retry change creates a retry storm against one CDN. A staff engineer on Media Delivery reads partner teams' design docs for these boundary effects, and asks partner teams to read theirs." },
         },
         {
           kind: "multi",
+          teach: "Ask of each change: does it touch anything a cache, a CDN or a player relies on? A change that touches no bytes cannot hurt delivery.",
           prompt: "Which of these partner-team changes can hurt delivery? Select all that apply.",
           options: [
             "Packaging adds a query string to every segment URL",
@@ -1325,12 +1361,18 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "What this chapter covered",
+          body: "Here is what this chapter covered:\n- **The map**: licensor, ingest, transcode, package and encrypt, origin, shield, CDN edge, ISP, player\n- **Two planes**: the control plane decides, the data plane moves the bytes\n- **The funnel**: the platform delivers about 2,500x its catalog a month, so delivery is a set of caches\n- **The numbers**: 8 Tbps at a premiere (design 12), hundreds of thousands of segment requests per second\n- **The edge**: your own CDN, a cloud provider's CDN, or multi-CDN\n- **Boundaries**: most incidents happen between teams",
+        },
+        {
           kind: "reveal",
           prompt: "A product manager wants to add the user's ID as a query parameter on every segment URL \"for analytics\". What is the most likely delivery impact, and what would you propose instead?",
           answer: "If the parameter is in the [[cache key]], every segment URL becomes **unique per user**. The hit ratio collapses, and almost every request goes to the shield and origin.\n\nInstead: send it in a header excluded from the cache key, use [[CMCD]] with the CDN configured to ignore it in the key, or collect analytics from the player separately.",
         },
         {
           kind: "quiz",
+          teach: "Sessions already playing hold everything they need. Ask which half of the system is used only at the start.",
           prompt: "Users already watching continue normally, but nobody can start a new episode. Which plane is failing?",
           options: ["Control plane", "Data plane", "The last mile", "The CDN edge cache"],
           answer: 0,
@@ -1338,6 +1380,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Peak egress is concurrent streams times average bitrate. Use the premiere numbers of the assumed model.",
           prompt: "Assumed model: what is the peak egress during a premiere, in Tbps?",
           answer: 8,
           tolerance: 0.3,
@@ -1346,6 +1389,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "Headroom covers surprises and failures in the traffic and the system. It is not about how vendors sell capacity.",
           prompt: "Why design for about 12 Tbps instead of 8? Select all that apply.",
           options: [
             "A premiere can be bigger than expected",
@@ -1358,6 +1402,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Edges hold the popular head of the catalog. Think about the rest of it, and about many edges missing at the same moment.",
           prompt: "The catalog is only about 210 TB and the hot content fits easily in edge caches. Why still have a shield tier?",
           options: [
             "The long tail does not fit in every edge PoP; a shared shield turns tail misses into shield hits and collapses premiere misses",
@@ -1375,6 +1420,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "One system places content ahead of time; the other learns what to keep from requests.",
           prompt: "What is the difference between Netflix's fill windows and a commercial CDN's pull caching?",
           options: [
             "Netflix pushes predicted-popular content off-peak before anyone asks; commercial CDNs pull on demand, so the first request in each location misses",
@@ -1387,6 +1433,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Video requests per second are streams divided by segment length. Demuxed audio adds the same number again.",
           prompt: "2M viewers, 4-second segments, demuxed audio. Roughly how many thousand segment requests per second do the CDNs receive?",
           answer: 1000,
           tolerance: 50,
@@ -1395,6 +1442,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Same method as the last question, with a longer segment.",
           prompt: "Same, but with 6-second segments. Thousand requests per second?",
           answer: 667,
           tolerance: 20,
@@ -1403,6 +1451,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Each team touches the bytes path at one point: the files, their protection, the player, or the security rules in front of the origin.",
           prompt: "Match each partner team to a handoff that could break playback if done badly.",
           pairs: [
             ["Content Pipeline", "File layout change or late publish before a simulcast"],
@@ -1414,6 +1463,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall what the CDN actually serves, and which side makes it look like one continuous stream.",
           prompt: "Which sentence best describes modern streaming?",
           options: [
             "The CDN opens one long stream per viewer",
@@ -1426,6 +1476,7 @@ const chapter: Chapter = {
         },
         {
           kind: "order",
+          teach: "Prepare once, then store, then serve through the cache layers toward the viewer.",
           prompt: "Put the full path of an episode in order.",
           items: [
             "Licensor and mezzanine",
@@ -1504,6 +1555,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Think of the chapter's story: where content starts, how caches protect the origin, how premieres survive, and how to split a system in two.",
           prompt: "Match each term to its one-line meaning.",
           pairs: [
             ["Mezzanine file", "High-quality master from the licensor"],

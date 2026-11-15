@@ -303,8 +303,14 @@ const chapter: Chapter = {
       minutes: 9,
       steps: [
         {
+          kind: "read",
+          title: "One vendor, one risk",
+          body: "A CDN is a large, reliable system. Yet big video services usually pay several CDN companies at the same time, and send each viewer to one of them.\n\nWhy pay for more than one? In this lesson you will see a real outage, the five reasons services use several CDNs, and the costs they accept in return. By the end you can explain when one CDN is enough and when it is not.",
+        },
+        {
           kind: "quiz",
-          prompt: "On 8 June 2021, 85% of one big CDN's network started returning errors. Your service uses only that CDN. What do your viewers see?",
+          guess: true,
+          prompt: "Take a guess. One day, 85% of a big CDN's network starts returning errors. Your service uses only that CDN. What would you expect your viewers to see?",
           options: [
             "Nothing. A CDN always has spare PoPs for this.",
             "Errors and failed playback until the CDN recovers.",
@@ -312,7 +318,7 @@ const chapter: Chapter = {
             "Lower picture quality, but no errors.",
           ],
           answer: 1,
-          explain: "With one CDN, its outage is your outage. There is nowhere else to send viewers. This really happened to Fastly, and every minute of its recovery was also a minute of failed playback for single-CDN customers.",
+          explain: "With one CDN, its outage is your outage. There is nowhere else to send viewers, so they see errors until the CDN recovers. This really happened to Fastly on 8 June 2021, and every minute of its recovery was also a minute of failed playback for its single-CDN customers.",
         },
         {
           kind: "read",
@@ -359,9 +365,10 @@ const chapter: Chapter = {
             "One vendor, chosen at the yearly contract review.",
             "A table keyed by country, ASN, time of day and device type.",
             "Whichever vendor has the most PoPs.",
-            "The vendor with the lowest TTFB in synthetic tests.",
+            "The vendor that answers fastest in lab tests.",
           ],
           answer: 1,
+          teach: "The research found that CDN performance changes with place, network and time. Think about what kind of answer can hold all of that.",
           explain: "Performance varies by place, network and time. The research found big differences across time, geography and ISP, so the answer changes per cell of that table, and it keeps changing.",
         },
         {
@@ -370,11 +377,17 @@ const chapter: Chapter = {
           body: "- **Cost leverage.** With one CDN, the vendor knows you cannot leave quickly. With two or three production-ready CDNs you can move volume, and that changes every renewal negotiation.\n- **Spike capacity.** A big [[simulcast]] premiere can reach ~2M concurrent streams within minutes (assumed). Few vendors want to promise all of that in one region on short notice.\n- **Regional coverage.** Some CDNs are weaker in parts of Asia, Latin America, Africa or the Middle East. A service in 200+ countries and territories will see these differences.",
         },
         {
+          kind: "read",
+          title: "Worked example: peak egress",
+          body: "**Egress** is the data a CDN sends out to viewers, per second. At a peak it is simple to estimate:\n\n**egress = concurrent streams x bitrate per stream**\n\nExample: 500,000 streams x 5 Mbps = 2,500,000 Mbps.\n\nNow convert units: 1 Gbps = 1,000 Mbps, and 1 Tbps = 1,000 Gbps = 1,000,000 Mbps. So 2,500,000 Mbps = **2.5 Tbps**.",
+        },
+        {
           kind: "number",
           prompt: "A premiere reaches ~2M concurrent streams at ~4 Mbps each (assumed model). What is the peak egress?",
           answer: 8,
           tolerance: 0.5,
           unit: "Tbps",
+          teach: "Multiply concurrent streams by the bitrate of each stream, then convert Mbps to Tbps (1 Tbps = 1,000,000 Mbps).",
           hint: "1 Tbps = 1,000,000 Mbps.",
           explain: "2,000,000 x 4 Mbps = 8,000,000 Mbps = 8 Tbps. Spreading this spike across several vendors lowers the share any one vendor must absorb (Chapter 13). Some regional CDNs also have deep ISP relationships in one country, which helps exactly where a big CDN is weak.",
         },
@@ -399,19 +412,31 @@ const chapter: Chapter = {
           },
         },
         {
+          kind: "read",
+          title: "Worked example: what reaches origin",
+          body: "The **byte hit ratio** is the share of bytes a CDN serves from its own cache. The rest are **misses**, and misses are fetched from the origin (or a shield in front of it).\n\n**origin traffic = (100% - hit ratio) x egress**\n\nExample: a CDN sends 2 Tbps with a 90% hit ratio. Misses are 10%. 10% x 2 Tbps = 0.2 Tbps = **200 Gbps** reaches the origin.",
+        },
+        {
           kind: "number",
           prompt: "One CDN serves the 8 Tbps peak with a 95% byte hit ratio (assumed). How much egress reaches the origin or shield?",
           answer: 400,
           tolerance: 10,
           unit: "Gbps",
+          teach: "Origin traffic is the miss share (100% minus the hit ratio) times total egress. Remember 1 Tbps = 1,000 Gbps.",
           explain: "Misses are 5% of bytes. 5% x 8 Tbps = 0.4 Tbps = 400 Gbps.",
         },
         {
+          kind: "read",
+          title: "Why splitting hurts the cache",
+          body: "Now split the same viewers across three CDNs. Each CDN has its own caches, and each cache sees only about a third of the requests.\n\nPopular episodes are still requested often, so they stay in all three caches. But the **[[long tail]]** (the many older episodes that few people watch) now gets a third of the requests per cache. Those objects are evicted more often, so the blended hit ratio drops. A small drop in hit ratio is a big rise in misses.",
+        },
+        {
           kind: "number",
-          prompt: "Now split the same traffic across three CDNs. Each long-tail object gets a third of the requests per cache, so it is evicted more often. The blended hit ratio drops to 92%. What is origin egress now?",
+          prompt: "Split the 8 Tbps across three CDNs, and the blended hit ratio drops from 95% to 92% (assumed). What is origin egress now?",
           answer: 640,
           tolerance: 10,
           unit: "Gbps",
+          teach: "Use the same formula as before with the new hit ratio: the miss share times 8 Tbps.",
           explain: "8% x 8 Tbps = 640 Gbps, which is 60% more than 400 Gbps (assumed numbers). Popular episodes stay hot in all three caches. The [[long tail]] is what suffers.",
         },
         {
@@ -419,6 +444,15 @@ const chapter: Chapter = {
           title: "The fix: one shared shield",
           body: "This is why multi-CDN and a shared **[[shield]]** usually go together. AWS published a pattern where CloudFront [[Origin Shield]] is the single origin-facing tier for other CDNs too. All of them share one mid-tier cache and one place for [[request collapsing]].\n\nAWS reported up to **57% lower origin load** in its examples.",
           visual: { kind: "flow", spec: SHIELD, caption: "Three CDNs, one shield: a miss on any CDN can be served by the shared tier." },
+        },
+        {
+          kind: "read",
+          title: "Keep every CDN warm",
+          body: "Resilience only exists if the second path already works. A CDN that carries real traffic every day has **warm caches** (popular content is already stored), a config that viewers have tested for you, and a known capacity. That is why good designs never park a CDN at 0%.",
+          callout: {
+            type: "mistake",
+            text: "Treating the second CDN as a \"backup\" that carries 0% of traffic. A cold backup has cold caches, untested config and unknown capacity, and you discover all of that during the incident. Keep every CDN carrying real traffic every day.",
+          },
         },
         {
           kind: "quiz",
@@ -430,16 +464,8 @@ const chapter: Chapter = {
             "Vendors do not sell backup-only contracts.",
           ],
           answer: 1,
+          teach: "Think about what daily traffic gives a CDN for free: what is in its caches, what has been tested, and what you know about its limits.",
           explain: "A cold backup hides three problems, and you discover all of them during the incident: cold caches (a flood of misses to origin), untested config (tokens or headers may be wrong) and unknown capacity.",
-        },
-        {
-          kind: "read",
-          title: "Keep every CDN warm",
-          body: "Resilience only exists if the second path already works. A CDN that carries real traffic every day has warm caches, a config that viewers have tested for you, and a known capacity. That is why good designs never park a CDN at 0%.",
-          callout: {
-            type: "mistake",
-            text: "Treating the second CDN as a \"backup\" that carries 0% of traffic. A cold backup has cold caches, untested config and unknown capacity, and you discover all of that during the incident. Keep every CDN carrying real traffic every day.",
-          },
         },
         {
           kind: "summary",
@@ -462,8 +488,14 @@ const chapter: Chapter = {
       minutes: 11,
       steps: [
         {
+          kind: "read",
+          title: "Who goes where?",
+          body: "You now have several CDNs in a **pool** (the set of vendors you can send traffic to). Every time a viewer presses play, something must pick one of them. That choice is called **steering**.\n\nIn this lesson you will meet the main vendors, the four questions every steering system answers, and the oldest method: steering with DNS. By the end you can explain how DNS steering works and why it is slow.",
+        },
+        {
           kind: "quiz",
-          prompt: "Your pool has Fastly, Akamai and CloudFront. A colleague asks you to rank them from best to worst. What is the honest answer?",
+          guess: true,
+          prompt: "Take a guess. Your pool has Fastly, Akamai and CloudFront. A colleague asks you to rank them from best to worst. What would you expect the honest answer to be?",
           options: [
             "Akamai, because it has the most servers.",
             "It depends: rankings change by quarter, region and ASN.",
@@ -471,12 +503,12 @@ const chapter: Chapter = {
             "CloudFront, because the origin is on AWS.",
           ],
           answer: 1,
-          explain: "The book describes vendor shapes, not rankings. Rankings change by quarter, region and ASN, which is exactly why steering exists.",
+          explain: "It depends. Lesson 1 showed that \"best\" changes by country, network and time of day, so any ranking changes by quarter, region and ASN. That is exactly why steering exists. Instead of rankings, it helps to know each vendor's **shape**: what it is good at and what is different about it.",
         },
         {
           kind: "read",
           title: "Shapes, not rankings",
-          body: "Chapter 5 explains how each vendor is built. A steering engineer needs a simpler view: what is each vendor good for in a pool, and what is different about it?",
+          body: "Chapter 5 explains how each vendor is built. A steering engineer needs a simpler view: what is each vendor good for in a pool, and what is different about it? Rankings change by quarter, region and ASN.\n\nTwo terms in the table: with **[[anycast]]**, every PoP announces the same IP address and internet routing picks the PoP. A **token format** is how a CDN checks a signed URL, and each vendor has its own.",
           visual: {
             kind: "table",
             headers: ["Vendor", "Shape", "Why in a video pool", "Watch out for"],
@@ -500,6 +532,7 @@ const chapter: Chapter = {
             ["Google Media CDN", "Built for high-throughput media egress"],
             ["Cloudflare", "Anycast everywhere, which limits fine-grained steering"],
           ],
+          teach: "Use the \"Shape\" and \"Watch out for\" columns of the vendor table. Look for the one detail that is unique to each vendor.",
           explain: "These are shapes, not rankings. Note the [[Akamai EdgeAuth]] token format and [[anycast]]: both change how steering and token signing work on that vendor.",
         },
         {
@@ -520,13 +553,13 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Decision points 1 and 2",
-          body: "**1. Session start.** The player asks the playback API to start a session. The API returns a manifest with CDN hostnames already inside it.\n\n**2. DNS.** The player resolves the video hostname. A steering DNS answers with CDN A or CDN B.",
+          body: "**1. Session start.** The player asks the **playback API** (the backend that starts a viewing session) to start a session. The API returns a manifest with CDN hostnames already inside it. This happens once per session.\n\n**2. DNS.** The player resolves the video hostname. A steering DNS answers with CDN A or CDN B. The answer is cached by the viewer's **resolver** (the DNS server of their ISP, or a public one), so one answer covers everyone behind that resolver.",
           visual: { kind: "flow", spec: { ...DECIDE, focus: ["p", "api", "dns", "p>api", "p>dns"] } },
         },
         {
           kind: "read",
           title: "Decision points 3 and 4",
-          body: "**3. Content steering.** Every TTL, the player fetches a small steering manifest that says which CDN to prefer.\n\n**4. Player retry.** On errors, the player retries the same segment on another CDN.\n\nBoth CDNs pull from one shared origin shield, which pulls from origin storage on AWS and GCP. Each numbered arrow is a decision point, and real systems combine two or three.",
+          body: "**3. Content steering.** Every TTL (typically every few minutes, even mid-session), the player fetches a small steering manifest that says which CDN to prefer.\n\n**4. Player retry.** On errors, the player retries the same segment on another CDN.\n\nBoth CDNs pull from one shared origin shield, which pulls from origin storage on AWS and GCP. Each numbered arrow is a decision point, and real systems combine two or three.",
           visual: { kind: "flow", spec: { ...DECIDE, focus: ["p", "sts", "a", "b", "sh", "p>sts", "p>a", "p>b", "a>sh", "b>sh"], flow: ["p>b", "b>sh"] } },
         },
         {
@@ -538,24 +571,18 @@ const chapter: Chapter = {
             ["Content steering server", "Every few minutes, mid-session"],
             ["Player retry logic", "Per request, when a segment fails"],
           ],
+          teach: "Go back over the four numbered decision points. For each one, ask: what event makes it decide, and how often does that event happen?",
           explain: "Same question (\"which CDN?\"), four different moments and granularities. That is why real systems combine two or three of them.",
         },
         {
-          kind: "quiz",
-          prompt: "A CDN can fail in seconds. A DNS change takes minutes. A session-start decision only affects new sessions, and a VOD episode lasts 24 minutes or more. What does this gap mean?",
-          options: [
-            "DNS is fast enough for any failure.",
-            "Viewers already playing stay on the failing CDN unless something can switch them mid-session.",
-            "Session-start steering moves everyone within a minute.",
-            "Episodes should be shorter.",
-          ],
-          answer: 1,
-          explain: "Timescale matters. Neither DNS nor session-start steering reaches a viewer who is already 10 minutes into an episode. That gap is why mid-session switching matters.",
+          kind: "reveal",
+          prompt: "Think about timescales. A CDN can fail in seconds. A DNS change takes minutes. A session-start decision only affects new sessions, and a VOD episode lasts 24 minutes or more. What does this gap mean for a viewer who is 10 minutes into an episode?",
+          answer: "That viewer stays on the failing CDN unless something can switch them **mid-session**. Neither DNS nor session-start steering reaches a viewer who is already watching. Timescale matters, and this gap is why mid-session switching matters.",
         },
         {
           kind: "read",
           title: "Method 1: DNS-based steering",
-          body: "The player requests segments from one stable hostname, for example `video.example.com`. That hostname is a [[CNAME]] to a name on a **steering DNS** service. The steering DNS picks a CDN and returns a CNAME to that CDN's hostname. Chapter 3 covers resolvers, TTLs and EDNS Client Subnet.",
+          body: "The player requests segments from one stable hostname, for example `video.example.com`. That hostname is a **[[CNAME]]** (a DNS alias that says \"this name really means that name\") to a name on a **steering DNS** service. The steering DNS picks a CDN and returns a CNAME to that CDN's hostname. Chapter 3 covers resolvers, TTLs and EDNS Client Subnet.",
           visual: { kind: "sequence", spec: { ...DNS_SEQ, upTo: 2 }, caption: "The steering decision happens inside the DNS answer." },
         },
         {
@@ -576,16 +603,9 @@ const chapter: Chapter = {
           body: "- **Weighted:** 60% of answers to CDN A, 40% to B.\n- **Geo:** by resolver or client-subnet location.\n- **Health-checked:** drop a CDN whose synthetic checks fail.\n- **RUM-driven:** use measurements from real users.\n\nNS1 Pulsar (now IBM NS1 Connect) collects latency and availability from real users through JavaScript beacons or API integrations, aggregates it by region and ASN, and uses it in DNS answers. Cedexis Openmix and Radar did the same.",
         },
         {
-          kind: "quiz",
-          prompt: "Citrix bought Cedexis in 2018 and sold it as Citrix Intelligent Traffic Management (ITM). What happened to that product?",
-          options: [
-            "It became IBM NS1 Connect.",
-            "It ended on 31 October 2025.",
-            "It became an open standard.",
-            "It moved into the HLS specification.",
-          ],
-          answer: 1,
-          explain: "Citrix ended ITM on 31 October 2025. NS1 Pulsar is a different product, now IBM NS1 Connect. If you depend on a steering vendor, its end of life becomes your migration project.",
+          kind: "read",
+          title: "Steering vendors come and go",
+          body: "Citrix bought Cedexis in 2018 and sold it as **Citrix Intelligent Traffic Management (ITM)**. Citrix ended ITM on **31 October 2025**. NS1 Pulsar is a different product, now IBM NS1 Connect.\n\nThe lesson: if you depend on a steering vendor, its end of life becomes your migration project.",
         },
         {
           kind: "read",
@@ -612,6 +632,7 @@ const chapter: Chapter = {
             "Every CDN needs a valid certificate for the same hostname.",
           ],
           answers: [0, 1, 3, 4],
+          teach: "Use the strengths and weaknesses table. One option here is actually listed as a strength, not a weakness.",
           explain: "DNS needs no player changes at all; that is its main strength. The other four are real: coarse granularity, slow switching (Reznik et al. report 300 s to 15 min), no mid-session control, and one hostname that every CDN must serve with a valid certificate and a valid URL token.",
         },
         {
@@ -644,16 +665,9 @@ const chapter: Chapter = {
       minutes: 9,
       steps: [
         {
-          kind: "quiz",
-          prompt: "At session start, the playback API already knows the viewer's country, device, app version and ASN. What new power does it get if it also picks the CDN?",
-          options: [
-            "It can move sessions mid-episode.",
-            "It can apply per-session rules, like \"this TV model has a TLS bug on CDN C\".",
-            "It removes the need for URL tokens.",
-            "It makes manifests more cacheable.",
-          ],
-          answer: 1,
-          explain: "Per-session context is the big strength. Rules like \"this TV model has a TLS bug on CDN C\" or \"tonight's premiere is pinned to two pre-warmed CDNs\" become easy. It cannot move a VOD session later, and it makes manifests less cacheable, not more.",
+          kind: "read",
+          title: "Two more places to decide",
+          body: "DNS steering decides far from the viewer, and slowly. Two other places know much more: the **backend** that starts each session, and the **player** itself.\n\nIn this lesson you will see both methods, what each is good at, and how each can go wrong. By the end you can say which job the player should own and which job the backend should own.",
         },
         {
           kind: "read",
@@ -691,20 +705,26 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
-          prompt: "A VOD session started on CDN A through session-start steering. Five minutes later, CDN A degrades on this viewer's ISP. What does session-start steering do for this viewer?",
+          prompt: "At session start, the playback API already knows the viewer's country, device, app version and ASN. What new power does it get if it also picks the CDN?",
           options: [
-            "Moves it at the next manifest refresh.",
-            "Nothing: the VOD manifest was fetched once.",
-            "Moves it when the DNS TTL expires.",
-            "Pushes a new CDN to the player.",
+            "It can move sessions mid-episode.",
+            "It can apply per-session rules, like \"this TV model has a TLS bug on CDN C\".",
+            "It removes the need for URL tokens.",
+            "It makes manifests more cacheable.",
           ],
           answer: 1,
-          explain: "The VOD manifest is fetched once, so the CDN choice is frozen for the session. Live manifests refresh every few seconds, so hostnames could change there, but swapping segment URLs under a player is fragile.",
+          teach: "Look at the first strength in the list: what does the backend know about this one session that DNS never sees?",
+          explain: "Per-session context is the big strength. Rules like \"this TV model has a TLS bug on CDN C\" or \"tonight's premiere is pinned to two pre-warmed CDNs\" become easy. It cannot move a VOD session later, and it makes manifests less cacheable, not more.",
         },
         {
           kind: "read",
-          title: "Weaknesses of session-start steering",
-          body: "- **No mid-session switch for VOD.** Live is possible but fragile.\n- **Manifest cacheability drops.** Per-CDN hostnames and per-session tokens mean the manifest is generated per session. At 10,000 session starts per second, that is a real service.\n- **Aggregate data.** The decision uses data from many clients, not this client's own experience.",
+          title: "Stuck for the whole episode",
+          body: "The biggest weakness: **no mid-session switch for VOD**. A **VOD** (video on demand) manifest is fetched once at the start. So if CDN A degrades five minutes later, session-start steering does nothing for this viewer. The CDN choice is frozen for the session.\n\nLive manifests refresh every few seconds, so hostnames could change there. But swapping segment URLs under a playing player is fragile.",
+        },
+        {
+          kind: "read",
+          title: "Two more weaknesses",
+          body: "- **Manifest cacheability drops.** Per-CDN hostnames and per-session tokens mean the manifest is generated per session. At 10,000 session starts per second, that is a real service.\n- **Aggregate data.** The decision uses data from many clients, not this client's own experience.",
         },
         {
           kind: "multi",
@@ -717,6 +737,7 @@ const chapter: Chapter = {
             "It decides from aggregate data, not this client's own experience.",
           ],
           answers: [0, 1, 4],
+          teach: "Recall the three strengths (context, instant for new sessions, per-CDN URLs) and the three weaknesses (frozen VOD sessions, per-session manifests, aggregate data).",
           explain: "Instant for new sessions, per-vendor URLs and tokens, but aggregate data. Manifests become per-session (less cacheable), and a VOD session stays where it started.",
         },
         {
@@ -733,7 +754,8 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
-          prompt: "Every player has its own rule: \"jump to CDN B when A slows\". At peak, CDN A slows. What happens next?",
+          guess: true,
+          prompt: "Take a guess. Every player has its own rule: \"jump to CDN B when A slows\". At peak, CDN A slows. What would you expect to happen next?",
           options: [
             "Traffic moves smoothly to B and stays there.",
             "B gets a wave it was not ready for, slows down, and players jump back.",
@@ -741,7 +763,7 @@ const chapter: Chapter = {
             "Nothing: players wait for A to recover.",
           ],
           answer: 1,
-          explain: "This is **herding**. Everyone acts on the same signal at the same time, so the target gets a wave. It slows, and players jump back. This oscillation can make an incident worse.",
+          explain: "Think of a supermarket where everyone sees the same short queue and runs to it at once: now that queue is the long one. This is **herding**. Every player acts on the same signal at the same time, so CDN B gets a wave it was not ready for. B slows, players jump back to A, and traffic swings back and forth. This swinging is called **oscillation**, and it can make an incident worse.",
         },
         {
           kind: "read",
@@ -760,6 +782,7 @@ const chapter: Chapter = {
             ["Server-side at session start", "Stuck sessions"],
             ["Client-side custom logic", "Oscillation and fragmentation"],
           ],
+          teach: "For each method, ask where the decision lives and how long it lasts: in a resolver cache, in a manifest fetched once, or in code inside every player.",
           explain: "DNS answers live on in resolver caches. Session-start choices are frozen for the session. Custom player logic must be built on every platform and can herd.",
         },
         {
@@ -788,8 +811,14 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "A standard way to steer",
+          body: "Each method so far has a gap. DNS is slow, session start cannot move a VOD session, and custom player logic must be rebuilt on every device.\n\nIn 2021 the streaming standards added a method that combines the best parts. In this lesson you will read the new playlist tags and the small steering file, learn the rules the player follows, and compare all four methods.",
+        },
+        {
           kind: "quiz",
-          prompt: "A manifest lists the same episode on CDN A and CDN B. Who should decide, mid-session, which one the player uses?",
+          guess: true,
+          prompt: "Take a guess. A manifest lists the same episode on CDN A and CDN B. Who would you expect should decide, mid-session, which one the player uses?",
           options: [
             "The player alone, from its own throughput.",
             "A server the player asks every few minutes, with the player falling back by itself on errors.",
@@ -797,7 +826,7 @@ const chapter: Chapter = {
             "Nobody: the first CDN is used for the whole session.",
           ],
           answer: 1,
-          explain: "This is the design of HLS and DASH Content Steering: a server gives the preference, and the player handles failures locally. It combines the backend's global view with the player's fast reaction.",
+          explain: "Remember the split from Lesson 3: the player owns failure, a backend owns preference. That is exactly the design of HLS and DASH Content Steering. A server gives the preferred order every few minutes, and the player handles failures by itself in seconds. It combines the backend's global view with the player's fast reaction.",
         },
         {
           kind: "read",
@@ -818,32 +847,20 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "The idea in one sentence",
-          body: "The manifest lists the same content on several **pathways** (one per CDN), and the player periodically asks a **steering server** which pathway order to use.\n\nThat is **[[Content Steering]]**.",
+          body: "The manifest lists the same content on several **pathways**. A pathway is one full copy of the content's URLs on one CDN, with a name such as `CDN-A`. The player periodically asks a **steering server** which pathway order to use.\n\nThat is **[[Content Steering]]**.",
           visual: { kind: "flow", spec: CS },
         },
         {
           kind: "read",
           title: "HLS: one new tag",
-          body: "In [[HLS]], the multivariant playlist gets one new tag, `EXT-X-CONTENT-STEERING`, and a `PATHWAY-ID` on each variant.\n\nHere the 1080p video and the Japanese audio exist twice: once on `cdn-a` (pathway CDN-A) and once on `cdn-b` (pathway CDN-B).",
+          body: "In [[HLS]], the **multivariant playlist** (the top-level file that lists every quality level, or **variant**) gets one new tag, `EXT-X-CONTENT-STEERING`, and a `PATHWAY-ID` on each variant.\n\nHere the 1080p video and the Japanese audio exist twice: once on `cdn-a` (pathway CDN-A) and once on `cdn-b` (pathway CDN-B).",
           visual: { kind: "code", lang: "m3u8", code: HLS_CODE, caption: "Multivariant playlist with two pathways." },
         },
         {
           kind: "read",
           title: "Reading the tag",
-          body: "- `SERVER-URI` is the steering manifest URL. It may carry an asset ID, or be a `data:` URI with the first steering manifest inline.\n- `PATHWAY-ID` on the tag is the pathway to use until the first steering manifest arrives.\n- The provider should offer **all rendition groups** (every dub and subtitle) on every pathway.\n- Old players ignore the tag, so the design is **backward compatible**.",
+          body: "- `SERVER-URI` is the steering manifest URL. It may carry an asset ID, or be a `data:` URI with the first steering manifest inline.\n- `PATHWAY-ID` on the tag is the pathway to use until the first steering manifest arrives.\n- The provider should offer **all rendition groups** (every dub and subtitle) on every pathway.\n- Old players ignore the tag and play normally, so the design is **backward compatible**. They just get no mid-session steering.",
           visual: { kind: "code", lang: "m3u8", code: HLS_CODE },
-        },
-        {
-          kind: "quiz",
-          prompt: "An old player that does not understand `EXT-X-CONTENT-STEERING` loads this playlist. What happens?",
-          options: [
-            "Playback fails with a parse error.",
-            "It ignores the tag and plays a variant normally.",
-            "It plays both pathways at once.",
-            "It asks the steering server anyway.",
-          ],
-          answer: 1,
-          explain: "Old players ignore unknown tags, so the design is backward compatible. They just do not get mid-session steering. That is why the main risk of Content Steering is old devices without support.",
         },
         {
           kind: "read",
@@ -874,6 +891,7 @@ const chapter: Chapter = {
           prompt: "Mid-session, you want to add CDN C, which is not in the cached manifest that players already have. Which field does it?",
           options: ["TTL", "RELOAD-URI", "PATHWAY-PRIORITY", "PATHWAY-CLONES"],
           answer: 3,
+          teach: "Three of these fields only reorder or time things that already exist. One field can create a pathway that the cached manifest never listed.",
           explain: "`PATHWAY-CLONES` builds a new pathway from an existing one (new HOST, extra PARAMS). Then `PATHWAY-PRIORITY` can put it first. No new master manifest is needed.",
         },
         {
@@ -885,12 +903,13 @@ const chapter: Chapter = {
             ["_HLS_pathway", "_DASH_pathway"],
             ["_HLS_throughput", "_DASH_throughput"],
           ],
+          teach: "Compare the HLS playlist with the DASH MPD: each CDN is a pathway in HLS and a BaseURL in DASH. The query parameters keep the same word after the prefix.",
           explain: "Different syntax, same server-client exchange. That is why one steering server can steer both HLS and DASH players.",
         },
         {
           kind: "read",
           title: "Client rules",
-          body: "1. If all variants on the current pathway fail with network errors, mark it **penalized**. The HLS draft notes about two minutes is generally enough to recover.\n2. On each new steering manifest, switch if the current pathway is not first, is missing, or is penalized.\n3. On **410 Gone**, never call that URI again in the session; keep the last pathway list. On **429** with `Retry-After`, wait.\n4. If the manifest cannot be loaded or parsed, keep previous values; retry after the previous TTL (or 5 minutes).",
+          body: "1. If every variant on the current pathway fails with network errors, mark it **penalized** and switch at once to the next pathway that is not. About two minutes is usually enough to recover.\n2. On each new steering manifest, switch if the current pathway is not first, is missing, or is penalized.\n3. On **410 Gone**, stop calling that URI this session and keep the last list. On **429** (too many requests), wait for `Retry-After`.\n4. If the manifest fails to load or parse, keep previous values; retry after the TTL (or 5 minutes).",
         },
         {
           kind: "quiz",
@@ -902,6 +921,7 @@ const chapter: Chapter = {
             "Players switch to the last pathway in the list.",
           ],
           answer: 1,
+          teach: "Read client rule 4: what does the player do when a steering manifest cannot be loaded or parsed?",
           explain: "Rules 3 and 4 mean **a dead steering server does not stop playback.** As Reznik et al. put it, even if steering servers fail, they will not cause the delivery system to fail.",
         },
         {
@@ -921,6 +941,7 @@ const chapter: Chapter = {
             "Retries CDN A until it recovers.",
           ],
           answer: 1,
+          teach: "Client rule 1 covers a pathway whose requests keep failing. Does that rule need the steering server?",
           explain: "The penalty rule acts in seconds, with no server call. The player fetches the same rendition's next segment from CDN B. After the TTL it reloads with pathway CDN-B, and the server now answers CDN-B first, then CDN-A.",
         },
         {
@@ -989,6 +1010,7 @@ const chapter: Chapter = {
           },
           options: ["DNS-based", "Server-side at session start", "Client-side custom", "Content Steering"],
           answer: 3,
+          teach: "Read two rows of the table: \"Reaction to CDN failure\" and \"Business rules\". Find the column that is good in both.",
           explain: "Content Steering reacts in seconds through the penalty rule, reorders in minutes through the TTL, and keeps full business rules in the steering server. Its main risk is old devices without support, which is why strong designs combine methods.",
         },
         {
@@ -1012,8 +1034,14 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "The brain behind the choice",
+          body: "Content Steering gives you a way to tell players which CDN to use. It does not tell you **which** CDN is right. That is your own **steering service**: the system that decides.\n\nIn this lesson you will see what data that service needs, how much load it must carry at a premiere, and how to split it into a slow, smart part and a fast, simple part.",
+        },
+        {
           kind: "quiz",
-          prompt: "For a 4 Mbps stream at peak: CDN X has 20 ms time to first byte but cannot hold 6 Mbps. CDN Y has 40 ms but holds 6 Mbps. Which is better for video?",
+          guess: true,
+          prompt: "Take a guess. For a 4 Mbps stream at peak: CDN X answers fast (20 ms to the first byte) but cannot hold 6 Mbps. CDN Y answers slower (40 ms) but holds 6 Mbps. Which would you expect to give better video?",
           options: [
             "CDN X: lower latency always wins.",
             "CDN Y: sustained throughput and error rate matter more.",
@@ -1021,7 +1049,7 @@ const chapter: Chapter = {
             "Neither: both are too slow.",
           ],
           answer: 1,
-          explain: "Time to first byte matters for start time, but for a 4 Mbps stream, sustained throughput and error rate matter more. A CDN that cannot hold the bitrate at peak causes rebuffering.",
+          explain: "A video stream is like a water pipe that must keep flowing: what matters is how much it can carry, all the time. **Time to first byte (TTFB)** matters for start time, but for a 4 Mbps stream, **sustained throughput** (data per second, kept up over time) and error rate matter more. A CDN that cannot hold the bitrate at peak causes rebuffering.",
         },
         {
           kind: "read",
@@ -1056,6 +1084,7 @@ const chapter: Chapter = {
             ["Commit position for the month", "Cost and contracts"],
             ["\"Drain CDN B in Brazil now\"", "Capacity and business rules"],
           ],
+          teach: "Ask where each signal comes from: from players, from CDN logs, from the contract, or from an operator's decision.",
           explain: "The policy needs all four groups. QoE and health say which CDN works; cost and contracts say which is cheaper; capacity and rules say what is allowed right now.",
         },
         {
@@ -1073,17 +1102,18 @@ const chapter: Chapter = {
             "Drop the cell from steering.",
           ],
           answer: 1,
+          teach: "The \"Freshness and noise\" step gave two defences: one for cells that are too small, one for data that is too old.",
           explain: "Small cells are noisy, so use the parent (ASN to country to region). Stale data should not drive changes: hold the last decision instead.",
         },
         {
           kind: "read",
           title: "Design doc: requirements",
-          body: "A design doc section for \"a platform like Crunchyroll\", with assumed numbers. It is not Crunchyroll's actual system.\n\nFunctional:\n1. For each new session, return an ordered list of CDNs, with signed URLs or tokens for each.\n2. Serve HLS and DASH steering manifests that can change the order mid-session.\n3. Rank CDNs per cell using QoE, availability, cost, commits and capacity.\n4. Support audited manual overrides (drain a CDN in a region, pin an event to a CDN set) and scheduled drills.",
+          body: "A design doc section for \"a platform like Crunchyroll\", with assumed numbers. It is not Crunchyroll's actual system.\n\n**Functional** requirements say *what* the system does:\n1. For each new session, return an ordered list of CDNs, with signed URLs or tokens for each.\n2. Serve HLS and DASH steering manifests that can change the order mid-session.\n3. Rank CDNs per cell using QoE, availability, cost, commits and capacity.\n4. Support audited manual overrides (drain a CDN in a region, pin an event to a CDN set) and scheduled drills.",
         },
         {
           kind: "read",
           title: "Non-functional requirements",
-          body: "- **Availability above every CDN it steers.** If steering is down, playback continues on defaults.\n- **Latency:** a few milliseconds on the session-start path. Crunchyroll's 2020 design targeted 10 ms for its CDN rules engine.\n- **Reaction time:** move most new sessions off a failing CDN in under 1 minute, and most existing sessions within a few minutes.\n- **Stability:** no oscillation. Shares change smoothly except on hard failure.\n- **Explainability:** on-call can answer \"why did this session get CDN B?\"",
+          body: "**Non-functional** requirements say *how well* the system must work:\n- **Availability above every CDN it steers.** If steering is down, playback uses defaults.\n- **Latency:** a few milliseconds on the session-start path. Crunchyroll's 2020 design targeted 10 ms for its CDN rules engine.\n- **Reaction time:** move most new sessions off a failing CDN in under 1 minute, and most existing sessions within a few minutes.\n- **Stability:** no oscillation. Shares change smoothly except on hard failure.\n- **Explainability:** on-call can answer \"why did this session get CDN B?\"",
         },
         {
           kind: "multi",
@@ -1096,7 +1126,13 @@ const chapter: Chapter = {
             "Support audited manual overrides.",
           ],
           answers: [0, 2, 3],
+          teach: "Functional requirements say what the system does. Non-functional requirements say how well it must do it.",
           explain: "Availability, explainability and stability describe *how well* the system behaves. Returning ordered lists and supporting overrides are *what* it does, so they are functional.",
+        },
+        {
+          kind: "read",
+          title: "Worked example: requests per second",
+          body: "Most load estimates use one formula:\n\n**rate = number of events / seconds they are spread over**\n\nExample: 600,000 viewers join over 5 minutes. 5 minutes = 300 s. 600,000 / 300 = **2,000 session starts per second**.\n\nThe same formula works for repeating requests. If 600,000 players each reload a file every 120 s, that is 600,000 / 120 = **5,000 requests per second**. Halve the interval and the rate doubles.",
         },
         {
           kind: "number",
@@ -1104,24 +1140,18 @@ const chapter: Chapter = {
           answer: 3300,
           tolerance: 200,
           unit: "per second",
+          teach: "Divide the number of sessions by the length of the ramp in seconds.",
           hint: "10 minutes = 600 seconds.",
           explain: "2,000,000 / 600 s = ~3,300 session starts per second. The front of the ramp is spikier: assume 3x average, so ~10,000 per second.",
         },
         {
           kind: "number",
-          prompt: "Each of the 2M sessions reloads its steering manifest every 300 seconds (the recommended TTL). How many steering requests per second is that?",
-          answer: 6700,
-          tolerance: 300,
-          unit: "per second",
-          explain: "2,000,000 / 300 s = ~6,700 reloads per second in normal conditions.",
-        },
-        {
-          kind: "number",
-          prompt: "During an incident you lower the TTL to 60 seconds so players react faster. How many steering reloads per second now?",
+          prompt: "Normally each of the 2M sessions reloads its steering manifest every 300 seconds (the recommended TTL): 2M / 300 = ~6,700 per second. During an incident you lower the TTL to 60 seconds so players react faster. How many steering reloads per second now?",
           answer: 33000,
           tolerance: 1500,
           unit: "per second",
-          explain: "2,000,000 / 60 s = ~33,000 reloads per second, five times the normal rate. A faster reaction costs load on the steering endpoint.",
+          teach: "Each session now reloads once per TTL. Divide the sessions by the new TTL in seconds.",
+          explain: "2,000,000 / 60 s = ~33,000 reloads per second, five times the normal ~6,700. A faster reaction costs load on the steering endpoint.",
         },
         {
           kind: "read",
@@ -1178,6 +1208,7 @@ const chapter: Chapter = {
             "Steering manifests return 410 Gone.",
           ],
           answer: 1,
+          teach: "Recall what the data plane needs from the control plane, and what it does if no new version arrives.",
           explain: "Static stability: the playback API and edge endpoint keep answering from the last table. You lose fresh decisions, not playback. Alert on table age so the gap is visible.",
         },
         {
@@ -1201,8 +1232,14 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "From data to decisions",
+          body: "The steering service now has data for every cell. Next it must turn that data into decisions that are good, stable and safe, even when its own inputs are wrong.\n\nIn this lesson you will build a score, turn it into traffic shares, add guardrails that stop traffic swinging, plan for the steering service's own failures, and run a failover drill.",
+        },
+        {
           kind: "quiz",
-          prompt: "CDN A has the best score in a cell. Why not send it 100% of the cell?",
+          guess: true,
+          prompt: "Take a guess. CDN A has the best score in a cell. What would you expect to go wrong if you sent it 100% of the cell?",
           options: [
             "Vendors forbid it in contracts.",
             "It causes herding, leaves other CDNs with no data and cold caches, and leaves failover unproven.",
@@ -1210,7 +1247,7 @@ const chapter: Chapter = {
             "Splitting is always cheaper.",
           ],
           answer: 1,
-          explain: "Winner-take-all causes **herding** (everyone overloads A, then everyone moves to B), leaves other CDNs with **no data and cold caches**, and leaves failover targets **unproven**.",
+          explain: "Winner-take-all repeats three problems from earlier lessons. It causes **herding** (everyone overloads A, then everyone moves to B). It leaves the other CDNs with **no data and cold caches**, so you no longer know how good they are. And it leaves failover targets **unproven**, like the cold backup in Lesson 1.",
         },
         {
           kind: "read",
@@ -1229,21 +1266,9 @@ const chapter: Chapter = {
           body: "Availability is a **gate**, not a score. If a CDN's start failure or 5xx rate in a cell crosses a threshold for **two consecutive intervals**, its share there goes to **zero at once**, ignoring rate limits, and an alert fires.\n\nScores blend. Gates do not: a broken CDN must not stay in the mix because it is cheap.",
         },
         {
-          kind: "quiz",
-          prompt: "CDN B's 5xx rate in a cell crosses the threshold for two consecutive intervals. What happens to B's share in that cell?",
-          options: [
-            "It drops by 10 points every 5 minutes.",
-            "It goes to zero at once, ignoring rate limits, and an alert fires.",
-            "It stays until on-call acts.",
-            "It is halved.",
-          ],
-          answer: 1,
-          explain: "Hard failures bypass the smoothing. Rate limits are for normal changes; a gate removes a failing CDN immediately.",
-        },
-        {
           kind: "read",
           title: "Hysteresis and rate limits",
-          body: "- **[[Hysteresis]]:** remove fast, return slowly. Remove after 2 bad minutes; restore only after 10 good minutes, in steps (5, then 20, then target).\n- **Rate limits:** in normal conditions, shares change by at most a set amount per interval, for example **10 points per 5 minutes**.\n\nTogether they stop traffic swinging back and forth between CDNs.",
+          body: "- **[[Hysteresis]]:** remove fast, return slowly. Remove after 2 bad minutes; restore only after 10 good minutes, in steps (5, then 20, then target).\n- **Rate limits:** in normal conditions, shares change by at most a set amount per interval, for example **10 points per 5 minutes**.\n\nTogether they stop traffic swinging back and forth. Worked example: moving a share from 50 to 20 is 30 points. 30 / 10 = 3 intervals. 3 x 5 = **15 minutes**.",
         },
         {
           kind: "number",
@@ -1251,6 +1276,7 @@ const chapter: Chapter = {
           answer: 20,
           tolerance: 1,
           unit: "minutes",
+          teach: "Find how many points the share must move, divide by the points allowed per interval, then multiply by the interval length.",
           explain: "70 - 30 = 40 points. 40 / 10 = 4 intervals. 4 x 5 minutes = 20 minutes. A hard failure would skip this and go to zero at once.",
         },
         {
@@ -1270,6 +1296,7 @@ const chapter: Chapter = {
             "An error is thrown.",
           ],
           answer: 1,
+          teach: "Find the line that checks `live.length === 0`, and recall the rule that bad data must never produce an empty answer.",
           explain: "`if (live.length === 0) return shares.map((s) => s.cdn);` is the fail-open line. The player always gets defaults to try, and its own failover can still work.",
         },
         {
@@ -1278,11 +1305,17 @@ const chapter: Chapter = {
           body: "After ranking on performance, apply money and capacity:\n- **Cost as tie-breaker.** If two CDNs are within a small QoE margin in a cell, prefer the cheaper one.\n- **Commit tracking.** Behind on a commit with CDN A? Raise A's share in cells where A ties the best. Deep in overage? Lower it.\n- **Capacity caps.** Convert shares to expected Gbps (sessions x average bitrate) and clip at each vendor's reserved capacity per region.",
         },
         {
+          kind: "read",
+          title: "Worked example: share to Gbps",
+          body: "To check a capacity cap, turn a share into expected traffic:\n\n**load on a CDN = sessions x average bitrate x share**\n\nExample: a region has 100,000 sessions at 5 Mbps. 100,000 x 5 Mbps = 500,000 Mbps = 500 Gbps. A CDN with a 40% share gets 40% x 500 = **200 Gbps**. If its reserved capacity there is only 150 Gbps, clip its share.",
+        },
+        {
           kind: "number",
           prompt: "Capacity check (assumed numbers): a region has 200,000 sessions at an average of 4 Mbps, and CDN B's share is 30%. What expected load does that put on CDN B?",
           answer: 240,
           tolerance: 5,
           unit: "Gbps",
+          teach: "First find the region's total traffic (sessions times bitrate, in Gbps), then take the CDN's share of it.",
           explain: "200,000 x 4 Mbps = 800 Gbps for the region. 30% of 800 = 240 Gbps. If B's reserved capacity there is lower, clip the share.",
         },
         {
@@ -1312,6 +1345,7 @@ const chapter: Chapter = {
             ["Traffic swings between CDNs", "Shares, rate limits, hysteresis"],
             ["One CDN's URL signing breaks", "Availability gate and per-CDN contract tests"],
           ],
+          teach: "Use the \"When the steering service fails\" table. Each failure row has its own defence in the last column.",
           explain: "Every defence follows one rule: a single bad input or bad push must not move everything at once, and playback must never depend on steering being healthy.",
         },
         {
@@ -1342,6 +1376,12 @@ const chapter: Chapter = {
           visual: { kind: "flow", spec: { ...DRILL, focus: ["plan", "pre", "s1", "watch", "next", "abort", "plan>pre", "pre>s1", "s1>watch", "watch>next", "watch>abort"] } },
         },
         {
+          kind: "read",
+          title: "Time to drain is your real SLO",
+          body: "When the target is reached, **hold** for a full interval and measure, then **restore slowly** with hysteresis. Both the restore path and the abort path end in a written review.\n\nTell vendors before large drills. Drill at realistic load: a 4 a.m. drain tests config, not capacity. Measure **time to drain** (from decision to 90% of traffic moved) for new and existing sessions separately. That number is your real failover SLO. Record drills in postmortem format (Chapter 12).",
+          visual: { kind: "flow", spec: { ...DRILL, focus: ["next", "hold", "restore", "abort", "review", "next>hold", "hold>restore", "restore>review", "abort>review"] } },
+        },
+        {
           kind: "order",
           prompt: "Put the steps of a vendor drain drill in order.",
           items: [
@@ -1352,13 +1392,8 @@ const chapter: Chapter = {
             "Hold for a full interval and measure",
             "Restore traffic slowly with hysteresis",
           ],
+          teach: "Follow the drill diagram from top to bottom: preparation first, then shifting in steps, then the steps after the target is reached.",
           explain: "After the hold, traffic returns slowly (hysteresis). Both the restore path and the abort path end in a written review of findings and fixes.",
-        },
-        {
-          kind: "read",
-          title: "Time to drain is your real SLO",
-          body: "Tell vendors before large drills. Drill at realistic load: a 4 a.m. drain tests config, not capacity. Measure **time to drain** (from decision to 90% of traffic moved) separately for new and existing sessions. That number is your real failover SLO. Record drills in postmortem format (Chapter 12).",
-          visual: { kind: "flow", spec: { ...DRILL, focus: ["next", "hold", "restore", "abort", "review", "next>hold", "hold>restore", "restore>review", "abort>review"] } },
         },
         {
           kind: "quiz",
@@ -1370,6 +1405,7 @@ const chapter: Chapter = {
             "Nothing at all.",
           ],
           answer: 1,
+          teach: "A drill can test two different things: whether the config is right, and whether there is enough capacity. Which one needs real load?",
           explain: "At 4 a.m. the load is tiny, so you tested config, not capacity. Drill at a busy, non-peak hour to learn about capacity, and tell vendors first.",
         },
         {
@@ -1394,8 +1430,14 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "The work behind the steering",
+          body: "Steering decides where each viewer goes. But that only helps if every CDN gives the viewer the same, correct result, and if the bill makes sense.\n\nIn this lesson you will learn how teams keep CDNs behaving the same, how video contracts and **95th-percentile billing** shape steering, and when it makes sense to build your own CDN instead.",
+        },
+        {
           kind: "quiz",
-          prompt: "Engineers who have run multi-CDN say the hardest part is not the steering algorithm. What is it?",
+          guess: true,
+          prompt: "Take a guess. Engineers who have run multi-CDN say the hardest part is not the steering algorithm. What would you expect it to be?",
           options: [
             "Making every CDN behave the same for the same request.",
             "Choosing the score weights.",
@@ -1403,17 +1445,12 @@ const chapter: Chapter = {
             "Buying more CDNs.",
           ],
           answer: 0,
-          explain: "Config parity. If CDNs behave differently, steering moves users to a CDN that rejects the token or ignores geo rules.",
+          explain: "It is **config parity**: making every CDN behave the same for the same request. If the CDNs behave differently, steering moves users to a CDN that rejects their token or ignores geo rules. A perfect algorithm cannot fix a CDN that answers wrongly.",
         },
         {
           kind: "read",
           title: "Config parity",
-          body: "Engineers new to multi-CDN focus on steering algorithms. Engineers who have run it focus on **config parity**: every CDN must behave the same for the same request. Otherwise steering moves users to a CDN that rejects the token or ignores geo rules.\n\nEach vendor expresses config differently: [[VCL]], CloudFront behaviours, Akamai property rules, Workers, Media CDN routes. There is no shared format.",
-        },
-        {
-          kind: "read",
-          title: "What must match",
-          body: "Eight areas must be equivalent on every vendor.",
+          body: "Engineers new to multi-CDN focus on steering algorithms. Engineers who have run it focus on **config parity**: every CDN must behave the same for the same request. Otherwise steering moves users to a CDN that rejects the token or ignores geo rules.\n\nEach vendor expresses config differently: [[VCL]], CloudFront behaviours, Akamai property rules, Workers, Media CDN routes. There is no shared format. The table lists the eight areas that must match.",
           visual: {
             kind: "table",
             headers: ["Area", "What must be equivalent", "Chapter"],
@@ -1432,7 +1469,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "How teams achieve parity",
-          body: "1. **One intent, many renderings.** Describe delivery behaviour once in your own model (for example: \"path `/seg/*`, TTL 1 year, key excludes query, token type HMAC\") and generate every vendor's config from it with Terraform or Pulumi in TypeScript (Chapter 14). Never hand-edit one vendor.\n2. **A conformance suite.** Golden requests run against every CDN hostname on every config change and continuously in production.\n3. **Canary per vendor.** Roll a change to one CDN at a time.",
+          body: "1. **One intent, many renderings.** Describe delivery behaviour once in your own model (for example: \"path `/seg/*`, TTL 1 year, key excludes query, token type HMAC\") and generate every vendor's config from it with Terraform or Pulumi in TypeScript (Chapter 14). Never hand-edit one vendor.\n2. **A conformance suite.** **Golden requests** (fixed test requests with a known correct response) run against every CDN hostname on every config change and continuously in production.\n3. **Canary per vendor.** Roll a change to one CDN at a time.",
         },
         {
           kind: "multi",
@@ -1445,6 +1482,7 @@ const chapter: Chapter = {
             "Every CDN has the same number of PoPs.",
           ],
           answers: [0, 1, 2, 3],
+          teach: "A conformance suite checks what a viewer or player would see for the same request: status code, headers and body. Ask of each option: would a viewer ever notice it?",
           explain: "The suite asserts status, headers and body hash for the same request. PoP count is the vendor's business, not a behaviour your viewers see. See [[206 Partial Content]] for range requests.",
         },
         {
@@ -1467,23 +1505,11 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Canary per vendor",
-          body: "Roll a change to one CDN, run conformance and watch QoE, then move to the next. Changing all CDNs at once recreates the single point of failure you paid to remove.",
+          body: "Roll a change to one CDN, run conformance and watch QoE, then move to the next. A bad change on one CDN is a steering problem you can route around. A bad change on all three at once is an outage: it recreates the single point of failure you paid to remove.",
           callout: {
             type: "staff",
             text: "In any design review for a delivery feature, ask: \"How does this work on every CDN in the pool? Who writes the Akamai version? Where is the conformance test?\" A feature that works on one CDN quietly turns multi-CDN into single-CDN for the users who need it.",
           },
-        },
-        {
-          kind: "quiz",
-          prompt: "A cache-key change must reach all three CDNs. Which rollout keeps the benefit of multi-CDN?",
-          options: [
-            "Push to all three at once so they stay in sync.",
-            "One CDN at a time: conformance and QoE, then the next.",
-            "Hand-edit each vendor's console the same day.",
-            "Change only the cheapest CDN.",
-          ],
-          answer: 1,
-          explain: "Canary per vendor. A bad change on one CDN is a steering problem you can route around. A bad change on all three is an outage.",
         },
         {
           kind: "read",
@@ -1496,21 +1522,24 @@ const chapter: Chapter = {
           body: "With **[[95th percentile billing]]** (burstable billing), the provider samples your bandwidth every **5 minutes**. It sorts the month's samples, **discards the top 5%**, and bills on the highest remaining sample.\n\nSo your bill is not set by your single highest moment. It is set by how many hours you spend near your peak.",
         },
         {
-          kind: "number",
-          prompt: "How many 5-minute samples are in a 30-day month?",
-          answer: 8640,
-          tolerance: 10,
-          unit: "samples",
-          hint: "12 samples an hour.",
-          explain: "30 days x 24 hours x 12 samples per hour = 8,640 samples.",
+          kind: "read",
+          title: "Worked example: the free hours",
+          body: "How much time does \"discard the top 5%\" forgive? Example for one **7-day week**:\n- Samples: 7 days x 24 hours x 12 samples per hour = **2,016 samples**.\n- Top 5%: 5% x 2,016 = about **101 samples**.\n- Time: 101 x 5 minutes = 505 minutes = about **8.4 hours**.\n\nSo in that week, your busiest 8.4 hours do not count toward the bill.",
         },
         {
           kind: "number",
-          prompt: "The top 5% of those samples are discarded. How many hours of traffic is that?",
+          prompt: "Now do it for a 30-day month. The top 5% of 5-minute samples are discarded. How many hours of traffic is that?",
           answer: 36,
           tolerance: 1,
           unit: "hours",
-          explain: "5% of 8,640 = 432 samples. 432 x 5 minutes = 2,160 minutes = 36 hours a month that do not count.",
+          teach: "Count the samples in the month (12 per hour), take 5% of them, then turn those samples back into hours.",
+          hint: "12 samples an hour.",
+          explain: "30 days x 24 hours x 12 samples per hour = 8,640 samples. 5% of 8,640 = 432 samples. 432 x 5 minutes = 2,160 minutes = 36 hours a month that do not count.",
+        },
+        {
+          kind: "read",
+          title: "Daily peaks set the bill",
+          body: "Compare your hours near the peak with the 36 free hours.\n\nExample: a peak of 2 Tbps lasts about 2 hours every evening, so ~60 hours a month. That is more than 36, so the 95th-percentile sample lands near 2 Tbps. A CDN carrying 50% of that traffic is billed for about **1 Tbps**.\n\nA spike that lasts only 10 hours in the whole month fits inside the 36 free hours, so it barely moves the bill. On a per-GB contract, every spike byte is paid.",
         },
         {
           kind: "number",
@@ -1518,6 +1547,7 @@ const chapter: Chapter = {
           answer: 2.4,
           tolerance: 0.1,
           unit: "Tbps",
+          teach: "First decide whether the peak hours are more or fewer than the 36 free hours. If more, the bill sits near the peak; take this CDN's share of it.",
           explain: "90 hours near the peak is far more than the 36 discarded hours, so the 95th percentile sits near the daily peak. 60% x 4 Tbps = ~2.4 Tbps. **Daily peaks set the bill.**",
         },
         {
@@ -1530,7 +1560,17 @@ const chapter: Chapter = {
             "95th-percentile contracts ignore all traffic above the commit.",
           ],
           answer: 1,
+          teach: "Count the spike hours in a month and compare them with the 36 hours that 95th-percentile billing throws away.",
           explain: "Four 1-hour spikes are about 4 hours a month, inside the 36 discarded hours. **Short premiere spikes can be nearly free** on 95th percentile. On a per-GB contract you pay for every spike byte.",
+        },
+        {
+          kind: "read",
+          title: "Bound cost by QoE",
+          body: "Track each vendor's sample distribution in near real time. A long incident failover can use up a vendor's 36 free hours, and after that every extra hour counts.\n\nAnd never let cost override quality. Cost only chooses among CDNs whose QoE is close to the best.",
+          callout: {
+            type: "staff",
+            text: "Bound cost-aware steering by QoE. A rule like \"cost may only choose among CDNs within 2% of the best rebuffering ratio in this cell\" turns a vague goal into a reviewable rule.",
+          },
         },
         {
           kind: "match",
@@ -1541,16 +1581,8 @@ const chapter: Chapter = {
             ["Premiere tonight, 1 hour, 2x traffic", "Send spike volume to 95th-percentile vendors with spare burst budget and reserved capacity"],
             ["CDN C is cheapest but has bad QoE in a cell", "Do not steer there: QoE gates come before cost"],
           ],
+          teach: "Use three ideas: commits nudge shares (Lesson 6), daily peaks set a 95th-percentile bill while short spikes are nearly free, and cost only chooses among CDNs with near-best QoE.",
           explain: "Contracts shape steering, but always inside QoE limits. Track each vendor's sample distribution in near real time: a long incident failover can use up a vendor's 36 free hours, and after that every extra hour counts.",
-        },
-        {
-          kind: "read",
-          title: "Bound cost by QoE",
-          body: "Track each vendor's sample distribution in near real time. A long incident failover can use up a vendor's 36 free hours, and after that every extra hour counts.\n\nAnd never let cost override quality. Cost only chooses among CDNs whose QoE is close to the best.",
-          callout: {
-            type: "staff",
-            text: "Bound cost-aware steering by QoE. A rule like \"cost may only choose among CDNs within 2% of the best rebuffering ratio in this cell\" turns a vague goal into a reviewable rule.",
-          },
         },
         {
           kind: "read",
@@ -1595,6 +1627,7 @@ const chapter: Chapter = {
             "Only ISP-embedded caches.",
           ],
           answer: 1,
+          teach: "Check each factor in the \"own CDN\" table against this profile: traffic size, ISP leverage, demand pattern, and team.",
           explain: "Spiky, event-driven demand and a few Tbps favour commercial multi-CDN. Targeted ISP deals make sense only where the numbers clearly work.",
         },
         {
@@ -1618,6 +1651,11 @@ const chapter: Chapter = {
       minutes: 9,
       steps: [
         {
+          kind: "read",
+          title: "What this chapter covered",
+          body: "Here is what this chapter covered:\n- **Why multi-CDN:** resilience, performance, leverage, spike capacity and coverage, paid for with split caches, parity work and a new critical system.\n- **Four steering methods:** DNS, session start, player logic and HLS/DASH Content Steering. Real systems combine them.\n- **The steering service:** a slow control plane, a fast data plane, and shares with guardrails.\n- **Parity and money:** one config intent, conformance tests, and 95th-percentile billing (about 36 free hours a month).\n\nNow test yourself.",
+        },
+        {
           kind: "reveal",
           prompt: "Give three reasons to use more than one CDN, and two costs you accept in return.",
           answer: "**Reasons:** resilience, per-region (and per-ASN) performance, cost leverage, spike capacity, regional coverage.\n\n**Costs:** lower cache efficiency, more origin load, config parity work, smaller volume per vendor, and a new critical system (the steering layer).",
@@ -1632,6 +1670,7 @@ const chapter: Chapter = {
             "Certificates must be reissued first.",
           ],
           answer: 1,
+          teach: "Think about every place a DNS answer is stored on its way to the player, and what happens to a connection that is already open.",
           explain: "Caching in resolvers and devices, ignored TTLs, and open connections all delay the move. Reported delays range from about 300 seconds to 15 minutes.",
         },
         {
@@ -1644,6 +1683,7 @@ const chapter: Chapter = {
             "HLS/DASH Content Steering",
           ],
           answers: [2, 3],
+          teach: "Ask of each method: does it get a chance to decide again after the session has started?",
           explain: "Player-side switching and Content Steering can. DNS usually cannot, because the connection is already open. Session-start steering cannot, because the VOD manifest was fetched once.",
         },
         {
@@ -1656,6 +1696,7 @@ const chapter: Chapter = {
             "Switches to the last pathway in the list.",
           ],
           answer: 1,
+          teach: "Recall the client rules for a steering server that misbehaves. Playback should never depend on the steering server.",
           explain: "It never calls that URI again in the session and keeps the last list. So the steering server is not critical for playback: if it fails, viewers keep watching. You can design it for control, not for survival.",
         },
         {
@@ -1673,6 +1714,7 @@ const chapter: Chapter = {
             "Vendors bill less for shared traffic.",
           ],
           answer: 1,
+          teach: "Recall what goes wrong when every viewer goes to the same CDN: for the CDN that wins, and for the CDNs that get nothing.",
           explain: "Shares plus an exploration floor keep every CDN measured, warm and proven, and they move smoothly instead of flipping.",
         },
         {
@@ -1681,6 +1723,7 @@ const chapter: Chapter = {
           answer: 4,
           tolerance: 0.5,
           unit: "hours",
+          teach: "A month has about 4 weeks. Multiply by the length of each spike.",
           explain: "About 4 weeks x 1 hour = ~4 hours a month. Compare that with the 36 hours that 95th-percentile billing discards.",
         },
         {
@@ -1693,6 +1736,7 @@ const chapter: Chapter = {
             "Spikes are free on every contract.",
           ],
           answer: 0,
+          teach: "Recall how 95th-percentile billing treats the busiest 5% of samples, and compare that with how per-GB billing counts bytes.",
           explain: "The discarded 36 hours absorb short spikes. Daily peaks (~90 hours a month) set the 95th-percentile bill. Per-GB billing has no such window.",
         },
         {
@@ -1719,6 +1763,7 @@ const chapter: Chapter = {
             "It stops playback if the steering server fails.",
           ],
           answer: 1,
+          teach: "Recall how the HLS and DASH versions relate: different syntax, but what about the exchange between server and player?",
           explain: "The two standards share the same server-client exchange. The standard gives the mechanism (pathways, JSON steering manifest, penalties, cloning, safe fallback); the policy is still yours.",
         },
         {
@@ -1731,6 +1776,7 @@ const chapter: Chapter = {
             "Falls back to winner-take-all.",
           ],
           answer: 1,
+          teach: "Recall static stability: what does the data plane keep in memory, and does it need the control plane to answer?",
           explain: "A slow control plane and a fast, statically stable data plane. The data plane steers with shares, hysteresis, floors and stickiness, and treats hard failures as gates.",
         },
         {

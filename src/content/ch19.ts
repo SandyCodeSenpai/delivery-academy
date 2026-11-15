@@ -186,8 +186,14 @@ const chapter: Chapter = {
       minutes: 7,
       steps: [
         {
+          kind: "read",
+          title: "A new problem lands on your team",
+          body: "Picture a normal week: a big premiere is next month, the CDN bill jumped, and stalls are up in one country. Many engineers can fix one part. A staff engineer knows which questions to ask first.\n\nThis lesson shows what \"staff\" means on a media delivery team. By the end you can name the four staff habits and test any proposal with three short questions.",
+        },
+        {
           kind: "quiz",
-          prompt: "A new delivery problem lands on the team. Which person is acting like a **staff engineer**?",
+          guess: true,
+          prompt: "Take a guess. A new delivery problem lands on the team. Which person would you expect is acting like a **staff engineer**?",
           options: [
             "The one who knows the most header names by heart",
             "The one who finds the two numbers that matter, names the trade-off, predicts how it fails and writes it down",
@@ -195,7 +201,7 @@ const chapter: Chapter = {
             "The one who owns the most dashboards",
           ],
           answer: 1,
-          explain: "Staff is a way of thinking, not a store of facts or a code count. The staff engineer finds the key numbers, names the trade-off out loud, predicts the failure, and writes it down so that ten other people can act on it.",
+          explain: "Staff is a way of thinking, not a store of facts or a code count. The staff engineer finds the key numbers, names the trade-off out loud, predicts the failure, and writes it down so that ten other people can act on it. The rest of this lesson unpacks each of those moves.",
         },
         {
           kind: "read",
@@ -219,17 +225,18 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Senior builds a part. Staff owns a space.",
-          body: "At senior level you are trusted to build a component well. At **staff** level you are trusted with a whole problem space. You decide which problems are worth solving, you shape the design across team boundaries, and you make the system safer and cheaper over years, not only this quarter.\n\nFor media delivery, that space starts with the **bytes path**: origin storage, shield, CDN edge, ISP and player.",
+          body: "At senior level you are trusted to build a component well. At **staff** level you are trusted with a whole **problem space**. You decide which problems are worth solving, you shape the design across team boundaries, and you make the system safer and cheaper over years, not only this quarter.\n\nFor media delivery, that space starts with the **bytes path**: origin storage, shield, CDN edge, ISP and player.",
           visual: { kind: "flow", spec: spec(SPACE, SPACE_DATA, ["or>sh", "sh>edge", "edge>pl"]), caption: "The bytes path moves the video." },
         },
         {
           kind: "read",
           title: "Plus the small services that steer it",
-          body: "The space also includes the small [[control plane]] services that steer and protect the bytes path: playback URLs, steering, signing and health detection.\n\nThey move almost no bytes. But they decide which CDN each viewer uses and whether a request is allowed. A bug there can stop every stream at once.",
+          body: "The space also includes the small **[[control plane]]** services that steer and protect the bytes path: playback URLs, steering, signing and health detection. The control plane **decides**. The bytes path, also called the **data plane**, **moves** the video.\n\nControl plane services move almost no bytes. But they decide which CDN each viewer uses and whether a request is allowed. A bug there can stop every stream at once.",
           visual: { kind: "flow", spec: spec(SPACE, SPACE_CTL, ["hd>st", "st>api", "api>pl"]), caption: "The control plane decides; the data plane moves bytes." },
         },
         {
           kind: "multi",
+          teach: "The control plane decides things: which CDN to use, whether a request is allowed. The data plane moves the video bytes. Sort each item by whether it decides or moves bytes.",
           prompt: "Which of these are **control plane** services in the delivery problem space? Select all that apply.",
           options: ["Playback URLs (playback API)", "Steering", "The shield cache", "Signing (tokens)", "Health detection", "The ISP last mile"],
           answers: [0, 1, 3, 4],
@@ -238,15 +245,16 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Habits 1 and 2: numbers first, failure first",
-          body: "1. **Numbers first.** Before talking about architecture, write down concurrency, bitrate, segment rate, hit ratio, origin load and cost per month. Most bad delivery designs are not wrong in logic. They are wrong by a factor of ten in one number.\n2. **Failure first.** For every box in a diagram, ask: \"What happens to playback when this box is slow, wrong or gone?\" The answer must be a mechanism, not a hope.",
+          body: "Four habits separate staff work from senior work. The first two:\n\n1. **Numbers first.** Before talking about architecture, write down concurrency, bitrate, segment rate, hit ratio, origin load and cost per month. Most bad delivery designs are not wrong in logic. They are wrong by a factor of ten in one number.\n2. **Failure first.** For every box in a diagram, ask: \"What happens to playback when this box is slow, wrong or gone?\" The answer must be a mechanism, not a hope.",
         },
         {
           kind: "read",
           title: "Habits 3 and 4: blast radius, writing",
-          body: "3. **[[Blast radius]] thinking.** A CDN config push, a DNS change and a certificate rotation can each break every stream on Earth in one minute. Design rollouts so that a mistake hurts a small slice first.\n4. **Writing as leverage.** The design doc, the runbook, the vendor scorecard and the postmortem are the products. A good doc lets the team make the same good decision without you in the room.",
+          body: "3. **[[Blast radius]] thinking.** Blast radius is how many viewers one mistake can hurt. A CDN config push, a DNS change and a certificate rotation can each break every stream on Earth in one minute. Design rollouts so that a mistake hurts a small slice first.\n4. **Writing as leverage.** The design doc, the runbook, the vendor scorecard and the postmortem are the products. A good doc lets the team make the same good decision without you in the room.",
         },
         {
           kind: "match",
+          teach: "Each habit answers one question: how big is it, what breaks, how many people does a mistake hurt, and can others decide without me? Match each example to the question it answers.",
           prompt: "Match each habit to what it looks like in practice.",
           pairs: [
             ["Numbers first", "Writing 2M x 4 Mbps = 8 Tbps before drawing a box"],
@@ -259,11 +267,12 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "The three-question test",
-          body: "A useful test for any proposal is three questions, asked in this order:\n\n- \"How many bytes and requests per second does this touch at peak?\"\n- \"What does the viewer see when it fails?\"\n- \"How do we roll it back in under five minutes?\"",
+          body: "A useful test for any proposal is three questions, asked in this order:\n\n- \"How many bytes and requests per second does this touch at peak?\"\n- \"What does the viewer see when it fails?\"\n- \"How do we roll it back in under five minutes?\"\n\nThe order follows the habits: size first, then failure, then a small and reversible blast radius.",
           callout: { type: "staff", text: "If the author cannot answer all three, the design is not ready for review." },
         },
         {
           kind: "order",
+          teach: "The three questions follow the order of the habits you just learned. You cannot judge a failure until you know how big the thing is.",
           prompt: "Put the three review questions in the order the staff lens asks them.",
           items: [
             "How many bytes and requests per second does this touch at peak?",
@@ -273,16 +282,10 @@ const chapter: Chapter = {
           explain: "Size first (numbers first), then failure (failure first), then rollback (blast radius). Each question builds on the one before it.",
         },
         {
-          kind: "quiz",
-          prompt: "Which contribution does the chapter say creates **more** value than a quarter of feature code?",
-          options: [
-            "Writing the most lines of edge code on the team",
-            "Preventing one global outage with a staged-rollout rule, or saving 15 percent on the CDN bill with a better contract structure",
-            "Knowing every CDN vendor's header names",
-            "Answering the most tickets in the support queue",
-          ],
-          answer: 1,
-          explain: "A common mistake is treating \"staff\" as \"the person who writes the most code.\" On delivery teams, preventing one global outage or cutting the CDN bill by 15 percent is worth more than a quarter of feature code.",
+          kind: "read",
+          title: "Value is outages prevented and money saved",
+          body: "How do you measure staff work? Not by lines of code.\n\nOn a delivery team, one staged-rollout rule that prevents a global outage creates more value than a quarter of feature code. So does a better contract structure that saves 15 percent on the CDN bill.",
+          callout: { type: "mistake", text: "Treating \"staff\" as \"the person who writes the most code.\" Count outages prevented and money saved instead." },
         },
         {
           kind: "read",
@@ -309,8 +312,14 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "Short ways to think",
+          body: "A **mental model** is a short way to think about a problem. Each of the twelve models in this lesson compresses one or more earlier chapters into one sentence you can say in a design review.\n\nBy the end you can name the model that fits a situation, and use it to make an argument short and clear.",
+        },
+        {
           kind: "quiz",
-          prompt: "Predict first. Your byte hit ratio goes from 95 percent to 99 percent. What happens to origin traffic?",
+          guess: true,
+          prompt: "Take a guess. A cache answers 95 of every 100 bytes itself; the other 5 come from the origin. It improves to 99 of every 100. What would you expect to happen to the traffic the origin sends?",
           options: [
             "It drops by about 4 percent",
             "It drops by about half",
@@ -318,7 +327,7 @@ const chapter: Chapter = {
             "It barely changes; hit ratio only affects latency",
           ],
           answer: 2,
-          explain: "Origin load follows the **miss** ratio, not the hit ratio. Misses go from 5 percent to 1 percent: a 5x cut in origin traffic. This is mental model 2, the funnel.",
+          explain: "Origin load follows the **miss** ratio: the share the cache does not answer. Misses go from 5 in 100 to 1 in 100, so origin traffic is cut **5x**, not by 4 percent. This is mental model 2, the funnel.",
         },
         {
           kind: "read",
@@ -328,11 +337,12 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "2. The funnel: misses set origin load",
-          body: "The most important number is not the hit ratio. It is the **miss ratio**, because origin load is proportional to it.\n\nFollow the funnel (assumed numbers): 2M streams x 4 Mbps = 8 Tbps hits the edges. With a 0.95 edge byte hit ratio, only 0.4 Tbps of misses go up to the shield.",
+          body: "The most important number is not the hit ratio. It is the **miss ratio** (100 percent minus the hit ratio), because the load sent upstream is proportional to it.\n\nUpstream traffic = incoming traffic x (1 - hit ratio).\n\n**Worked example** (assumed numbers): 2M streams x 4 Mbps = 8 Tbps hits the edges. With a 0.95 edge byte hit ratio: 8 Tbps x 0.05 = **0.4 Tbps** of misses go up to the shield.",
           visual: { kind: "flow", spec: spec(FUNNEL, ["pl", "edge", "em", "pl>edge", "edge>em"], ["pl>edge", "edge>em"]), caption: "Edge: 8 Tbps in, 0.4 Tbps of misses out." },
         },
         {
           kind: "number",
+          teach: "The shield passes on only its misses: upstream traffic = incoming traffic x (1 - hit ratio). Convert Tbps to Gbps first (1 Tbps = 1,000 Gbps).",
           prompt: "The shield gets 0.4 Tbps of edge misses and has a 0.90 hit ratio. About how much traffic reaches the multi-cloud origin?",
           visual: { kind: "flow", spec: spec({ ...FUNNEL, nodes: FUNNEL.nodes.map((n) => (n.id === "sm" ? { ...n, sub: "? Gbps" } : n)) }, ["em", "sh", "sm", "or", "em>sh", "sh>sm", "sm>or"], ["em>sh", "sh>sm", "sm>or"]) },
           answer: 40,
@@ -344,10 +354,11 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "3. The herd is a different system",
-          body: "Normal traffic is many independent viewers asking for many different objects. A [[simulcast]] premiere is millions of viewers asking for **the same few objects at the same second**.\n\nCaches are cold, every edge misses at once, and the control plane (login, entitlement, DRM license) is hit at the same moment. [[Request collapsing]], shields, [[pre-warming]] and staged publish are the tools (Chapter 13).",
+          body: "Normal traffic is many independent viewers asking for many different objects. A [[simulcast]] premiere is millions of viewers asking for **the same few objects at the same second**. This is called a **herd**.\n\nCaches are cold, every edge misses at once, and the control plane (login, entitlement, DRM license) is hit at the same moment. [[Request collapsing]], shields, [[pre-warming]] and staged publish are the tools (Chapter 13).",
         },
         {
           kind: "quiz",
+          teach: "Concurrency only counts how many people watch. It does not say whether they ask for the same objects at the same second, or whether the caches are warm.",
           prompt: "A design handles 2M concurrent viewers spread across the whole catalog. Will it survive 2M viewers who all press play within five minutes of a premiere?",
           options: [
             "Yes, it is the same 2M viewers",
@@ -365,6 +376,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "The cache key decides which requests count as the same object. Think about what happens when every viewer's key is different.",
           prompt: "A new player release adds `?session=abc123` to every segment URL, and the CDN includes the full query string in the cache key. What happens?",
           options: [
             "Nothing; caches ignore query strings by default everywhere",
@@ -381,21 +393,9 @@ const chapter: Chapter = {
           body: "The player retries, switches bitrate, switches CDN, holds a buffer and reports telemetry.\n\nA player with 30 seconds of buffer can survive a 10-second CDN failover without a stall. A player that retries a failed segment five times with no backoff turns a small outage into a [[retry storm]]. Know the player's retry and failover logic as well as you know your CDN config (Chapter 10).",
         },
         {
-          kind: "quiz",
-          prompt: "A CDN failover takes 10 seconds. Which player is most likely to keep playing without a stall?",
-          options: [
-            "One with 30 seconds of buffer and a fallback CDN",
-            "One with 4 seconds of buffer that retries five times with no backoff",
-            "One with no buffer that waits for steering to answer",
-            "Any player; failover is invisible to players",
-          ],
-          answer: 0,
-          explain: "30 seconds of buffer covers a 10-second failover. Fast retries with no backoff do not help; they multiply load and can turn a small outage into a retry storm.",
-        },
-        {
           kind: "read",
           title: "6. Measure at the eyeball",
-          body: "CDN dashboards say \"99.99 percent of requests returned 2xx.\" The viewer says \"it spun for eight seconds and I closed the app.\"\n\nServer-side metrics miss failures that never reach the server: DNS, TLS, connection resets, ISP packet loss. The truth lives in **[[RUM]]** and **[[QoE]]** metrics from the player: video start time, video start failures, rebuffering ratio. Use server-side signals to explain; use client-side signals to judge (Chapter 11).",
+          body: "CDN dashboards say \"99.99 percent of requests returned 2xx.\" The viewer says \"it spun for eight seconds and I closed the app.\"\n\nServer-side metrics miss failures that never reach the server: DNS, TLS, connection resets, ISP packet loss. The truth lives in **[[RUM]]** (real user monitoring) and **[[QoE]]** metrics from the player: video start time, video start failures, rebuffering ratio. Use server-side signals to explain; use client-side signals to judge (Chapter 11).",
         },
         {
           kind: "read",
@@ -412,10 +412,11 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "8. Static stability",
-          body: "The Amazon Builders' Library: \"In a statically stable design, the overall system keeps working even when a dependency becomes impaired.\"\n\nFor delivery: if steering dies, players keep the last good CDN list. If the health checker dies, traffic stays where it is. If a CDN's config API is down, the CDN keeps serving the last good config. A control plane's failure should freeze the data plane in a safe state, not break it.",
+          body: "The Amazon Builders' Library: \"In a statically stable design, the overall system keeps working even when a dependency becomes impaired.\" In short: **[[static stability]]** means keep working on what you already have.\n\nFor delivery: if steering dies, players keep the last good CDN list. If a CDN's config API is down, the CDN keeps serving the last good config. A control plane's failure should freeze the data plane in a safe state, not break it.",
         },
         {
           kind: "quiz",
+          teach: "Static stability means the failure of a decision-maker must not break the bytes path. Think about what \"keep working on what you already have\" means for traffic.",
           prompt: "The health checker that feeds steering crashes at 9 p.m. What should a statically stable design do?",
           options: [
             "Mark every CDN unhealthy and stop new sessions",
@@ -424,20 +425,21 @@ const chapter: Chapter = {
             "Fail over to DNS round robin across all CDNs",
           ],
           answer: 2,
-          explain: "[[Static stability]]: the failure of a decision-maker freezes the data plane in its last known-good state. Traffic stays where it is instead of failing everywhere.",
+          explain: "Static stability: the failure of a decision-maker freezes the data plane in its last known-good state. If the health checker dies, traffic stays where it is instead of failing everywhere.",
         },
         {
           kind: "read",
           title: "9. Blast radius and cells",
-          body: "Ask: \"How many viewers does one bad change hurt?\" Shrink the answer with **[[cells|cell]]**: per-region config rollouts, per-CDN rollouts, per-device-family player flags, per-title publish.\n\nA change that reaches 1 percent of traffic first and waits ten minutes catches most mistakes before they become headlines.",
+          body: "Ask: \"How many viewers does one bad change hurt?\" Shrink the answer with **[[cells|cell]]**: slices of traffic you can change on their own. Examples are per-region config rollouts, per-CDN rollouts, per-device-family player flags and per-title publish.\n\nA change that reaches 1 percent of traffic first and waits ten minutes catches most mistakes before they become headlines.",
         },
         {
           kind: "read",
           title: "10. Cost is a design input",
-          body: "Cost is not a report you read at the end of the month. Every steering rule, shield location and cache-key choice moves money.\n\nA staff engineer can say, for any design, roughly what it adds to or removes from the monthly bill (Chapter 16). The trick is to know the monthly volume and multiply.",
+          body: "Cost is not a report you read at the end of the month. Every steering rule, shield location and cache-key choice moves money. A staff engineer can say roughly what a design adds to or removes from the monthly bill (Chapter 16).\n\nExtra cost per month = monthly GB x price change per GB.\n\n**Worked example:** at 100 PB a month (100 million GB), a price change of $0.002 per GB is 100,000,000 x 0.002 = **$200,000 a month**.",
         },
         {
           kind: "number",
+          teach: "Extra cost per month = monthly GB x price change per GB. 1 PB = 1,000,000 GB.",
           prompt: "At the assumed 540 PB per month, how much does one-tenth of a cent per GB ($0.001/GB) change the monthly bill?",
           answer: 540000,
           tolerance: 20000,
@@ -448,10 +450,11 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "11. Head and tail are two products",
-          body: "A few new simulcast episodes take a large share of traffic: the **head**. Tens of thousands of older episodes are watched rarely: the **[[long tail]]**.\n\nThe head needs spike handling and a near-100-percent hit ratio. The tail needs a good shield hit ratio, cheap storage and sane origin cost. Designs that optimize one often hurt the other.",
+          body: "A few new simulcast episodes take a large share of traffic: the **head**. Tens of thousands of older episodes are watched rarely: the **[[long tail]]**. The head needs spike handling and a near-100-percent hit ratio. The tail needs a good shield hit ratio, cheap storage and sane origin cost.\n\nDesigns that optimize one often hurt the other. Example: **just-in-time (JIT) packaging** builds each format when it is requested instead of storing every format. It saves storage, but each packaging run costs origin compute.",
         },
         {
           kind: "quiz",
+          teach: "JIT packaging builds a format on request, and each build costs origin compute. Ask which part of the catalog sends the most requests, and what would stop those builds from repeating.",
           prompt: "You switch to [[just-in-time packaging|Just-in-time packaging (JIT)]] to save storage. Which part of the catalog can it hurt, and how?",
           options: [
             "The tail: rarely watched episodes become unplayable",
@@ -465,11 +468,12 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "12. Degrade before you fail",
-          body: "A viewer prefers a 720p picture to a spinning wheel. Bend instead of break: lower bitrate caps, longer cache TTLs, serve stale content, shed non-critical features (thumbnails, previews), pause analytics beacons.\n\nEvery incident runbook should have a **degrade** step before a **fail over** step.",
+          body: "A viewer prefers a 720p picture to a spinning wheel. **Degrade** means bend instead of break: lower bitrate caps, longer cache TTLs, serve stale content, shed non-critical features (thumbnails, previews), pause analytics beacons.\n\nEvery incident runbook should have a **degrade** step before a **fail over** step.",
           callout: { type: "industry", text: "The SRE Workbook recommends multiwindow, multi-burn-rate alerts. For a 99.9 percent SLO it suggests paging at burn rate 14.4 over a 1-hour window (with a 5-minute short window), which spends 2 percent of the monthly error budget, and also at burn rate 6 over 6 hours. Delivery teams use the same idea for \"session availability\" or \"video start failure\" SLOs." },
         },
         {
           kind: "match",
+          teach: "Recall the core idea of each model: copies and cheaper paths, judging from the player's side, keeping the last good state, changing small slices first, and bending before breaking.",
           prompt: "Match each situation to the mental model that fits it best.",
           pairs: [
             ["Server dashboards say 2xx, viewers say it spins", "Measure at the eyeball"],
@@ -502,8 +506,32 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "Size it in your head",
+          body: "Interviews and design reviews move fast. Nobody waits while you open a spreadsheet. A handful of simple formulas lets you size any delivery system in your head: bandwidth, requests, bytes, storage and error budget.\n\nThis lesson teaches each formula with a worked example, then gives you a design-doc template that turns those numbers into a plan reviewers can test.",
+        },
+        {
+          kind: "quiz",
+          guess: true,
+          prompt: "Take a guess. A design doc says: \"We have 100M fans, so we need 100M x 4 Mbps = 400 Tbps.\" What would you expect is wrong?",
+          options: [
+            "Nothing; plan for every registered user at once",
+            "It sizes from registered users; not all of them watch at the same moment",
+            "The bitrate should be 8 Mbps",
+            "It should use the 95th percentile of registered users",
+          ],
+          answer: 1,
+          explain: "Registered users are not **concurrent streams** (people watching at the same moment). Most fans are asleep, at work or watching nothing. The assumed model is about 2M concurrent at a big premiere: 8 Tbps, not 400. Always start from peak concurrency, and ask where that number comes from.",
+        },
+        {
+          kind: "read",
+          title: "Peak egress: start from concurrency",
+          body: "Every delivery answer starts with **peak egress**: the total bits per second leaving the CDN at the busiest moment.\n\nPeak egress = concurrent streams x average bitrate.\n\n**Worked example:** 500,000 streams x 6 Mbps = 3,000,000 Mbps. Since 1 Tbps = 1,000,000 Mbps, that is **3 Tbps**. Then plan headroom above it.",
+        },
+        {
           kind: "number",
-          prompt: "Predict first. An interviewer says: \"2M concurrent streams at a 4 Mbps average.\" What is peak egress?",
+          teach: "Peak egress = concurrent streams x average bitrate. 1 Tbps = 1,000,000 Mbps.",
+          prompt: "An interviewer says: \"2M concurrent streams at a 4 Mbps average.\" What is peak egress?",
           answer: 8,
           tolerance: 0.5,
           unit: "Tbps",
@@ -512,8 +540,38 @@ const chapter: Chapter = {
         },
         {
           kind: "read",
+          title: "Request rate: one segment per segment length",
+          body: "Bandwidth is not the only load. Each viewer asks for one video **segment** (a few seconds of video) every segment duration.\n\nVideo segment request rate = concurrent viewers / segment length in seconds.\n\n**Worked example:** 600,000 viewers with 6-second segments: 600,000 / 6 = **100,000 requests per second**. If audio and subtitles are separate renditions, their requests come on top, so the total can roughly double.",
+        },
+        {
+          kind: "number",
+          teach: "Each viewer asks for one video segment every segment duration. Request rate = concurrent viewers / segment length in seconds.",
+          prompt: "2M concurrent viewers, 5-second segments. How many **video** segment requests per second?",
+          answer: 400000,
+          tolerance: 10000,
+          unit: "requests/s",
+          hint: "Each viewer fetches one video segment per segment duration.",
+          explain: "2,000,000 / 5 s = **400,000 requests/s**. Add separate audio and subtitle requests and the total is roughly 800k-900k requests/s.",
+        },
+        {
+          kind: "read",
+          title: "Bytes per viewing hour",
+          body: "To turn a bitrate into bytes, multiply by the seconds, then divide by 8 (there are 8 bits in a byte).\n\nGB per viewing hour = bitrate x 3,600 s / 8.\n\n**Worked example:** at 2 Mbps, 2 x 3,600 = 7,200 megabits. Divide by 8: 900 MB, which is **0.9 GB per hour**.",
+        },
+        {
+          kind: "number",
+          teach: "Multiply the bitrate by 3,600 seconds to get megabits, divide by 8 to get megabytes, then divide by 1,000 to get GB.",
+          prompt: "How many GB does one viewer download in one hour at 4 Mbps?",
+          answer: 1.8,
+          tolerance: 0.1,
+          unit: "GB/hour",
+          hint: "bitrate x 3,600 s / 8 bits per byte.",
+          explain: "4 Mbps x 3,600 s = 14,400 Mb. Divide by 8: 1,800 MB = **1.8 GB per hour**.",
+        },
+        {
+          kind: "read",
           title: "Formulas worth memorizing (1)",
-          body: "Interviews and design reviews move fast. These formulas let you size a system in your head. All Crunchyroll values are **assumed** from the book's model.",
+          body: "Monthly bytes = viewing hours x GB per hour. At the assumed 300M hours a month: 300,000,000 x 1.8 GB = 540,000,000 GB = **540 PB** (1 PB = 1,000,000 GB). That is a deliberately generous upper bound.\n\nHere are the first formulas together. All Crunchyroll values are **assumed** from the book's model. The last row is the funnel from Lesson 2.",
           visual: {
             kind: "table",
             headers: ["Quantity", "Formula", "Assumed value"],
@@ -528,38 +586,34 @@ const chapter: Chapter = {
           },
         },
         {
-          kind: "number",
-          prompt: "2M concurrent viewers, 5-second segments. How many **video** segment requests per second?",
-          answer: 400000,
-          tolerance: 10000,
-          unit: "requests/s",
-          hint: "Each viewer fetches one video segment per segment duration.",
-          explain: "2,000,000 / 5 s = **400,000 requests/s**. Add separate audio and subtitle requests and the total is roughly 800k-900k requests/s.",
+          kind: "read",
+          title: "Storage per episode",
+          body: "A **ladder** is the set of renditions of one video, one per quality level.\n\nStorage for one episode = sum of all ladder bitrates x duration / 8.\n\n**Worked example:** a 10-minute clip (600 s) whose ladder adds up to 10 Mbps: 10 x 600 = 6,000 megabits. Divide by 8: **750 MB**.\n\nAudio is small: one 128 kbps dub for 1,440 s is about 23 MB. A subtitle track is only tens of KB.",
         },
         {
           kind: "number",
-          prompt: "How many GB does one viewer download in one hour at 4 Mbps?",
-          answer: 1.8,
-          tolerance: 0.1,
-          unit: "GB/hour",
-          hint: "bitrate x 3,600 s / 8 bits per byte.",
-          explain: "4 Mbps x 3,600 s = 14,400 Mb. Divide by 8: 1,800 MB = **1.8 GB per hour**.",
+          teach: "Storage = total ladder bitrate x duration in seconds, then divide by 8 to get bytes. About 1,000 MB make 1 GB.",
+          prompt: "A 24-minute episode (1,440 s) has a video ladder whose bitrates add up to about 23 Mbps. About how many GB does the ladder take?",
+          answer: 4.2,
+          tolerance: 0.2,
+          unit: "GB",
+          hint: "23 Mbps x 1,440 s, then divide by 8 for bytes.",
+          explain: "23 Mbps x 1,440 s = 33,120 Mb. Divide by 8: about 4,140 MB = **about 4.2 GB**. One 128 kbps audio dub adds only about 23 MB.",
+        },
+        {
+          kind: "read",
+          title: "Error budget",
+          body: "An **SLO** (service level objective) is the share of time a service must work. The **error budget** is the rest: the time you are allowed to fail.\n\nError budget = (1 - SLO) x minutes in the period.\n\n**Worked example:** a 99 percent SLO over 30 days. 30 x 24 x 60 = 43,200 minutes. 1 percent of that is **432 minutes**, about 7 hours.",
         },
         {
           kind: "number",
-          prompt: "About 300M streaming hours a month at 1.8 GB per hour. How many PB are delivered per month?",
-          answer: 540,
-          tolerance: 15,
-          unit: "PB",
-          explain: "300,000,000 h x 1.8 GB = 540,000,000 GB = **540 PB per month** (assumed, a deliberately generous upper bound).",
-        },
-        {
-          kind: "number",
-          prompt: "Edge egress is 8 Tbps and the edge byte hit ratio is 95 percent. How much traffic goes upstream to shield or origin?",
-          answer: 400,
-          tolerance: 20,
-          unit: "Gbps",
-          explain: "8 Tbps x (1 - 0.95) = 8,000 Gbps x 0.05 = **400 Gbps**. Load upstream follows the miss ratio.",
+          teach: "Error budget = (1 - SLO) x minutes in the period. A 30-day month has 30 x 24 x 60 minutes.",
+          prompt: "Your SLO is 99.9 percent over 30 days. How many minutes of full outage does the error budget allow?",
+          answer: 43,
+          tolerance: 1.5,
+          unit: "minutes",
+          hint: "30 days x 24 h x 60 min x 0.001.",
+          explain: "30 x 24 x 60 = 43,200 minutes. 0.1 percent of that is **about 43 minutes**. One bad global config push can spend it all.",
         },
         {
           kind: "read",
@@ -578,45 +632,15 @@ const chapter: Chapter = {
           },
         },
         {
-          kind: "number",
-          prompt: "A 24-minute episode (1,440 s) has a video ladder whose bitrates add up to about 23 Mbps. About how many GB does the ladder take?",
-          answer: 4.2,
-          tolerance: 0.2,
-          unit: "GB",
-          hint: "23 Mbps x 1,440 s, then divide by 8 for bytes.",
-          explain: "23 Mbps x 1,440 s = 33,120 Mb. Divide by 8: about 4,140 MB = **about 4.2 GB**. One 128 kbps audio dub adds only about 23 MB.",
-        },
-        {
-          kind: "number",
-          prompt: "Your SLO is 99.9 percent over 30 days. How many minutes of full outage does the error budget allow?",
-          answer: 43,
-          tolerance: 1.5,
-          unit: "minutes",
-          hint: "30 days x 24 h x 60 min x 0.001.",
-          explain: "30 x 24 x 60 = 43,200 minutes. 0.1 percent of that is **about 43 minutes**. One bad global config push can spend it all.",
-        },
-        {
           kind: "read",
-          title: "Three lessons hiding in the table",
+          title: "Three lessons hiding in the tables",
           body: "- **Request rate matters as much as bandwidth.** 800k requests per second is a lot of TLS, logging and token validation.\n- **Audio and subtitle objects are tiny in bytes but large in count**, so they stress request handling and purge systems more than bandwidth.\n- **The money is in the egress line**, not in storage.",
           callout: { type: "mistake", text: "Computing egress from registered users. 100M registered users is not 100M concurrent streams. Always start from peak concurrency, and ask where that number comes from." },
         },
         {
-          kind: "quiz",
-          prompt: "A design doc says: \"We have 100M fans, so we need 100M x 4 Mbps = 400 Tbps.\" What is wrong?",
-          options: [
-            "Nothing; plan for every registered user at once",
-            "It sizes from registered users; egress must start from peak concurrency",
-            "The bitrate should be 8 Mbps",
-            "It should use the 95th percentile of registered users",
-          ],
-          answer: 1,
-          explain: "Registered users are not concurrent streams. The assumed model is about 2M concurrent at a big premiere: 8 Tbps, not 400. Always ask where the concurrency number comes from.",
-        },
-        {
           kind: "read",
           title: "A design-doc template",
-          body: "Use one skeleton for any delivery design, from \"add a new CDN\" to \"move origin to two clouds.\" Each section has a **purpose** and a **test** a reviewer applies.",
+          body: "A **design doc** is the written plan a team reviews before building. Use one skeleton for any delivery design, from \"add a new CDN\" to \"move origin to two clouds.\" Each section has a **purpose** and a **test** a reviewer applies.",
           visual: {
             kind: "table",
             headers: ["Section", "What goes in it", "The reviewer's test"],
@@ -661,6 +685,7 @@ const chapter: Chapter = {
         },
         {
           kind: "order",
+          teach: "A reader needs the problem before the goals, needs numbers before boxes, and needs to see today's system before a new one can be compared with it.",
           prompt: "Put the first six sections of the design-doc template in order.",
           items: [
             "Context and problem",
@@ -674,6 +699,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Each section has one test a reviewer applies. Ask which job the test checks: undoing a change, breaking, seeing a problem, paying, or not knowing yet.",
           prompt: "Match each reviewer test to its section.",
           pairs: [
             ["Can it be undone in five minutes without a deploy?", "Rollout and rollback"],
@@ -687,20 +713,8 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Short, and failure modes early",
-          body: "Keep the doc short enough to read in 20 minutes. Put raw data in an appendix.\n\nWrite the \"failure modes\" table **before** the \"proposed design\" section is finished: it usually changes the design.",
+          body: "Keep the doc short enough to read in 20 minutes. Put raw data in an appendix.\n\nWrite the \"failure modes\" table **before** the \"proposed design\" section is finished: it usually changes the design. Asking \"what happens when this box is slow, wrong or gone?\" often reveals a missing mechanism, such as a fallback list, request collapsing or a kill switch.",
           callout: { type: "staff", text: "The best section of most delivery docs is \"Alternatives considered.\" It shows you did not fall in love with the first idea, and it records why a tempting option (for example, \"just use one CDN\") was rejected, so the team does not re-argue it every six months." },
-        },
-        {
-          kind: "quiz",
-          prompt: "Why write the failure-modes table before the proposed design is finished?",
-          options: [
-            "Reviewers read it first",
-            "It usually changes the design",
-            "It is the shortest section",
-            "Security requires it first",
-          ],
-          answer: 1,
-          explain: "Asking \"what happens when this box is slow, wrong or gone?\" for each component often reveals a missing mechanism (a fallback list, a collapse, a kill switch). Better to find it before the design is frozen.",
         },
         {
           kind: "summary",
@@ -723,8 +737,14 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "Reviewing a design",
+          body: "A **design review** is the meeting where a team tests a design doc before it is built. A good reviewer finds the weakest part fast and turns arguments into data.\n\nThis lesson gives you two tools: a bank of 43 review questions in seven groups, and a **trade-off catalog** that says when each option wins. By the end you can pick the right questions and state any decision as a trade-off.",
+        },
+        {
           kind: "quiz",
-          prompt: "You are reviewing a delivery design doc. The question bank has 43 questions. How many should you ask?",
+          guess: true,
+          prompt: "Take a guess. You are reviewing a delivery design doc, and the question bank has 43 questions. How many would you expect to ask?",
           options: [
             "All 43, in order",
             "About five that hit the weakest part of the doc",
@@ -732,12 +752,12 @@ const chapter: Chapter = {
             "None; reviews should only approve or reject",
           ],
           answer: 1,
-          explain: "You will not ask all of them. Pick the five that hit the weakest part of the doc. The bank is a checklist to find that weak part fast.",
+          explain: "You will not ask all of them; nobody has time, and most will not matter for this doc. Pick the **five** that hit the weakest part. The bank is a checklist to find that weak part fast.",
         },
         {
           kind: "read",
           title: "A question bank in seven groups",
-          body: "Bring this bank to any delivery design review. It has seven groups:\n\n- Caching and correctness\n- Scale and spikes\n- Failure and resilience\n- Security and protection\n- Observability\n- Cost\n- Operations and rollout\n\nTry each group yourself before you reveal the questions.",
+          body: "Bring this bank to any delivery design review. It has seven groups:\n\n- Caching and correctness\n- Scale and spikes\n- Failure and resilience\n- Security and protection\n- Observability\n- Cost\n- Operations and rollout\n\nTry each group yourself before you reveal the questions. You are not expected to know them all yet; the reveal teaches them.",
         },
         {
           kind: "reveal",
@@ -776,6 +796,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Static stability (Lesson 2) asks what happens to the bytes path when a decision-making service fails. Look for the question about a dependency being down.",
           prompt: "A doc adds a new steering service and says \"players get their CDN from steering at session start.\" Which question tests [[static stability]] most directly?",
           options: [
             "Is the `Vary` header used?",
@@ -795,7 +816,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Every decision is a trade-off",
-          body: "Staff engineers name both sides, say which conditions favor each, and pick one with a reason.",
+          body: "Staff engineers name both sides, say which conditions favor each, and pick one with a reason. Read each row as: \"Choose A when ..., choose B when ...\".",
           visual: {
             kind: "table",
             headers: ["Decision", "Option A", "Option B", "Choose A when", "Choose B when"],
@@ -810,6 +831,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Check the \"Container\" row of the catalog: what makes separate TS worth keeping, and what does one shared set save?",
           prompt: "Your device base now supports fMP4 and [[cbcs]]. You store separate TS (for HLS) and fMP4 (for DASH). What does the catalog say?",
           options: [
             "Keep both; storage is cheap",
@@ -853,6 +875,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Every answer is in a \"choose when\" column. First find the row for the decision (token location, TTL, failover, purge, token lifetime), then read which side the condition belongs to.",
           prompt: "Match each condition to the option the catalog picks.",
           pairs: [
             ["Some TVs cannot set request headers", "Token in URL query"],
@@ -880,6 +903,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Check the \"Live latency\" row: one option wins on cache efficiency and stability, the other on real-time interaction and spoiler risk.",
           prompt: "A live finale has a chat, and spoilers spread on social media within seconds. Which live-latency option does the catalog pick?",
           options: [
             "Standard HLS/DASH, for cache efficiency and stability",
@@ -924,22 +948,34 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "The shape of a strong answer",
-          body: "These are the kinds of problems asked in senior and staff interviews for media delivery, video platform and CDN teams.\n\nEach sketch follows the same order: **clarify**, **size**, **design**, **key decisions**, **failure modes**, and **what a staff answer adds**. For each problem, think first, then reveal.",
+          body: "Senior and staff interviews for media delivery, video platform and CDN teams often ask you to design one delivery system in under an hour.\n\nThis lesson walks through five such problems with answer sketches: a premiere, steering, replication, purge and token signing. By the end you will answer in a fixed order that interviewers trust, and you will know each problem's key decisions and failure modes.",
           callout: { type: "mistake", text: "Drawing boxes before stating numbers. Interviewers for delivery roles expect you to say \"2M x 4 Mbps is 8 Tbps, so I need multi-CDN and a shield\" within the first five minutes. The numbers justify the boxes." },
         },
         {
+          kind: "read",
+          title: "Six parts, always in this order",
+          body: "- **Clarify**: ask what exactly is being built, for whom, and under which limits.\n- **Size**: turn the answers into numbers (egress, request rate, storage).\n- **Design**: draw the boxes the numbers call for.\n- **Key decisions**: the trade-offs you chose, said out loud.\n- **Failure modes**: what breaks, and what the viewer sees.\n- **What a staff answer adds**: process, guardrails and rollout.",
+        },
+        {
           kind: "order",
+          teach: "Numbers come before boxes, and you cannot size a problem you have not clarified. Decisions and failures need a design to talk about.",
           prompt: "Put the six parts of an interview answer in order.",
           items: ["Clarify", "Size", "Design", "Key decisions", "Failure modes", "What a staff answer adds"],
           explain: "Clarify the problem, size it with numbers, then design. Name the key decisions, predict the failures, and finish with what a staff engineer adds: process, guardrails and rollout.",
         },
         {
-          kind: "reveal",
-          prompt: "**Problem 1: Deliver a simulcast premiere to 2M concurrent viewers.** Clarify and size it before you draw anything.",
-          answer: "**Clarify.** A VOD file released at a fixed time, not live. Global. Several dubs and subtitles. Assumed 2M concurrent within 10 minutes of release.\n\n**Size.** 8 Tbps peak (plan 12). 400k video segment requests per second at 5-second segments. In the first minute, almost every viewer requests the first segments of the same few renditions. Control plane: 2M playback API calls and 2M DRM license requests in about 10 minutes.",
+          kind: "read",
+          title: "Problem 1: a premiere for 2M viewers",
+          body: "**Problem 1: Deliver a simulcast premiere to 2M concurrent viewers.**\n\n**Clarify.** A VOD file released at a fixed time, not live. Global. Several dubs and subtitles. Assumed 2M concurrent within 10 minutes of release.\n\n**Size.** 8 Tbps peak (plan 12). 400k video segment requests per second at 5-second segments. In the first minute, almost every viewer requests the first segments of the same few renditions.",
+        },
+        {
+          kind: "read",
+          title: "Problem 1: the control-plane rush",
+          body: "The control plane gets hit too: 2M playback API calls and 2M DRM license requests in about 10 minutes.\n\nTo turn a count into a rate, divide by the seconds in the window.\n\n**Worked example:** 600,000 calls in 5 minutes. 5 minutes = 300 s, so 600,000 / 300 = **2,000 calls per second** on average. The first minute is usually much busier than the average.",
         },
         {
           kind: "number",
+          teach: "Average rate = number of calls / seconds in the window. 10 minutes = 600 seconds.",
           prompt: "2M playback API calls arrive in about 10 minutes. What is the **average** rate per second?",
           answer: 3300,
           tolerance: 150,
@@ -953,33 +989,24 @@ const chapter: Chapter = {
           body: "- Package and upload ahead of time, with a hidden publish state.\n- Replicate to both clouds and verify checksums before release time.\n- [[Pre-warm|pre-warming]] shields and major edges by fetching the first N minutes of each popular rendition.\n- Use [[request collapsing]] at edge and shield.\n- Spread viewers across CDNs by pre-agreed weights and reserved capacity.\n- Scale playback API, entitlement and license services ahead of time.\n- Release by **flipping the catalog entry**, not by uploading files.",
         },
         {
-          kind: "multi",
-          prompt: "Which are failure modes the Problem 1 sketch names? Select all that apply.",
-          options: [
-            "Cold cache plus no collapsing equals origin melt",
-            "A license server storm",
-            "One CDN under-provisioned in one region",
-            "A purge during the premiere wipes the warm cache",
-            "Subtitles are too large in bytes to cache",
-            "The 95th percentile drops below commit",
-          ],
-          answers: [0, 1, 2, 3],
-          explain: "Cold caches without collapsing melt origin; 2M license requests arrive together; a single under-provisioned CDN-region fails; a careless purge wipes the cache you warmed. Subtitles are tiny in bytes.",
+          kind: "reveal",
+          prompt: "Problem 1: what could still go wrong on premiere night? Think of two or three failure modes, then reveal.",
+          answer: "**Failure modes.**\n- Cold cache plus no collapsing equals origin melt.\n- A license server storm: 2M license requests arrive together.\n- One CDN under-provisioned in one region.\n- A purge during the premiere wipes the warm cache you paid to build.",
         },
         {
-          kind: "reveal",
-          prompt: "Problem 1: what are the **key decisions**, and what does a **staff answer add**?",
-          answer: "**Key decisions.** How much to pre-warm (cost vs cold-start risk). Whether to stagger release by a few seconds per region (fairness vs load). Whether to cap top bitrate for the first minutes.\n\n**Staff answer adds.** A premiere checklist and a \"go/no-go\" meeting 24 hours before. A freeze on CDN config changes during the window. A degrade plan (cap bitrate, raise TTLs) ready before the event.",
+          kind: "read",
+          title: "Problem 1: decisions and staff extras",
+          body: "**Key decisions.** How much to pre-warm (cost vs cold-start risk). Whether to stagger release by a few seconds per region (fairness vs load). Whether to cap top bitrate for the first minutes.\n\n**Staff answer adds.** A premiere checklist and a \"go/no-go\" meeting 24 hours before. A freeze on CDN config changes during the window. A degrade plan (cap bitrate, raise TTLs) ready before the event.",
         },
         {
-          kind: "reveal",
-          prompt: "**Problem 2: Design a multi-CDN steering service.** What do you clarify, and how big is it?",
-          answer: "**Clarify.** Who calls it (the playback API at session start)? Which CDNs? What inputs (RUM QoE, availability, cost, commits)?\n\n**Size.** Call rate equals session start rate. At 2M sessions in 10 minutes, peaks of several thousand calls per second. The decision must be fast: Crunchyroll's 2020 \"Katana\" engineering post described a multi-CDN decision step at manifest time with a tight latency target.",
+          kind: "read",
+          title: "Problem 2: a multi-CDN steering service",
+          body: "**Problem 2: Design a multi-CDN steering service.**\n\n**Clarify.** Who calls it (the playback API at session start)? Which CDNs? What inputs (RUM QoE, availability, cost, commits)?\n\n**Size.** Call rate equals session start rate. At 2M sessions in 10 minutes, peaks of several thousand calls per second. The decision must be fast: Crunchyroll's 2020 \"Katana\" engineering post described a multi-CDN decision step at manifest time with a tight latency target.",
         },
         {
           kind: "read",
           title: "Problem 2: split it in two (online)",
-          body: "An online **decider** sits behind the playback API. For each session it reads a small weights table **from memory** and picks a primary CDN plus ordered fallbacks.\n\nIt returns signed URLs with the CDN host list, or a [[Content Steering]] server URI so the player can move mid-session. No slow call sits on the request path.",
+          body: "The trick is to split the service in two.\n\nAn online **decider** sits behind the playback API. For each session it reads a small weights table **from memory** and picks a primary CDN plus ordered fallbacks.\n\nIt returns signed URLs with the CDN host list, or a [[Content Steering]] server URI so the player can move mid-session. No slow call sits on the request path.",
           visual: { kind: "flow", spec: spec(STEER, ["p", "a", "s", "r", "m", "x", "p>a", "a>s", "s>r", "s>m", "m>p", "p>x"], ["p>a", "a>s", "s>r", "s>m", "m>p", "p>x"]), caption: "The online path: fast, in memory." },
         },
         {
@@ -990,6 +1017,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall static stability from Lesson 2: when a decision-maker fails, the data plane keeps working on what it already has.",
           prompt: "The scorer job crashes and stops writing new weights. What should the decider do?",
           visual: { kind: "flow", spec: spec(STEER, ["c", "r", "s", "c>r", "s>r"]) },
           options: [
@@ -1002,34 +1030,41 @@ const chapter: Chapter = {
           explain: "Static stability: the decider keeps the last good table. Two more failure modes: bad data makes everyone flip to one CDN at once (cap weight changes per minute), and one CDN gets all traffic and overloads (respect capacity limits).",
         },
         {
-          kind: "reveal",
-          prompt: "Problem 2: what are the **key decisions**, and what does a **staff answer add**?",
-          answer: "**Key decisions.** Granularity (country vs ASN). How much traffic to keep on each CDN to keep caches warm and keep measuring it (exploration). How to weigh cost against QoE.\n\n**Staff answer adds.** Weight-change rate limits, a manual override with audit, and a \"never below X percent\" floor on each healthy CDN so caches stay warm.",
+          kind: "read",
+          title: "Problem 2: decisions and guardrails",
+          body: "**Key decisions.** Granularity (country vs ASN). How much traffic to keep on each CDN to keep caches warm and keep measuring it (exploration). How to weigh cost against QoE.\n\n**Staff answer adds.** Weight-change rate limits, a manual override with audit, and a \"never below X percent\" floor on each healthy CDN so caches stay warm.",
         },
         {
-          kind: "reveal",
-          prompt: "**Problem 3: Multi-cloud origin and replication.** Clarify, size and sketch a design.",
-          answer: "**Clarify.** Where is the source of truth? Objects are immutable once published. We must survive loss of one cloud region or one cloud.\n\n**Size.** Tens of thousands of episodes x about 4.2 GB of video, plus audio and subtitles (assumed): a few hundred TB per packaging format. New content per day is small; the risk is correctness, not bandwidth.\n\n**Design.** Write once to a primary bucket. Replicate with a queue-driven replicator (or managed replication) to the second cloud. Verify checksums. Mark an object \"published\" only when it exists in both places. Shields fetch from the nearest healthy origin with origin failover.\n\n**Key decisions.** Publish gate on replication (safer, slower) vs publish on primary (faster, risk of 404 on failover). A [[replication lag]] SLO (for example, p99 under N minutes before release time).",
+          kind: "read",
+          title: "Problem 3: multi-cloud origin",
+          body: "**Problem 3: Multi-cloud origin and replication.**\n\n**Clarify.** Where is the source of truth? Objects are immutable (never changed) once published. We must survive loss of one cloud region or one cloud.\n\n**Size.** Tens of thousands of episodes x about 4.2 GB of video, plus audio and subtitles (assumed): a few hundred TB per packaging format. New content per day is small; the risk is correctness, not bandwidth.",
+        },
+        {
+          kind: "read",
+          title: "Problem 3: design and key decisions",
+          body: "**Design.** Write once to a primary bucket. Replicate with a queue-driven replicator (or managed replication) to the second cloud. Verify checksums. Mark an object \"published\" only when it exists in both places. Shields fetch from the nearest healthy origin with origin failover.\n\n**Key decisions.** Publish gate on replication (safer, slower) vs publish on primary (faster, risk of 404 on failover). A [[replication lag]] SLO (for example, p99 under N minutes before release time).",
         },
         {
           kind: "quiz",
-          prompt: "Why is partial replication especially dangerous?",
+          teach: "Think about which copy everyday traffic reads, and when the copy in the second cloud is actually used.",
+          prompt: "During a failover drill, shields switch to the second cloud and some episodes return 404. Everything looked fine before the drill. What is the most likely cause?",
           options: [
-            "It doubles the storage bill",
-            "It causes 404s only on failover, so it is invisible until the worst moment",
-            "It slows down every request on the primary",
-            "It breaks DRM licenses",
+            "The CDN cached the 404s weeks ago",
+            "Replication was partial: some objects never reached the second cloud, and normal traffic never read that copy",
+            "DRM licenses expired during the drill",
+            "The primary bucket was deleted",
           ],
           answer: 1,
-          explain: "Normal traffic reads the primary, so a missing copy in the secondary hides until you fail over. Fix: continuously audit the secondary and run failover drills. **Staff answer adds:** treat \"replicated and verified\" as a release requirement owned with Content Pipeline, and alert on lag before release time, not after.",
+          explain: "Partial replication causes 404s only on failover, so it is invisible until the worst moment. Fix: continuously audit the secondary and run failover drills. **Staff answer adds:** treat \"replicated and verified\" as a release requirement owned with Content Pipeline, and alert on lag before release time, not after.",
         },
         {
-          kind: "reveal",
-          prompt: "**Problem 4: Purge across many CDNs.** Why do we purge, and how would you design it?",
-          answer: "**Clarify.** Why purge? Fixed subtitles, wrong audio, takedowns, geo-rights changes. We need speed and correctness.\n\n**Design.** Tag every response with [[surrogate keys|surrogate key]] like `title-123`, `episode-456`, `subs-456-es`. A purge service takes a key, fans out to every CDN API, tracks completion per CDN, retries, and verifies with probes. For CDNs without tag purge, keep a mapping from key to URL list.",
+          kind: "read",
+          title: "Problem 4: purge across many CDNs",
+          body: "**Clarify.** Why purge? Fixed subtitles, wrong audio, takedowns, geo-rights changes. We need speed and correctness.\n\n**Design.** Tag every response with [[surrogate keys|surrogate key]] like `title-123`, `episode-456`, `subs-456-es`. A purge service takes a key, fans out to every CDN API, tracks completion per CDN, retries, and verifies with probes. For CDNs without tag purge, keep a key-to-URL map.\n\n**Key decision.** A **hard purge** deletes objects. A **[[soft purge]]** marks them stale, so caches revalidate with origin.",
         },
         {
           kind: "quiz",
+          teach: "A hard purge deletes, so the next request for each object is a miss. A soft purge marks objects stale, so caches check with origin. Think about what a hot title does to origin right after each kind.",
           prompt: "You must purge subtitles for a title that is hot right now. Which purge protects origin?",
           options: [
             "Hard purge: delete everything at once",
@@ -1041,13 +1076,14 @@ const chapter: Chapter = {
           explain: "Soft purge marks objects stale so caches revalidate instead of all missing at once; it protects origin from a sudden miss storm. Failure modes: purging a hot title during a premiere causes a herd at origin; a CDN API rate limit makes purge slow; a takedown purge that silently fails on one CDN is a legal risk. **Staff answer adds:** purge is a production change: rate-limit it, log it, and block hard purges of hot titles during premiere windows without approval.",
         },
         {
-          kind: "reveal",
-          prompt: "**Problem 5: Segment URL signing and token auth.** What is the threat, the constraint and the design?",
-          answer: "**Clarify.** Threat: link sharing and restreaming. Constraint: the cache key must stay clean.\n\n**Design.** The playback API issues a token bound to a path prefix, an expiry, and optionally an IP range or session. The CDN validates the token at the edge and **strips it from the cache key**. Prefix-based tokens (one token for the whole rendition directory) avoid signing every segment. Keys rotate with overlap.\n\n**Key decisions.** Query token vs cookie vs header. Token lifetime vs session length. Binding to IP (breaks mobile network changes) vs not.",
+          kind: "read",
+          title: "Problem 5: signing segment URLs",
+          body: "**Clarify.** Threat: link sharing and restreaming. Constraint: the cache key must stay clean.\n\n**Design.** The playback API issues a token bound to a path prefix, an expiry time, and optionally an IP range or session. The CDN validates the token at the edge and **strips it from the cache key**. Prefix-based tokens (one token for the whole rendition directory) avoid signing every segment. Signing keys rotate with overlap.\n\n**Key decisions.** Query vs cookie vs header. Token lifetime vs session length. Binding to IP (breaks mobile network changes) or not.",
         },
         {
           kind: "multi",
-          prompt: "Which failure modes does the Problem 5 sketch list? Select all that apply.",
+          teach: "The edge checks each token against an expiry time, using its own clock, and against a signing key. Think about what fragments the cache key, what makes a good token look expired, and what happens if CDNs hold different keys.",
+          prompt: "Which of these are real failure modes of a segment token scheme? Select all that apply.",
           options: [
             "Token in the cache key: hit ratio collapses",
             "Clock skew: valid tokens rejected",
@@ -1056,7 +1092,7 @@ const chapter: Chapter = {
             "Tokens make segments larger in bytes",
           ],
           answers: [0, 1, 2],
-          explain: "Prefix tokens do the opposite: one token covers the rendition directory. **Staff answer adds:** one token format with per-CDN validators tested in a conformance suite, and a rollout of new signing keys that accepts old and new for a window.",
+          explain: "Prefix tokens do the opposite: one token covers the rendition directory, and tokens do not change segment size. **Staff answer adds:** one token format with per-CDN validators tested in a conformance suite, and a rollout of new signing keys that accepts old and new for a window.",
         },
         {
           kind: "summary",
@@ -1079,12 +1115,18 @@ const chapter: Chapter = {
       minutes: 11,
       steps: [
         {
-          kind: "reveal",
-          prompt: "**Problem 6: Find a QoE regression fast.** \"Rebuffering is up.\" What do you ask first, and what system would you build?",
-          answer: "**Clarify.** Where, since when, for whom?\n\n**Design.** A pipeline that joins player beacons (with [[CMCD]]-style fields like session ID, bitrate, buffer length) with CDN logs by session ID. Precomputed breakdowns by CDN, country, ASN, device, app version and title. Anomaly detection on each slice, ranked by **viewer impact** (affected sessions, not percent change).\n\n**Key decisions.** Sampling vs full logs (cost). [[Cardinality]] control (ASN x title x device explodes).",
+          kind: "read",
+          title: "Five more problems",
+          body: "Five more interview problems, in the same six-part shape: clarify, size, design, key decisions, failure modes, staff extras.\n\nThese are about finding trouble fast and changing things safely: hunting a quality drop, a low-latency live event, automatic failover, the log pipeline, and config rollout. At the end you will practice in the playground, saying the numbers out loud before you press run.",
+        },
+        {
+          kind: "read",
+          title: "Problem 6: find a QoE regression fast",
+          body: "\"Rebuffering is up.\" **Clarify:** where, since when, for whom?\n\n**Design.** A pipeline that joins player beacons ([[CMCD]]-style fields like session ID, bitrate, buffer length) with CDN logs by session ID. Precomputed breakdowns, called **slices**, by CDN, country, ASN, device, app version and title. Anomaly detection on each slice, ranked by **viewer impact** (affected sessions, not percent change).\n\n**Key decisions.** Sampling vs full logs (cost). [[Cardinality]] control: ASN x title x device explodes.",
         },
         {
           kind: "quiz",
+          teach: "A country's number on a dashboard is an average over all of its ISPs, devices and titles.",
           prompt: "The country dashboard for Brazil looks normal, but viewers on one ISP are stalling. Why did the dashboard miss it?",
           options: [
             "The CDN logs are delayed",
@@ -1096,12 +1138,13 @@ const chapter: Chapter = {
           explain: "Averages hide slices. Another failure mode: an app release and a CDN change happen the same day and the team blames the wrong one. **Staff answer adds:** change annotation on every graph (deploys, config pushes, CDN maintenance), and a standard \"slice until it is not uniform\" method in the runbook.",
         },
         {
-          kind: "reveal",
-          prompt: "**Problem 7: Low-latency live event.** What do you clarify, and what is the design?",
-          answer: "**Clarify.** Target latency (for example 5-10 seconds glass to glass). Concurrency. [[DVR window]].\n\n**Design.** Live encoder to packager producing CMAF chunks, [[LL-HLS]] partial segments and [[LL-DASH]]. Live origin with redundant encoders in two regions. Shields with collapsing. Short manifest TTLs, long segment TTLs. Players with a small target buffer and catch-up logic.",
+          kind: "read",
+          title: "Problem 7: low-latency live event",
+          body: "**Clarify.** Target latency (for example 5-10 seconds glass to glass). Concurrency. [[DVR window]].\n\n**Design.** Live encoder to packager producing CMAF chunks, [[LL-HLS]] partial segments and [[LL-DASH]]. Live origin with redundant encoders in two regions. Shields with collapsing. Short manifest TTLs, long segment TTLs. Players with a small target buffer and catch-up logic.\n\nIn LL-HLS each segment is split into small **parts**, and players reload the playlist to learn about each new part.",
         },
         {
           kind: "quiz",
+          teach: "LL-HLS players reload the playlist to learn about each new part. Ask how many parts per second there are when each part gets shorter.",
           prompt: "You shrink LL-HLS part durations to cut latency. What happens to manifest requests?",
           options: [
             "They fall, because parts are smaller",
@@ -1115,17 +1158,18 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Problem 8: failover with hysteresis",
-          body: "**Clarify:** what signal, what action, what speed, what guardrails.\n\n**Design:** a state machine per CDN per region. A CDN enters **Degraded** only after the error SLI is above threshold for 3 windows, and part of its traffic shifts. Still bad for 3 more windows: **Failed over**, minimum weight only. Good for 5 windows while degraded: back to **Healthy**.",
+          body: "**Clarify:** what signal, what action, what speed, what guardrails. Signals can come from players ([[RUM]]), synthetic probes or CDN status.\n\n**Design:** a state machine per CDN per region. A CDN enters **Degraded** only after the error SLI is above threshold for 3 windows, and part of its traffic shifts. Still bad for 3 more windows: **Failed over**, minimum weight only. Good for 5 windows while degraded: back to **Healthy**.",
           visual: { kind: "flow", spec: spec(FSM, ["h", "d", "f", "h>d", "d>f", "d>h"]), caption: "Fail in steps, never all at once." },
         },
         {
           kind: "read",
           title: "Recover more slowly than you fail",
-          body: "From **Failed over**, the CDN needs 10 good windows to start **Recovering**, where weight ramps slowly. 10 more good windows return it to **Healthy**. Bad again: straight back to Failed over.\n\nThis is **asymmetric [[hysteresis]]**. Other rules: never move 100 percent of traffic in one step, and check the target CDN's capacity before moving.",
+          body: "From **Failed over**, the CDN needs 10 good windows to start **Recovering**, where weight ramps slowly. 10 more good windows return it to **Healthy**. Bad again: straight back to Failed over.\n\nThis is **asymmetric [[hysteresis]]**: it takes more evidence to come back than to leave. Other rules: never move 100 percent of traffic in one step, and check the target CDN's capacity before moving.",
           visual: { kind: "flow", spec: spec(FSM, ["f", "r", "h", "f>r", "r>h", "r>f"]), caption: "Recovery takes 10 + 10 good windows." },
         },
         {
           kind: "quiz",
+          teach: "Signals come from players (RUM), synthetic probes and CDN status, and any one of them can be wrong on its own. Which option protects you from one bad signal?",
           prompt: "A bug in the RUM pipeline makes CDN B look like it is down. What guardrail stops a bad failover?",
           visual: { kind: "flow", spec: spec(FSM) },
           options: [
@@ -1140,10 +1184,16 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Problem 9: CDN logs and the bill",
-          body: "**Clarify.** Inputs: real-time logs from each CDN and vendor invoices. Outputs: per-title, per-region, per-CDN bytes; billing forecasts; commit tracking.\n\n**Size.** Start from the request rate. With separate audio and subtitle requests, the assumed total is about 800k requests per second, and every request is a log line.",
+          body: "**Clarify.** Inputs: real-time logs from each CDN and vendor invoices. Outputs: per-title, per-region, per-CDN bytes; billing forecasts; [[commit]] tracking.\n\n**Size.** Every request is one log line, so start from the request rate. With separate audio and subtitle requests, the assumed total is about 800k requests per second.",
+        },
+        {
+          kind: "read",
+          title: "Sizing a log pipeline",
+          body: "Log lines per day = requests per second x 86,400 (the seconds in one day).\n\n**Worked example:** a smaller service at 50,000 requests per second. 50,000 x 86,400 = 4,320,000,000, about **4.3 billion** lines a day.\n\nKeeping every raw line for long is expensive, so log designs keep raw logs only for a short time and keep aggregates for long.",
         },
         {
           kind: "number",
+          teach: "Lines per day = requests per second x 86,400. Divide the result by 1,000,000,000 to get billions.",
           prompt: "At 800k requests per second, about how many log lines per day is that, in billions?",
           answer: 70,
           tolerance: 3,
@@ -1157,8 +1207,14 @@ const chapter: Chapter = {
           answer: "**Design.** Stream logs into a queue, enrich them (geo, ASN, title from path), aggregate in near real time, keep raw logs for a short time and aggregates for long. Compute daily [[95th-percentile|95th percentile billing]] curves per CDN and compare them to invoices.\n\n**Staff answer adds.** Forecast end-of-month [[commit]] position mid-month and feed it to the steering scorer, so cost-aware steering uses real data, not guesses.",
         },
         {
+          kind: "read",
+          title: "Problem 10: safe edge config rollout",
+          body: "Config lives in Terraform plus VCL or edge code for several vendors, in one repository. A change moves through stages, from safest to widest:\n\n- unit tests for edge logic\n- a **conformance suite**: the same requests sent to staging on every CDN, checking headers, cache keys, token handling and status codes\n- a canary by header, then a small region\n- global, with automatic rollback on error-rate or QoE gates",
+        },
+        {
           kind: "order",
-          prompt: "**Problem 10: Safe edge config rollout across CDNs.** Config lives in Terraform plus VCL or edge code for several vendors, in one repository. Put the stages in order.",
+          teach: "Go from cheapest and safest to widest: checks on the code first, then every CDN's staging, then real traffic in growing slices.",
+          prompt: "**Problem 10: Safe edge config rollout across CDNs.** Put the stages in order.",
           items: [
             "Unit tests for edge logic",
             "Conformance suite against staging services on every CDN",
@@ -1169,7 +1225,13 @@ const chapter: Chapter = {
           explain: "The conformance suite sends the same requests to staging on every CDN and checks headers, cache keys, token handling and status codes. Then canary by header, then a small region, then global, with automatic rollback on gates.",
         },
         {
+          kind: "read",
+          title: "Problem 10: two failure modes",
+          body: "**[[Drift|Drift (config)]]**: the live config no longer matches source control, for example after someone edits it by hand in a vendor console.\n\n**Parity bugs**: the same intent behaves differently on two CDNs. For example, CDN A caches a 404 and CDN B does not.",
+        },
+        {
           kind: "quiz",
+          teach: "Recall the two config failure modes: one is about live config differing from source control, the other about CDNs behaving differently.",
           prompt: "Someone fixes a CloudFront behavior by hand in the vendor console. What failure mode is this, and what is the fix?",
           options: [
             "A parity bug; fix with more canaries",
@@ -1208,8 +1270,14 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "The human side of staff work",
+          body: "Good designs still fail when vendors and teams are not lined up. Much of a staff engineer's week is people work done with data.\n\nThis lesson covers four parts of it: managing CDN vendors, agreeing contracts with partner teams, planning your first 90 days on a new team, and speaking precisely in design reviews.",
+        },
+        {
           kind: "quiz",
-          prompt: "A big premiere is three weeks away. What is the cheapest thing you can do with your CDN vendors to prevent incidents?",
+          guess: true,
+          prompt: "Take a guess. A big premiere is three weeks away. What would you expect is the cheapest thing you can do with your CDN vendors to prevent incidents?",
           options: [
             "Threaten to move traffic away if anything breaks",
             "Tell every vendor about the premiere and ask them to confirm capacity in the regions that matter",
@@ -1217,12 +1285,12 @@ const chapter: Chapter = {
             "Nothing; vendors autoscale",
           ],
           answer: 1,
-          explain: "Share your calendar. Tell every vendor about premieres, big launches and expected peaks weeks ahead, and ask them to confirm capacity. It is cheap and prevents many incidents.",
+          explain: "**Share your calendar.** Tell every vendor about premieres, big launches and expected peaks weeks ahead, and ask them to confirm capacity in the regions that matter. It is cheap and prevents many incidents.",
         },
         {
           kind: "read",
           title: "Vendors are three things at once",
-          body: "CDN vendors are partners, suppliers and sometimes the cause of your outage, all at once. Staff engineers manage these relationships **with data**.\n\n**Know your account team and escalation path.** For each vendor, keep a current list: technical account manager, support tier, emergency phone line and status page. Test the emergency path before you need it.",
+          body: "CDN vendors are partners, suppliers and sometimes the cause of your outage, all at once. Staff engineers manage these relationships **with data**.\n\n**Know your account team and escalation path.** For each vendor, keep a current list: technical account manager, support tier, emergency phone line and status page. Test the emergency path before you need it.\n\n**Share your calendar.** Tell vendors about premieres and expected peaks weeks ahead.",
         },
         {
           kind: "read",
@@ -1244,11 +1312,12 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Leverage, not threats",
-          body: "**Negotiate with leverage, not threats.** Multi-CDN gives you real options. A [[commit]] trades a lower unit price for risk: if you commit too high and traffic moves away, you pay for unused bytes. Know your traffic forecast before negotiating.\n\n**Never let one engineer hold all vendor knowledge.** Put vendor configs, contacts and quirks in the repo and runbooks.",
+          body: "**Negotiate with leverage, not threats.** Multi-CDN gives you real options. A [[commit]] is a promise to buy a minimum volume: it trades a lower unit price for risk. If you commit too high and traffic moves away, you pay for unused bytes. Know your traffic forecast before negotiating.\n\n**Never let one engineer hold all vendor knowledge.** Put vendor configs, contacts and quirks in the repo and runbooks.",
           callout: { type: "industry", text: "Netflix built its own CDN and partners with \"over a thousand ISPs,\" placing embedded appliances inside ISP networks and peering at internet exchanges. Most streaming services, even large ones, buy from several vendors and invest in steering, observability and vendor management instead. Building only makes sense with huge, stable traffic and the staff to run hardware and peering worldwide." },
         },
         {
           kind: "match",
+          teach: "Each practice replaces a guess or a single person with data or a written record. Ask which risk each one removes.",
           prompt: "Match each vendor practice to its reason.",
           pairs: [
             ["Bake-off with real traffic", "Marketing benchmarks do not predict your QoE"],
@@ -1261,7 +1330,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Four partner teams",
-          body: "The job posting names four partner teams: **Content Pipeline**, **Content Protection**, **Playback** and **Security**. Each sits on a boundary of the delivery system.\n\nClear contracts at these boundaries prevent most cross-team incidents.",
+          body: "The job posting names four partner teams: **Content Pipeline**, **Content Protection**, **Playback** and **Security**. Each sits on a boundary of the delivery system.\n\nA **contract** here is a written agreement about what crosses a boundary: formats, headers, timings and who owns what. Clear contracts at these boundaries prevent most cross-team incidents.",
           visual: { kind: "flow", spec: spec(PARTNERS), caption: "Assets and rules flow in; URLs flow out; QoE telemetry flows back." },
         },
         {
@@ -1281,6 +1350,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Each contract sits on one boundary. Ask which team produces or consumes the thing in the contract: packaged files, keys, players or certificates.",
           prompt: "Match each contract to the partner team you agree it with.",
           pairs: [
             ["\"Replicated and verified\" before release", "Content Pipeline"],
@@ -1299,7 +1369,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Your first 90 days",
-          body: "The aim is not to ship something big. It is to understand the system well enough that your **first big change is safe**, and to earn trust by being useful early.\n\n**Days 1-30: learn the bytes path.** Trace one playback request hop by hop, read the last 12 months of postmortems, and shadow on-call and one premiere.",
+          body: "The aim is not to ship something big. It is to understand the system well enough that your **first big change is safe**, and to earn trust by being useful early. The plan has three phases: learn, own one thing, lead one improvement.\n\n**Days 1-30: learn the bytes path.** Trace one playback request hop by hop, read the last 12 months of postmortems, and shadow on-call and one premiere.",
           visual: { kind: "flow", spec: only(DAYS, ["a", "a1", "a2", "a3", "b"], ["a", "a1", "a2", "a3", "a>a1", "a>a2", "a>a3"]), caption: "Three phases. First: learn the bytes path." },
         },
         {
@@ -1322,6 +1392,7 @@ const chapter: Chapter = {
         },
         {
           kind: "order",
+          teach: "The three phases are: learn the bytes path, own one thing end to end, then lead one improvement. Place each action in its phase.",
           prompt: "Put these first-90-days actions in order.",
           items: [
             "Read every postmortem from the last year and list the top five causes",
@@ -1338,7 +1409,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Talk like a staff engineer",
-          body: "Language matters in design reviews. Replace vague phrases with numbers, mechanisms and rollback plans.",
+          body: "Language matters in design reviews. Replace vague phrases with numbers, mechanisms and rollback plans.\n\nThe first row is a worked example: 400,000 requests x (1 - 0.95) = **20,000 misses per second** at the shield.\n\nAlso learn to say \"I don't know, here is how I would find out.\" Precise uncertainty is a staff trait.",
           visual: {
             kind: "table",
             headers: ["Instead of", "Say"],
@@ -1353,14 +1424,16 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
-          prompt: "Check the first sentence. 400k segment requests per second, 95 percent hit ratio. How many misses per second reach the shield?",
-          answer: 20000,
-          tolerance: 1000,
+          teach: "Misses per second = requests per second x (1 - hit ratio).",
+          prompt: "Your turn, with a different design: 500k segment requests per second and a 98 percent hit ratio. How many misses per second reach the shield?",
+          answer: 10000,
+          tolerance: 500,
           unit: "misses/s",
-          explain: "400,000 x (1 - 0.95) = **20,000 misses per second**. Divide by the number of shield nodes to get the per-node load: that is the number that makes \"this should scale\" a real claim.",
+          explain: "500,000 x (1 - 0.98) = 500,000 x 0.02 = **10,000 misses per second**. Divide by the number of shield nodes to get the per-node load: that is the number that makes \"this should scale\" a real claim.",
         },
         {
           kind: "match",
+          teach: "A precise version names a number or a mechanism someone can check. Find the one that backs up each vague promise.",
           prompt: "Match each vague phrase to what the precise version adds.",
           pairs: [
             ["\"We can fail over\"", "Trigger windows, two signals, 30 percent max step, fallback list"],
@@ -1391,7 +1464,13 @@ const chapter: Chapter = {
       minutes: 9,
       steps: [
         {
+          kind: "read",
+          title: "What this chapter covered",
+          body: "Here is what this chapter covered:\n\n- **Staff habits:** numbers first, failure first, blast radius, writing as leverage.\n- **Miss ratio sets load:** hit ratio 90 to 99 percent cuts misses from 10 to 1 percent, 10x less.\n- **Quick sizing:** egress = streams x bitrate; segment rate = streams / segment length (1M / 5 s = 200k/s).\n- **Static stability:** when a decider fails, keep the last good state.\n- **Safe change:** config is code; roll out in cells; judge with QoE.\n- **Money and people:** cost is a design input; clear contracts with partner teams.",
+        },
+        {
           kind: "number",
+          teach: "Upstream load follows the miss ratio (100 percent minus the hit ratio). Compare the miss ratios before and after.",
           prompt: "Your byte hit ratio rises from 96 percent to 98 percent. By what factor does shield or origin traffic fall?",
           answer: 2,
           tolerance: 0.1,
@@ -1401,6 +1480,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Video segment request rate = concurrent viewers / segment length in seconds.",
           prompt: "Using the assumed model, compute the video segment request rate at a 2M-viewer premiere with **4-second** segments.",
           answer: 500000,
           tolerance: 10000,
@@ -1414,6 +1494,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "Think about the cache key, the clock the edge uses to check expiry, signing keys held by each CDN, and what happens when a phone changes network.",
           prompt: "Which of these can make a token scheme break cache efficiency or availability? Select all that apply.",
           options: [
             "Token in the cache key",
@@ -1427,6 +1508,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Asymmetric hysteresis asks for more good windows to come back than bad windows to leave. Think about the state of a CDN's cache right after it recovers.",
           prompt: "Why should automatic CDN failover recover more slowly than it fails?",
           options: [
             "Vendors charge more for fast recovery",
@@ -1439,6 +1521,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "The alternatives section records the options that were rejected, and the reasons. Think about what happens six months later without that record.",
           prompt: "A design doc has no \"alternatives considered\" section. Why is that a problem beyond completeness?",
           options: [
             "Reviewers will not approve docs without 13 sections",
@@ -1456,6 +1539,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "95th percentile billing charges by a high sample of your traffic rate, not by the average. Think about which traffic shape makes high samples much larger than the average.",
           prompt: "When is [[95th percentile billing]] worse for you than total-GB billing?",
           options: [
             "When traffic is flat all month",
@@ -1468,6 +1552,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Origin load follows the miss ratio. Work out 100 minus each hit ratio, then divide.",
           prompt: "Takeaway check. Byte hit ratio goes from 95 to 99 percent. By what factor does origin traffic fall?",
           answer: 5,
           tolerance: 0.2,
@@ -1476,6 +1561,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Think about which setting can drop a hit ratio from 95 percent to near zero with one careless query string.",
           prompt: "Takeaway check. Which line of config does the chapter call the most expensive one you will write?",
           options: ["The TLS cipher list", "The cache key", "The DNS TTL", "The log format"],
           answer: 1,
@@ -1483,6 +1569,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "Check each statement against the chapter's models: measure at the eyeball, config is code, the herd, the first-90-days advice, and cost as a design input.",
           prompt: "Takeaway check. Which statements match the chapter's key takeaways? Select all that apply.",
           options: [
             "Judge with client-side QoE and RUM; use server-side metrics to explain",
@@ -1512,6 +1599,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "The step above gives a rule of thumb: each kind of source answers a different need. Match the need to the source.",
           prompt: "Match what you need to where you should read.",
           pairs: [
             ["Exact protocol behavior", "Standards (RFCs, CTA specs)"],

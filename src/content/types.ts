@@ -51,6 +51,10 @@ export interface ReadStep {
 /** Single-answer multiple choice. 2-4 options. */
 export interface QuizStep {
   kind: "quiz";
+  /** Unscored warm-up: "Take a guess, we haven't covered this yet". No accuracy or XP effect, neutral feedback. Max 1 per lesson. */
+  guess?: boolean;
+  /** 1-3 sentence refresher of the idea needed to answer, WITHOUT giving the answer. Shown by "I'm not sure, teach me". Required on scored questions. */
+  teach?: string;
   prompt: string;
   visual?: Visual;
   options: string[];
@@ -62,6 +66,10 @@ export interface QuizStep {
 /** Select all that apply. */
 export interface MultiStep {
   kind: "multi";
+  /** Unscored warm-up: "Take a guess, we haven't covered this yet". No accuracy or XP effect, neutral feedback. Max 1 per lesson. */
+  guess?: boolean;
+  /** 1-3 sentence refresher of the idea needed to answer, WITHOUT giving the answer. Shown by "I'm not sure, teach me". Required on scored questions. */
+  teach?: string;
   prompt: string;
   visual?: Visual;
   options: string[];
@@ -73,6 +81,10 @@ export interface MultiStep {
 /** Back-of-envelope numeric answer. */
 export interface NumberStep {
   kind: "number";
+  /** Unscored warm-up: "Take a guess, we haven't covered this yet". No accuracy or XP effect, neutral feedback. Max 1 per lesson. */
+  guess?: boolean;
+  /** 1-3 sentence refresher of the idea needed to answer, WITHOUT giving the answer. Shown by "I'm not sure, teach me". Required on scored questions. */
+  teach?: string;
   prompt: string;
   visual?: Visual;
   answer: number;
@@ -85,6 +97,10 @@ export interface NumberStep {
 /** Put items in the correct order. `items` is the CORRECT order; the UI shuffles it. 3-6 items. */
 export interface OrderStep {
   kind: "order";
+  /** Unscored warm-up: "Take a guess, we haven't covered this yet". No accuracy or XP effect, neutral feedback. Max 1 per lesson. */
+  guess?: boolean;
+  /** 1-3 sentence refresher of the idea needed to answer, WITHOUT giving the answer. Shown by "I'm not sure, teach me". Required on scored questions. */
+  teach?: string;
   prompt: string;
   items: string[];
   explain: string;
@@ -94,6 +110,10 @@ export interface OrderStep {
 /** Match left to right. `pairs` are the correct pairs; the UI shuffles the right side. 3-5 pairs. */
 export interface MatchStep {
   kind: "match";
+  /** Unscored warm-up: "Take a guess, we haven't covered this yet". No accuracy or XP effect, neutral feedback. Max 1 per lesson. */
+  guess?: boolean;
+  /** 1-3 sentence refresher of the idea needed to answer, WITHOUT giving the answer. Shown by "I'm not sure, teach me". Required on scored questions. */
+  teach?: string;
   prompt: string;
   pairs: [string, string][];
   explain: string;

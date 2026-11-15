@@ -230,11 +230,17 @@ const chapter: Chapter = {
       id: "ch08-l1",
       title: "Why studios demand protection",
       goal: "Explain why content protection exists, map threats to controls, and see why encrypted bytes and shared caches fit together.",
-      minutes: 11,
+      minutes: 13,
       steps: [
         {
+          kind: "read",
+          title: "A show you rent, not own",
+          body: "Imagine you run a streaming service. A studio lets you stream its new anime, but only in North America, only from April to June, and only in HD on trusted devices.\n\nYou must keep those promises on millions of phones and TVs that you do not control.\n\nIn this lesson you will learn why studios demand protection, which threats exist, and why encrypted video still caches perfectly on a CDN.",
+        },
+        {
           kind: "quiz",
-          prompt: "Crunchyroll licenses a show for North America only. Who checks, on each viewer's phone, that the viewer is really in North America?",
+          guess: true,
+          prompt: "Crunchyroll licenses a show for North America only. Who would you expect checks, on each viewer's phone, that the viewer is really in North America?",
           options: [
             "The studio, with its own app on every phone",
             "The streaming service, with technology the contract requires",
@@ -242,7 +248,7 @@ const chapter: Chapter = {
             "Nobody: licenses are based on trust",
           ],
           answer: 1,
-          explain: "The rights holder cannot check conditions on each viewer's device. So the contract asks the streaming service to enforce them with technology. That technology is content protection.",
+          explain: "The streaming service does. The studio cannot check conditions on each viewer's device, so the license contract asks the service to enforce them with technology. That technology is called **content protection**, and it is the topic of this chapter.",
         },
         {
           kind: "read",
@@ -265,10 +271,16 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Three locks",
-          body: "This chapter covers three locks:\n\n- **DRM**: only a trusted part of the device can get the key.\n- **CDN access control**: signed URLs, cookies and tokens decide who may fetch bytes.\n- **Geo-licensing**: rules decide whether this viewer, here, now, may watch this title.\n\nThen anti-piracy for when the locks fail, and how the Content Protection and Media Delivery teams split the work. Packaging is in Chapter 7, the player's license call in Chapter 10, and DDoS and WAF in Chapter 15.",
+          body: "This chapter covers three locks:\n\n- **DRM** (Digital Rights Management): only a trusted part of the device can get the key.\n- **CDN access control**: signed URLs, cookies and tokens decide who may fetch bytes.\n- **Geo-licensing**: rules decide whether this viewer, here, now, may watch this title.\n\nWhen the locks fail, **forensic watermarking** helps: an invisible mark in the picture that tells you who received a leaked copy.\n\nThe chapter ends with how the Content Protection and Media Delivery teams split the work.",
+        },
+        {
+          kind: "read",
+          title: "The contract comes first",
+          body: "A **license agreement** usually has a **content security schedule**: a technical annex listing required protections.\n\nThe licensor sells the same title many times: to a Japanese broadcaster, a service in North America, another in Europe. If one buyer leaks a clean copy, every other sale loses value.\n\n**MovieLabs**, funded by the major US studios, publishes the **Enhanced Content Protection (ECP)** specification: first released September 2013, v1.4 in August 2024. Do not memorize it. Know that \"4K requires hardware DRM\" is a contract term, not an engineering preference.",
         },
         {
           kind: "match",
+          teach: "Each lock protects something different: the key, the bytes on the CDN, the rights for a place and time, or the trail back to a leaker.",
           prompt: "Match each protection to what it decides.",
           pairs: [
             ["DRM", "Only a trusted part of the device gets the key"],
@@ -277,11 +289,6 @@ const chapter: Chapter = {
             ["Forensic watermarking", "Who received a leaked copy"],
           ],
           explain: "DRM protects the key, tokens protect the bytes, geo rules protect the rights, and watermarking traces leaks when the other locks fail.",
-        },
-        {
-          kind: "read",
-          title: "The contract comes first",
-          body: "A **license agreement** usually has a **content security schedule**: a technical annex listing required protections.\n\nThe licensor sells the same title many times: to a Japanese broadcaster, a service in North America, another in Europe. If one buyer leaks a clean copy, every other sale loses value.\n\n**MovieLabs**, funded by the major US studios, publishes the **Enhanced Content Protection (ECP)** specification: first released September 2013, v1.4 in August 2024. Do not memorize it. Know that \"4K requires hardware DRM\" is a contract term, not an engineering preference.",
         },
         {
           kind: "read",
@@ -302,27 +309,15 @@ const chapter: Chapter = {
           },
         },
         {
-          kind: "match",
-          prompt: "Match each threat to its main control.",
-          pairs: [
-            ["Casual sharing of a manifest URL", "Short-lived CDN tokens"],
-            ["Territory hopping with a VPN", "Geo checks at entitlement, VPN detection"],
-            ["Stream ripping with a valid session", "DRM: segments useless without keys"],
-            ["Breaking a software DRM client", "Hardware DRM for high-value renditions"],
-            ["Pre-release leak by a partner", "Key release timing, watermarking"],
-          ],
-          explain: "Each threat has its own main control. No single control covers every row.",
-        },
-        {
           kind: "read",
           title: "Defense in depth",
-          body: "No single control covers every threat. So the industry uses **defense in depth**: independent layers, so that breaking one is not enough.\n\nThe first layers sit before any video byte moves. The playback API checks [[entitlement]] and territory. If allowed, it issues a signed manifest URL or cookie. The CDN edge validates that token on every request and returns [[403]] if it is invalid.",
+          body: "No single control covers every threat. So the industry uses **defense in depth**: independent layers, so that breaking one is not enough.\n\nThe first layers sit before any video byte moves. The playback API checks [[entitlement]] (is this account allowed this title?) and territory. If allowed, it issues a signed manifest URL or cookie. The CDN edge validates that token on every request and returns [[403]] (Forbidden) if it is invalid.",
           visual: { kind: "flow", spec: { ...DEFENSE, focus: ["v", "api", "deny", "tok", "edge", "e403", "v>api", "api>tok", "api>deny", "tok>edge", "edge>e403"] } },
         },
         {
           kind: "read",
           title: "The layers after the edge",
-          body: "Valid requests get encrypted segments from cache. The player then asks the license proxy for keys. The proxy checks entitlement, territory, device security level and concurrent streams. Only then does the **CDM** decrypt inside the device. If a copy still leaks, a watermark traces it back to a session.",
+          body: "Valid requests get encrypted segments from cache. The player then asks the license proxy for keys. The proxy checks entitlement, territory, device security level and concurrent streams. Only then does the **CDM** (the DRM module inside the device) decrypt. If a copy still leaks, a watermark traces it back to a session.",
           visual: { kind: "flow", spec: { ...DEFENSE, flow: ["v>api", "api>tok", "tok>edge", "edge>seg", "seg>lic", "lic>cdm", "cdm>wm"] } },
           callout: {
             type: "staff",
@@ -331,6 +326,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Encrypted bytes still travel over your network, and you pay for every byte the CDN delivers. Ask which layer stops the download itself, not the decryption.",
           prompt: "A hotlinking site embeds your manifest URL and burns your egress. The segments are DRM-encrypted. Which layer stops the cost?",
           options: [
             "DRM, because the segments are encrypted",
@@ -340,6 +336,11 @@ const chapter: Chapter = {
           ],
           answer: 1,
           explain: "Encrypted bytes still cost egress to deliver. DRM does nothing against a leaked URL burning bandwidth. CDN tokens (and origin cloaking) stop the fetch itself.",
+        },
+        {
+          kind: "read",
+          title: "Encryption in one minute",
+          body: "**Encryption** scrambles data with a secret number called a **key**. The scrambled result is **ciphertext**: without the key it looks like random noise. With the key, **decryption** gives back the original.\n\nVideo uses **AES-128**. AES is the standard cipher, and 128 is the key length in bits.\n\nThink of a locked box. Anyone may carry the box. Only someone with the key can open it.",
         },
         {
           kind: "read",
@@ -355,6 +356,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "The CDN stores the same encrypted bytes for everyone. Something else must differ per device: think about what each device has to obtain before it can decrypt.",
           prompt: "Where does per-viewer control live in a DRM system?",
           options: [
             "In segments encrypted separately for each viewer",
@@ -368,12 +370,12 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Common Encryption (CENC)",
-          body: "Early on, each DRM wanted its own format, so three DRMs meant three packaged copies.\n\n**Common Encryption** ([[CENC]]), standardized as **ISO/IEC 23001-7**, defines one way to encrypt MP4 and fragmented-MP4 samples so several DRMs can decrypt the same file.\n\nEach DRM adds a **PSSH box** (Protection System Specific Header) with the data its CDM needs to build a license request. CENC uses **subsample encryption**: video NAL unit headers stay clear so hardware decoders can parse the stream; only slice data is encrypted.",
+          body: "Early on, each DRM system (Google's Widevine, Microsoft's PlayReady, Apple's FairPlay; see Lesson 2) wanted its own format. Three DRMs meant three packaged copies.\n\n**Common Encryption** ([[CENC]], standard **ISO/IEC 23001-7**) defines one way to encrypt MP4 and fragmented-MP4 samples so several DRMs can decrypt the same file. Each DRM adds a **PSSH box** (Protection System Specific Header) with the data its CDM needs to ask for a license.\n\nCENC uses **subsample encryption**: video NAL unit headers stay clear so hardware decoders can parse the stream; only slice data is encrypted.",
         },
         {
           kind: "read",
           title: "The two schemes that matter",
-          body: "The third edition of CENC defines four **protection schemes**. Two are used widely: [[cenc|cenc (mode)]] and [[cbcs]].",
+          body: "The third edition of CENC defines four **protection schemes**. Two are used widely: [[cenc|cenc (mode)]] and [[cbcs]].\n\nThey differ in **cipher mode**: the recipe for applying AES to a long stream of data, block by block. CTR and CBC are two such recipes. A device can only decrypt with the recipe the packager used.",
           visual: {
             kind: "table",
             headers: ["", "cenc scheme", "cbcs scheme"],
@@ -386,7 +388,13 @@ const chapter: Chapter = {
           },
         },
         {
+          kind: "read",
+          title: "Toward one cbcs copy",
+          body: "For years this forced **two encrypted copies** of every segment: `cenc` for DASH on Android, Chrome and TVs, and `cbcs` for Apple. Apple's HLS authoring guidance requires `cbcs` for protected fMP4 on Apple devices.\n\nNow that Widevine and PlayReady clients support `cbcs` too, the industry is moving to **one `cbcs` [[CMAF]] copy for all three DRMs**. `cenc` stays only as an optional fallback for older devices.",
+        },
+        {
           kind: "quiz",
+          teach: "Look at the \"Historical users\" row of the scheme table: which device families needed which scheme?",
           prompt: "Why did services historically store two encrypted copies of each segment?",
           options: [
             "One copy for HD and one for SD",
@@ -399,11 +407,12 @@ const chapter: Chapter = {
         },
         {
           kind: "read",
-          title: "Toward one cbcs copy",
-          body: "Apple's HLS authoring guidance requires `cbcs` for protected fMP4 on Apple devices.\n\nNow that Widevine and PlayReady clients support `cbcs` too, the industry is moving to **one `cbcs` [[CMAF]] copy for all three DRMs**. `cenc` stays only as an optional fallback for older devices.",
+          title: "Worked example: sizing a copy",
+          body: "Size = bitrate x duration. Bitrates are in **bits**, so divide by 8 to get **bytes**.\n\nExample: a ladder totaling 10 Mbps, and a 600-second clip.\n\n- 10 Mbps x 600 s = 6,000 megabits\n- 6,000 / 8 = 750 MB, which is 0.75 GB\n\nA library of 10,000 such clips: 10,000 x 0.75 GB = 7,500 GB, which is 7.5 TB.\n\nNow try the same steps with Crunchyroll's assumed numbers.",
         },
         {
           kind: "number",
+          teach: "Multiply the ladder bitrate by the episode length to get megabits. Divide by 8 for megabytes, then by 1,000 for gigabytes.",
           prompt: "Assume a full ladder totals ~15 Mbps across ~7 renditions. How big is one encrypted copy of a 24-minute (1,440 s) episode?",
           answer: 2.7,
           tolerance: 0.2,
@@ -413,6 +422,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Multiply the number of episodes by the size of one episode. 1,000 GB is 1 TB.",
           prompt: "With ~50,000 episodes (Sony's May 2026 figure) at ~2.7 GB each, how big is one encrypted copy of the catalog?",
           answer: 135,
           tolerance: 10,
@@ -447,11 +457,17 @@ const chapter: Chapter = {
       id: "ch08-l2",
       title: "Three DRMs, levels and keys",
       goal: "Name the three DRMs and their security levels, explain how per-track keys cap resolution, and describe key management and rotation.",
-      minutes: 11,
+      minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "Many devices, three DRMs",
+          body: "Your viewers watch in Chrome, on iPhones, on Android TVs and on game consoles. Each device family trusts a different DRM system, and some devices are much harder to break than others.\n\nStudios care about that difference: they want their best picture only on the safest devices.\n\nBy the end you can name the three DRMs and their security levels, explain how separate keys cap resolution, and describe where keys come from and when to rotate them.",
+        },
+        {
           kind: "quiz",
-          prompt: "An L3 desktop browser and a hardware-DRM TV play the same episode from the same CDN. How can the service stop the browser from playing 1080p?",
+          guess: true,
+          prompt: "A desktop browser with weak, software-only protection and a TV with hardware protection play the same episode from the same CDN. How would you expect the service to keep 1080p off the browser?",
           options: [
             "Hide the 1080p segments from browsers on the CDN",
             "Encrypt 1080p with a separate key and never give that key to the browser",
@@ -459,7 +475,7 @@ const chapter: Chapter = {
             "Ask the browser player not to choose 1080p",
           ],
           answer: 1,
-          explain: "The segments are on the same CDN for everyone. Resolution policy works through keys: HD renditions use their own key, and the license server gives it only to clients allowed to have it.",
+          explain: "With keys. The segments are on the same CDN for everyone, so hiding them does not work. Instead, HD renditions are encrypted with their own key, and the license server simply never gives that key to the weak client. This lesson shows how.",
         },
         {
           kind: "read",
@@ -478,6 +494,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Each DRM belongs to a big platform company. Think about which company makes each browser, phone or console.",
           prompt: "Match each DRM to platforms where it is typical.",
           pairs: [
             ["Widevine", "Chrome, Android, Android TV"],
@@ -489,10 +506,11 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "EME: how browsers reach DRM",
-          body: "Browsers reach DRM through **EME** (Encrypted Media Extensions), a W3C standard JavaScript API that became a Recommendation in 2017.\n\nThe player asks for a **key system** such as `com.widevine.alpha`. The browser loads that CDM. The CDM emits opaque license-request messages, and the player sends them to a license server.\n\nNative apps use platform equivalents: **MediaDrm** on Android and **AVContentKeySession** on Apple.",
+          body: "Browsers reach DRM through **EME** (Encrypted Media Extensions), a standard JavaScript API from the W3C (the web standards body). It became a Recommendation in 2017.\n\nThe player asks for a **key system** such as `com.widevine.alpha`. The browser loads that CDM. The CDM emits opaque license-request messages, and the player sends them to a license server.\n\nNative apps use platform equivalents: **MediaDrm** on Android and **AVContentKeySession** on Apple.",
         },
         {
           kind: "order",
+          teach: "The player cannot read the CDM's messages; it only carries them. Ask what must exist before a license request can be produced.",
           prompt: "Put the EME steps in order.",
           items: [
             "Player asks for a key system such as com.widevine.alpha",
@@ -528,6 +546,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Hardware levels keep keys and frames inside the TEE. Software levels rely on hiding the code (obfuscation) or hardening the app. One PlayReady level is not meant for real viewers at all.",
           prompt: "Match each security level to what it means.",
           pairs: [
             ["Widevine L1", "Decrypt and decode inside the TEE"],
@@ -556,11 +575,12 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Why per-track keys work",
-          body: "The W3C EME spec advises encrypting streams that need a meaningfully different policy with distinct keys. Widevine has recommended per-track keys since 2016.\n\nThe player still sees HD tracks in the manifest. Without the key, its [[ABR]] logic must exclude them.",
+          body: "The W3C EME spec advises encrypting streams that need a meaningfully different policy with distinct keys. Widevine has recommended per-track keys since 2016.\n\nThe player still sees HD tracks in the manifest. Without the key, its [[ABR]] logic (the part that picks a quality) must exclude them.",
           callout: { type: "industry", text: "Unified Streaming wrote in 2018 that Netflix and Amazon Prime Video require hardware DRM for 4K playback." },
         },
         {
           kind: "quiz",
+          teach: "Read the \"Who gets it\" column of the key table and find every row that includes software clients such as L3.",
           prompt: "Under this key layout, which keys does a licensed Widevine L3 browser receive?",
           options: ["Key A only", "Key A and Key SD", "Key A, Key SD and Key HD", "All four keys"],
           answer: 1,
@@ -587,6 +607,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "One SPEKE version carries a single key and the other carries several. Remember what MediaPackage switches off with the newer version.",
           prompt: "You want separate audio and video keys through AWS Elemental MediaPackage. Which SPEKE version, and what do you give up?",
           options: [
             "SPEKE 1.0; you give up nothing",
@@ -613,6 +634,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Rotation limits how much content one leaked key can expose. Ask which kind of content runs for days with no natural end.",
           prompt: "Key rotation over time matters most for which content?",
           options: ["Back-catalog VOD", "Live and linear channels", "Trailers", "Subtitle files"],
           answer: 1,
@@ -621,7 +643,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "When a key leaks",
-          body: "A leaked VOD key is a delivery problem. Every copy on every CDN and origin is encrypted with it.\n\nA true fix means **re-encrypting**: new keys, re-packaging, re-upload, re-replication, [[purge]], cache refill. With static packaging that is heavy. With just-in-time encryption, you change keys and purge without touching stored masters.\n\nResponses are usually targeted: revoke the leaking device class, remove HD keys from a broken client, or re-key only high-value titles like current simulcasts.",
+          body: "A leaked VOD key is a delivery problem. Every copy on every CDN and origin is encrypted with it.\n\nA true fix means **re-encrypting**: new keys, re-packaging, re-upload, re-replication, [[purge]], cache refill. With static packaging that is heavy. With **just-in-time (JIT)** encryption, done at request time, you change keys and purge without touching stored masters.\n\nResponses are usually targeted: revoke the leaking device class, remove HD keys from a broken client, or re-key only high-value titles like current simulcasts.",
           callout: {
             type: "staff",
             text: "Ask: \"If a key for a top title leaked tonight, how long to re-key, re-package, re-replicate and purge on every CDN?\" If the answer is days, that is a real risk for a business whose value is new episodes. JIT encryption plus good purge tooling (Chapters 5 and 14) turns it into hours.",
@@ -659,11 +681,17 @@ const chapter: Chapter = {
       id: "ch08-l3",
       title: "The license flow and its vendors",
       goal: "Trace a license request end to end, size license traffic for a premiere, and weigh buying a multi-DRM service against building one.",
-      minutes: 12,
+      minutes: 13,
       steps: [
         {
+          kind: "read",
+          title: "The call before the first frame",
+          body: "Every playback starts with a small request most viewers never notice: asking for the keys. Without it, the encrypted segments on the CDN are useless.\n\nThis lesson follows that request from start to finish.\n\nBy the end you can trace a license request, estimate license traffic for a big premiere, and weigh buying a multi-DRM service against building your own.",
+        },
+        {
           kind: "quiz",
-          prompt: "The license service goes down during a premiere. Every CDN is healthy. What do viewers see?",
+          guess: true,
+          prompt: "The license service goes down during a premiere. Every CDN is healthy. What would you expect viewers to see?",
           options: [
             "Nothing: video plays from cache as usual",
             "Playback errors: no key, no picture",
@@ -671,7 +699,7 @@ const chapter: Chapter = {
             "Only new subscribers are affected",
           ],
           answer: 1,
-          explain: "Encrypted segments are useless without keys. A license outage stops every new playback while every CDN dashboard looks green.",
+          explain: "Playback errors. Encrypted segments are useless without keys, so a license outage stops every new playback, even while every CDN dashboard looks green. This is why the license call needs the same care as the CDN.",
         },
         {
           kind: "read",
@@ -702,6 +730,7 @@ const chapter: Chapter = {
         },
         {
           kind: "order",
+          teach: "Follow the sequence diagram from top to bottom: first a decision, then learning which keys are needed, then getting the keys, then the bytes.",
           prompt: "Put the playback start in order.",
           items: [
             "Playback API checks subscription, territory, window, streams",
@@ -719,6 +748,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "The DRM license service is built by Google, Microsoft or Apple and shared by many streaming companies. Ask what only your own backend could know.",
           prompt: "What does the license proxy know that the DRM license service does not?",
           options: [
             "Device certificates and security levels",
@@ -732,11 +762,13 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "FairPlay: SPC, CKC and KSM",
-          body: "The app asks FairPlay for an **SPC** (Server Playback Context): a fresh session key, an anti-replay seed and an anonymous device ID, encrypted with the provider's RSA public key from its **application certificate**.\n\nThe app sends the SPC and a content ID to the provider's **KSM** (Key Security Module). The KSM looks up the content key, wraps it with the session key, and returns a **CKC** (Content Key Context). FairPlay credentials come from Apple and belong to the content service, even when a vendor runs the KSM.",
+          body: "The app asks FairPlay for an **SPC** (Server Playback Context): a fresh session key, an anti-replay seed and an anonymous device ID, encrypted with the provider's RSA public key from its **application certificate**.\n\nThe app sends the SPC and a content ID to the provider's **KSM** (Key Security Module). The KSM looks up the content key, wraps it with the session key, and returns a **CKC** (Content Key Context). Each SPC works for one request only, which blocks replay.",
           visual: { kind: "sequence", spec: FAIRPLAY_SEQ },
+          callout: { type: "industry", text: "FairPlay credentials come from Apple and belong to the content service, even when a vendor runs the KSM." },
         },
         {
           kind: "match",
+          teach: "Follow the arrows in the diagram: one message goes up from the device, one server does the lookup, one message comes back. The certificate holds a public key.",
           prompt: "Match each FairPlay term to its role.",
           pairs: [
             ["SPC", "Request with session key, anti-replay seed, device ID"],
@@ -754,7 +786,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Renewals are heartbeats",
-          body: "Apple explains the value of a lease: the server ties it to a device \"slot\", which frees itself when the lease expires, without a \"stop\" message that a crashed app may never send.\n\nThis is how services enforce **concurrent stream limits**: each playback holds a short license, and renewals are heartbeats. Axinom documents a default renewal interval of 5 minutes with a 1-minute grace period. Renewal differs by DRM: native in Widevine, player-triggered in FairPlay, and in PlayReady the client opens a new session near expiry.",
+          body: "Apple explains the value of a lease: the server ties it to a device \"slot\", which frees itself when the lease expires, without a \"stop\" message that a crashed app may never send.\n\nThis is how services enforce **concurrent stream limits**: each playback holds a short license, and renewals are **heartbeats** (regular \"still here\" signals). Axinom documents a default renewal interval of 5 minutes with a 1-minute grace period. Renewal differs by DRM: native in Widevine, player-triggered in FairPlay, and in PlayReady the client opens a new session near expiry.",
           callout: {
             type: "crunchyroll",
             text: "Crunchyroll's paid tiers differ in simultaneous streams and offline viewing (check the current plan page for numbers). A platform like it would likely enforce this with a session service plus license renewal or a similar heartbeat; the mechanism is not published.",
@@ -762,6 +794,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Remember Apple's reason for leases: the server should not depend on a message that a crashed app never sends.",
           prompt: "An app crashes and never sends \"stop\". With secure-lease licenses, how is its stream slot freed?",
           options: [
             "The CDN notices the missing segment requests",
@@ -773,7 +806,13 @@ const chapter: Chapter = {
           explain: "The slot is tied to the lease. No renewal means the lease expires and the slot frees itself, without any stop message.",
         },
         {
+          kind: "read",
+          title: "Worked example: requests per second",
+          body: "Requests per second = number of clients / seconds between requests.\n\nExample: 600,000 streams renew every 120 s.\n\n- 600,000 / 120 = 5,000 renewals per second\n\nStarts work the same way. If 900,000 viewers start within 600 s, the average is 900,000 / 600 = 1,500 starts per second. Arrivals are **bursty**: if the first minute runs at 2x the average, plan for 1,500 x 2 = 3,000 per second.",
+        },
+        {
           kind: "number",
+          teach: "Divide the number of streams by the renewal interval in seconds.",
           prompt: "1M concurrent streams each renew their license every 300 s. About how many renewal requests per second?",
           answer: 3333,
           tolerance: 250,
@@ -783,6 +822,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "First find the average: viewers divided by seconds. Then multiply by the burst factor.",
           prompt: "1.5M viewers start in the first 5 minutes of a premiere (average 5,000/s). Arrivals are bursty, so plan for ~3x the average in the first minute. Peak starts per second?",
           answer: 15000,
           tolerance: 1000,
@@ -844,6 +884,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Any CDN can serve the same encrypted bytes. A license vendor must hand out the actual content keys. Ask what a second vendor needs before it can help.",
           prompt: "Why is failing over to a second license vendor harder than failing over to a second CDN?",
           options: [
             "License requests are larger than segments",
@@ -873,11 +914,17 @@ const chapter: Chapter = {
       id: "ch08-l4",
       title: "Signed URLs, cookies and session tokens",
       goal: "Explain how edge tokens authorize requests without a backend call, and choose between signed URLs, cookies and dual tokens for a stream.",
-      minutes: 12,
+      minutes: 13,
       steps: [
         {
+          kind: "read",
+          title: "Who may download the bytes?",
+          body: "DRM protects the key. But anyone holding a segment URL can still download the encrypted bytes, and you pay for every byte the CDN sends.\n\nSo the CDN edge needs its own check on every request, without calling your backend millions of times a second.\n\nBy the end you can explain how signed tokens work, and choose between signed URLs, signed cookies and dual tokens for a stream.",
+        },
+        {
           kind: "quiz",
-          prompt: "All segments are DRM-encrypted. A viewer posts the manifest URL on a forum. Is there still a problem?",
+          guess: true,
+          prompt: "All segments are DRM-encrypted. A viewer posts the manifest URL on a forum. Would you expect there to still be a problem?",
           options: [
             "No: ciphertext is useless to everyone else",
             "Yes: leaked URLs still burn egress, and some assets are in clear text",
@@ -885,7 +932,7 @@ const chapter: Chapter = {
             "Only for 4K renditions",
           ],
           answer: 1,
-          explain: "Strangers can still pull encrypted bytes on your bill, and subtitles, thumbnails and sometimes audio are not encrypted at all.",
+          explain: "Yes. Strangers can still pull the encrypted bytes, and you pay for that traffic. Also, subtitles, thumbnails and sometimes audio are not encrypted at all, so they are usable as they are.",
         },
         {
           kind: "read",
@@ -894,6 +941,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "DRM protects what is inside the encrypted video. Think about costs and files that DRM does not touch, and about content that must stay hidden until release.",
           prompt: "Which of these still need CDN access control even when video is DRM-encrypted? Select all that apply.",
           options: [
             "Egress cost from a leaked URL",
@@ -907,7 +955,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "How edge tokens work: signing",
-          body: "The pattern is the same on every CDN. The **playback API** decides the viewer may watch. It creates a **policy**: paths, expiry, and optionally IP and session ID. Then it **signs** the policy.",
+          body: "The pattern is the same on every CDN. The **playback API** decides the viewer may watch. It writes a **policy**: which paths, until when, and optionally which IP or session ID.\n\nThen it **signs** the policy. A **signature** is a short code computed from the policy and a secret key. Change one character of the policy and the signature no longer matches.",
           visual: { kind: "flow", spec: { ...TOKEN_FLOW, focus: ["api", "sign", "pl", "api>sign", "sign>pl"] } },
         },
         {
@@ -918,6 +966,7 @@ const chapter: Chapter = {
         },
         {
           kind: "order",
+          teach: "The backend acts once, at the start. The edge acts on every request, at the end. A policy must exist before it can be signed.",
           prompt: "Put the edge-token pattern in order.",
           items: [
             "Playback API decides the viewer may watch",
@@ -931,7 +980,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Two signature families",
-          body: "**HMAC** (shared secret) is fast and short, but the CDN holds a secret that can mint tokens. [[Akamai EdgeAuth]] tokens use HMAC, typically SHA-256, with fields such as `st`, `exp`, `acl` and `hmac`. Fastly VCL offers `digest.hmac_sha256` and constant-time `digest.secure_is_equal`.\n\n**Asymmetric**: the API signs with a private key; the CDN holds only the public key. CloudFront supports RSA 2048 and ECDSA 256 in **trusted key groups**. Google Media CDN recommends Ed25519 and allows HMAC only for compatibility with other CDNs.",
+          body: "**HMAC** uses one **shared secret**: the same key both signs and verifies. It is fast and the tokens are short. But the CDN must hold that secret, so anyone who steals it from the CDN can mint tokens.\n\n**Asymmetric** signing uses a key pair. The API signs with a **private key**. The CDN holds only the **public key**, which can verify a signature but never create one.",
           visual: {
             kind: "compare",
             left: { title: "HMAC (shared secret)", points: ["Fast, short tokens", "CDN holds a secret that can mint tokens", "Akamai EdgeAuth, Fastly VCL"] },
@@ -939,7 +988,13 @@ const chapter: Chapter = {
           },
         },
         {
+          kind: "read",
+          title: "Who uses which",
+          body: "[[Akamai EdgeAuth]] tokens use HMAC, typically SHA-256, with fields such as `st`, `exp`, `acl` and `hmac`. Fastly VCL offers `digest.hmac_sha256` and constant-time `digest.secure_is_equal`.\n\nCloudFront supports RSA 2048 and ECDSA 256 public keys in **trusted key groups**. Google Media CDN recommends Ed25519 and allows HMAC only for compatibility with other CDNs.",
+        },
+        {
           kind: "quiz",
+          teach: "Compare what the CDN holds in each family. Ask: could someone who steals it from the CDN create new valid tokens?",
           prompt: "What is the main security advantage of asymmetric token signing over HMAC?",
           options: [
             "It is faster to verify",
@@ -952,13 +1007,8 @@ const chapter: Chapter = {
         },
         {
           kind: "read",
-          title: "CloudFront signed URLs",
-          body: "[[Signed URLs]] carry policy and signature as query parameters.\n\n- A **canned policy** has only an expiry.\n- A **custom policy** adds start time, IP range and wildcard resources, so one signature covers many files, at the cost of a longer URL.",
-        },
-        {
-          kind: "read",
-          title: "CloudFront signed cookies",
-          body: "[[Signed cookies]] carry the same policies in three cookies. AWS recommends them when you do not want to change URLs, or need access to many restricted files.\n\nThat describes an HLS or DASH stream exactly.",
+          title: "CloudFront signed URLs and cookies",
+          body: "[[Signed URLs]] carry policy and signature as **query parameters** (the `?name=value` part of a URL).\n\n- A **canned policy** has only an expiry.\n- A **custom policy** adds start time, IP range and wildcard resources, so one signature covers many files, at the cost of a longer URL.\n\n[[Signed cookies]] carry the same policies in three cookies. AWS recommends them when you do not want to change URLs, or need access to many restricted files. That describes an HLS or DASH stream exactly.",
         },
         {
           kind: "read",
@@ -967,6 +1017,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "The signature was computed over the exact URL. Think about what happens to that match when anything in the URL changes afterwards.",
           prompt: "An analytics SDK appends ?sid=123 to signed CloudFront segment URLs after they are signed. What happens?",
           options: [
             "Nothing: CloudFront ignores extra parameters",
@@ -985,7 +1036,13 @@ const chapter: Chapter = {
           props: { start: "valid" },
         },
         {
+          kind: "read",
+          title: "Worked example: counting URLs",
+          body: "Segments per rendition = episode length / segment length.\n\nExample: a 10-minute clip is 600 s. With 4-second segments:\n\n- 600 / 4 = 150 segments per rendition\n\nWith 5 renditions, that is 5 x 150 = 750 video URLs for one clip, before audio and subtitles. Each one needs authorization.",
+        },
+        {
           kind: "number",
+          teach: "Divide the episode length in seconds by the segment length in seconds.",
           prompt: "A 24-minute episode (1,440 s) uses 6-second segments. How many segments per rendition?",
           answer: 240,
           tolerance: 1,
@@ -999,6 +1056,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Ask how many signatures each approach needs for one episode, and what it requires from the player or the domain.",
           prompt: "Match each approach to its trait.",
           pairs: [
             ["One signed URL per file", "API must sign thousands of URLs"],
@@ -1007,11 +1065,6 @@ const chapter: Chapter = {
             ["Dual tokens", "Short manifest token, then a session token"],
           ],
           explain: "Per-file signing does not scale to a stream. The other three let one authorization cover a whole episode.",
-        },
-        {
-          kind: "read",
-          title: "Dual tokens are now standard",
-          body: "On **Akamai** Adaptive Media Delivery, an access token (`hdnts`) on the first manifest request yields a session token (`hdntl`). It protects manifest, keys and segments, valid for the media duration or one day, whichever is shorter. HLS also has a cookie-less mode.\n\n**Google Media CDN** dual-token authentication validates a short token on the primary manifest route, then generates a long token. It is delivered as a cookie or, for HLS, appended to every URI in the manifest and propagated into media playlists.",
         },
         {
           kind: "read",
@@ -1026,7 +1079,13 @@ const chapter: Chapter = {
           visual: { kind: "sequence", spec: DUAL_SEQ },
         },
         {
+          kind: "read",
+          title: "Dual tokens are now standard",
+          body: "On **Akamai** Adaptive Media Delivery, an access token (`hdnts`) on the first manifest request yields a session token (`hdntl`). It protects manifest, keys and segments, valid for the media duration or one day, whichever is shorter. HLS also has a cookie-less mode.\n\n**Google Media CDN** dual-token authentication validates a short token on the primary manifest route, then generates a long token. It is delivered as a cookie or, for HLS, appended to every URI in the manifest and propagated into media playlists.",
+        },
+        {
           kind: "quiz",
+          teach: "Two tokens with different lifetimes protect a stream. Which one is in the first manifest URL, and how long does it live?",
           prompt: "Someone copies the first manifest URL from their browser and posts it. Five minutes later a stranger opens it. What happens?",
           options: [
             "It plays: the URL is still signed",
@@ -1055,14 +1114,20 @@ const chapter: Chapter = {
       id: "ch08-l5",
       title: "Tokens and the cache key",
       goal: "Keep tokens out of the cache key, choose where a token travels, and rotate signing keys safely across several CDNs.",
-      minutes: 11,
+      minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "One setting, a huge bill",
+          body: "Every viewer gets their own token. That is good for security. But the CDN cache decides what counts as \"the same file\" by looking at the request.\n\nIf the token changes what the cache sees, millions of viewers stop sharing one copy. This one setting can decide whether your origin survives a premiere.\n\nBy the end you can keep tokens out of the cache key, choose where a token travels, and rotate signing keys safely across several CDNs.",
+        },
+        {
           kind: "quiz",
-          prompt: "2M viewers watch a simulcast. Each has a unique token, and the token is part of the cache key. What hit ratio do you expect?",
+          guess: true,
+          prompt: "2M viewers watch a simulcast. Each has a unique token, and the token is part of the cache key. What hit ratio would you expect?",
           options: ["Near 100%", "About 95%", "About 50%", "Near 0%"],
           answer: 3,
-          explain: "If the token is in the cache key, every viewer's request for segment 17 is a different object. Nothing is ever reused.",
+          explain: "Near 0%. The **cache key** is what the cache uses to decide whether two requests want the same object. If each viewer's unique token is part of it, every viewer's request for segment 17 looks like a different object, so nothing is ever reused.",
         },
         {
           kind: "read",
@@ -1075,7 +1140,13 @@ const chapter: Chapter = {
           },
         },
         {
+          kind: "read",
+          title: "Worked example: how bad is it?",
+          body: "Total traffic = viewers x bitrate per viewer.\n\nExample: 500,000 viewers at 6 Mbps each.\n\n- 500,000 x 6 Mbps = 3,000,000 Mbps\n- 3,000,000 Mbps = 3,000 Gbps = 3 Tbps\n\nWith the token in the cache key, almost all of that goes upstream. If the origin was sized for 0.3 Tbps, then 3 / 0.3 = 10: the origin gets ten times its design load.",
+        },
+        {
           kind: "number",
+          teach: "Multiply viewers by bitrate. 1,000 Mbps is 1 Gbps, and 1,000 Gbps is 1 Tbps.",
           prompt: "The assumed simulcast spike is 2M viewers at 4 Mbps each. How much traffic is that?",
           answer: 8,
           tolerance: 0.5,
@@ -1085,6 +1156,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Divide the traffic that flows upstream by the traffic the origin was sized for.",
           prompt: "The origin is sized for ~5% of traffic (~0.4 Tbps). With the token in the cache key, ~8 Tbps flows upstream. How many times its design load is that?",
           answer: 20,
           tolerance: 1,
@@ -1107,7 +1179,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "A Fastly VCL sketch",
-          body: "Here is a simplified edge check in Fastly [[VCL]] (check exact function behavior in the Fastly reference). It reads `p` (path prefix), `exp` and `sig` from the query string, checks the prefix, checks expiry, compares the HMAC, then filters the three parameters out of the URL.",
+          body: "Here is a simplified edge check in Fastly [[VCL]], the language for Fastly's edge logic (check exact function behavior in the Fastly reference). `vcl_recv` runs when a request arrives.\n\nIt reads `p` (path prefix), `exp` (expiry time) and `sig` (signature) from the query string. It checks the prefix, checks expiry, compares the HMAC, then filters the three parameters out of the URL.",
           visual: { kind: "code", lang: "vcl", code: VCL },
         },
         {
@@ -1117,7 +1189,13 @@ const chapter: Chapter = {
           visual: { kind: "code", lang: "ts", code: SIGNER, caption: "TypeScript playback service" },
         },
         {
+          kind: "read",
+          title: "Constant-time comparison",
+          body: "The VCL compares signatures with `digest.secure_is_equal`, not a plain string comparison.\n\nA plain comparison stops at the first different character, so a guess with a correct start takes slightly longer to reject. An attacker who measures those tiny delays can find a signature byte by byte: a **timing attack**. A **constant-time** comparison always takes the same time, so it leaks nothing. Fastly recommends it.\n\nAlso notice what the code never checks: the viewer's IP. That is on purpose.",
+        },
+        {
           kind: "multi",
+          teach: "Go back over the VCL: what does the token cover, how are signatures compared, what happens to the token before the cache lookup, and what is never checked?",
           prompt: "Which design choices in this VCL and signer pair matter? Select all that apply.",
           options: [
             "The token covers a path prefix, so one token serves the whole episode",
@@ -1129,28 +1207,9 @@ const chapter: Chapter = {
           explain: "Path prefix, constant-time comparison (Fastly recommends it against timing attacks) and token removal before the cache lookup. It does not bind to IP, and that is on purpose.",
         },
         {
-          kind: "quiz",
-          prompt: "Why compare signatures with digest.secure_is_equal instead of a plain string comparison?",
-          options: [
-            "It is faster",
-            "Its constant time stops timing attacks that guess the signature byte by byte",
-            "It ignores letter case",
-            "It decodes base64 automatically",
-          ],
-          answer: 1,
-          explain: "A plain comparison can return sooner when the first characters differ. An attacker can measure that. Constant-time comparison leaks nothing about how close a guess was.",
-        },
-        {
-          kind: "quiz",
-          prompt: "A team binds every token to the viewer's IP \"to stop sharing\". Who suffers first?",
-          options: [
-            "Pirates sharing URLs",
-            "Honest mobile viewers who get 403 mid-session",
-            "The CDN vendor",
-            "The license server",
-          ],
-          answer: 1,
-          explain: "Mobile viewers switch between Wi-Fi and cellular, carriers use carrier-grade NAT, and devices alternate IPv4 and IPv6. Their IP changes mid-session, and the token stops matching.",
+          kind: "reveal",
+          prompt: "A team binds every token to the viewer's IP \"to stop sharing\". Who suffers first? Think about how a phone's IP address behaves, then reveal.",
+          answer: "Honest mobile viewers, who get 403 mid-session. Phones switch between Wi-Fi and cellular, carriers use carrier-grade NAT, and devices alternate IPv4 and IPv6. Their IP changes mid-session, and the token stops matching.",
         },
         {
           kind: "read",
@@ -1184,6 +1243,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Use the placement table. Each placement moves the cost somewhere different: into the cache key and logs, into edge rewriting, into domain rules, or into the player.",
           prompt: "Match each token placement to its main drawback.",
           pairs: [
             ["Query string", "Must be stripped from cache key, leaks in logs"],
@@ -1205,6 +1265,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Compare the two designs: which one needs the playback API to sign new URLs whenever the CDN changes?",
           prompt: "A player fails over from CDN A to CDN B mid-session, on its own. Which design lets it continue without asking the API for new URLs?",
           options: [
             "Per-CDN signers",
@@ -1216,7 +1277,17 @@ const chapter: Chapter = {
           explain: "A common token is accepted everywhere, so client-side failover just works. The cost: the same security logic in several edge runtimes that must behave identically.",
         },
         {
+          kind: "read",
+          title: "Rotation is an incident source",
+          body: "Signing keys must be replaced from time to time: **key rotation**. Across several CDNs it goes wrong quietly, because each CDN holds its own copy of the verification key. Automate it in [[IaC]] (Chapter 14) and alert on 403 rate per CDN.",
+          callout: {
+            type: "staff",
+            text: "Order matters: add the new verification key to every CDN, confirm it is live everywhere, switch the signer, and remove the old key only after the longest token lifetime. A key that reached CloudFront but not Fastly looks to the steering system like \"Fastly is failing,\" and traffic moves for the wrong reason.",
+          },
+        },
+        {
           kind: "order",
+          teach: "During the switch, both old and new tokens must verify. Verifiers must be ready before anything is signed with the new key, and the old key must outlive the old tokens.",
           prompt: "Put a safe signing-key rotation across CDNs in order.",
           items: [
             "Add the new verification key to every CDN",
@@ -1226,15 +1297,6 @@ const chapter: Chapter = {
             "Remove the old key",
           ],
           explain: "Verifiers first, signer second, cleanup last. Removing the old key before old tokens expire causes 403s for viewers mid-session.",
-        },
-        {
-          kind: "read",
-          title: "Rotation is an incident source",
-          body: "Signing-key rotation across CDNs goes wrong quietly. Automate it in [[IaC]] (Chapter 14) and alert on 403 rate per CDN.",
-          callout: {
-            type: "staff",
-            text: "Order matters: add the new verification key to every CDN, confirm it is live everywhere, switch the signer, and remove the old key only after the longest token lifetime. A key that reached CloudFront but not Fastly looks to the steering system like \"Fastly is failing,\" and traffic moves for the wrong reason.",
-          },
         },
         {
           kind: "read",
@@ -1263,11 +1325,17 @@ const chapter: Chapter = {
       id: "ch08-l6",
       title: "Geo-licensing, windows and VPNs",
       goal: "Place territory and window rules in the right layer, protect pre-positioned simulcasts with key timing, and weigh VPN signals.",
-      minutes: 11,
+      minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "Same file, different answer",
+          body: "A viewer in Canada and a viewer in France request the same segment, from the same CDN, at the same second. One may watch; the other may not, because the show is licensed only in Canada.\n\nRights change at every border and on every date. This lesson shows where those rules belong.\n\nBy the end you can place territory and window rules in the right layer, protect early-delivered simulcasts with key timing, and weigh VPN signals.",
+        },
+        {
           kind: "quiz",
-          prompt: "Same segment file, same CDN, same second. A viewer in Canada may watch it; a viewer in France may not. Where should that decision be made?",
+          guess: true,
+          prompt: "Same segment, same CDN, same second: the Canadian viewer may watch, the French viewer may not. Where would you expect that decision to be made?",
           options: [
             "A per-title CDN geo rule",
             "The playback API, which has the rights database",
@@ -1275,17 +1343,17 @@ const chapter: Chapter = {
             "DNS",
           ],
           answer: 1,
-          explain: "Only the catalog and playback API have the rights database, so only they can apply windows and per-title rules correctly. Other layers act as backstops.",
+          explain: "In the playback API. Only the catalog and playback API hold the **rights database**: which title is licensed where, and between which dates. So only they can apply windows and per-title rules correctly. Other layers act as backstops.",
         },
         {
           kind: "read",
           title: "Rights per territory and window",
-          body: "Anime rights are usually sold **per territory** and per **window**: a start date (for a simulcast, often shortly after Japanese broadcast) and an end date when the title must disappear. Dubs are often made for specific markets.\n\nCrunchyroll's help center says streaming rights differ by country, which is why some shows are unavailable in some regions, and that using a VPN to reach unlicensed content is not supported.\n\nSo the same segments on the same CDN are allowed for one viewer and forbidden for another at the same second.",
+          body: "Anime rights are usually sold **per territory** and per **window**: a start date (for a simulcast, often shortly after Japanese broadcast) and an end date when the title must disappear. Dubs are often made for specific markets.\n\nCrunchyroll's help center says streaming rights differ by country, which is why some shows are unavailable in some regions, and that using a VPN to reach unlicensed content is not supported.",
         },
         {
           kind: "read",
           title: "Where territory is decided",
-          body: "A request arrives with a client IP. A **geo-IP lookup** gives a country. The API asks: is this title licensed in this country **now**? If not, the catalog hides the title and the API says it is not available.",
+          body: "A request arrives with a client IP. A **geo-IP lookup** (a database that maps IP addresses to places) gives a country. The API asks: is this title licensed in this country **now**? If not, the catalog hides the title and the API says it is not available.",
           visual: { kind: "flow", spec: { ...GEO_FLOW, focus: ["req", "geo", "lic", "hide", "req>geo", "geo>lic", "lic>hide"] } },
         },
         {
@@ -1297,7 +1365,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Backstops downstream",
-          body: "The license proxy rechecks the territory before it gives keys. The CDN edge checks the token, with an optional country rule. Each later layer only confirms a decision the API already made.",
+          body: "The license proxy rechecks the territory before it gives keys. The CDN edge checks the token, with an optional country rule. Each later layer only confirms a decision the API already made. A **backstop** is a second check that catches what slips past the first.",
           visual: { kind: "flow", spec: { ...GEO_FLOW, flow: ["req>geo", "geo>lic", "lic>vpn", "vpn>tok", "tok>lp", "lp>edge"] } },
         },
         {
@@ -1307,6 +1375,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "One layer holds the rights database. Two layers check signed data that already carries the decision. One layer knows only countries, not titles.",
           prompt: "Match each layer to its role in territory enforcement.",
           pairs: [
             ["Catalog and playback API", "Authority: has the rights database"],
@@ -1327,6 +1396,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "AWS documents a default for the case when the location lookup fails. It is one more reason this layer is only coarse.",
           prompt: "CloudFront geo restriction cannot determine a viewer's location. What does it do?",
           options: ["Returns 403", "Serves the content", "Redirects to a login page", "Asks the origin"],
           answer: 1,
@@ -1339,6 +1409,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Geo-IP works best when an IP address stays with one home, in one country, for a long time.",
           prompt: "For which viewer is a geo-IP country lookup most reliable?",
           options: [
             "A home user on fixed broadband",
@@ -1356,6 +1427,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "The EU rule protects paying subscribers who are only temporarily abroad. Think about which catalog they paid for.",
           prompt: "A paying subscriber from France spends a week in Germany. Under Regulation (EU) 2017/1128, what should they be able to watch?",
           options: [
             "Only the German catalog",
@@ -1369,7 +1441,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Bytes versus permission",
-          body: "Chapter 13 explains why simulcast segments should be on shields and edges **before** release: two million simultaneous arrivals would crush a cold origin. But pre-positioned bytes are a leak risk. So separate **bytes** from **permission**:\n\n- Segments are encrypted, and the **license proxy refuses keys** for the title before the window opens.\n- Segment paths are not guessable, and the API does not mint edge tokens before the window.\n- Clear-text assets (subtitles, thumbnails) are not pre-positioned, or are token-protected too.\n\nThe key is the real lock.",
+          body: "Chapter 13 explains why simulcast segments should be **pre-positioned** (copied onto shields and edges before release): two million simultaneous arrivals would crush a cold origin. But pre-positioned bytes are a leak risk. So separate **bytes** from **permission**:\n\n- Segments are encrypted, and the **license proxy refuses keys** before the window opens.\n- Segment paths are not guessable, and the API mints no edge tokens before the window.\n- Clear-text assets (subtitles, thumbnails) are not pre-positioned, or are token-protected too.\n\nThe key is the real lock.",
         },
         {
           kind: "reveal",
@@ -1378,6 +1450,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "An early viewer would need the bytes, permission to fetch them, and a key to decrypt them. Also think about files that are not encrypted at all.",
           prompt: "A simulcast episode sits on the shield an hour before release. Which controls stop early viewing? Select all that apply.",
           options: [
             "The license proxy refuses keys before the window opens",
@@ -1391,7 +1464,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "VPN and proxy detection",
-          body: "A **VPN** or proxy makes traffic appear to come from another country. [[VPN detection]] relies mostly on **IP reputation**: lists of ranges that belong to VPN providers, hosting companies and data centers.",
+          body: "A **VPN** or proxy makes traffic appear to come from another country. [[VPN detection]] relies mostly on **IP reputation**: lists of IP ranges that belong to VPN providers, hosting companies and data centers. Those lists are often kept per **ASN** (Autonomous System Number), the number that identifies one network operator on the internet.",
           callout: {
             type: "industry",
             text: "In January 2016 Netflix said it would continue to enforce content licensing by geographic location, and that members using proxies and \"unblockers\" would only be able to use the service in the country where they actually are. Netflix did not publish its detection method.",
@@ -1414,6 +1487,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "A strong signal rarely matches honest viewers. A weak one matches many honest viewers, such as travelers. One kind hides behind real home IPs.",
           prompt: "Match each VPN signal to its strength.",
           pairs: [
             ["IP in a known VPN or hosting ASN", "Strong"],
@@ -1441,11 +1515,17 @@ const chapter: Chapter = {
       id: "ch08-l7",
       title: "Anti-piracy and who owns what",
       goal: "Explain how content still leaks, what A/B watermarking costs delivery, and how Content Protection and Media Delivery split the work.",
-      minutes: 11,
+      minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "When the locks fail",
+          body: "Even with DRM, tokens and geo rules, episodes still appear on pirate sites. Protection raises the cost of piracy; it never makes piracy impossible.\n\nSo services also need a way to find out **who** leaked a copy, and that system can run on your CDN.\n\nBy the end you can explain how content leaks, what A/B watermarking costs delivery, and how the Content Protection and Media Delivery teams split the work.",
+        },
+        {
           kind: "multi",
-          prompt: "DRM is used everywhere, yet an episode appears on a pirate site. Which are real ways it could have leaked? Select all that apply.",
+          guess: true,
+          prompt: "DRM is used everywhere, yet an episode appears on a pirate site. Which would you guess are real ways it could have leaked? Select all that apply.",
           options: [
             "A software-only DRM client was broken",
             "The decoded picture was captured from an output",
@@ -1453,7 +1533,7 @@ const chapter: Chapter = {
             "The CDN hit ratio was too high",
           ],
           answers: [0, 1, 2],
-          explain: "DRM raises the cost of piracy; it does not end it. Software DRM breaks, outputs get captured, and supply chains leak. Hit ratio has nothing to do with leaks.",
+          explain: "The first three are all real. Software DRM can be broken, a decoded picture can be recorded from a screen or HDMI output, and partners who handle episodes before release can leak them. Hit ratio only measures caching; it has nothing to do with leaks.",
         },
         {
           kind: "read",
@@ -1472,6 +1552,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Media Delivery owns the storage and caches on the delivery side. Studios, vendors and screeners sit earlier in the supply chain.",
           prompt: "Which leak is Media Delivery directly responsible for preventing?",
           options: [
             "A compromised post-production partner",
@@ -1501,6 +1582,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Each segment carries one bit of the viewer's session ID. One bit value maps to variant A, the other to variant B.",
           prompt: "For segment 7, the bit read from the viewer's session ID is 1. What does the edge serve?",
           options: ["Variant A from cache", "Variant B from cache", "A fresh per-viewer encode", "Both variants"],
           answer: 1,
@@ -1509,7 +1591,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "The DASH-IF standard",
-          body: "**DASH-IF** published a forensic A/B watermarking spec in June 2023; ETSI published it as **ETSI TS 104 002** in August 2023.\n\nThe player fetches a CBOR-encoded **watermark token** and sends it with every CDN request. When watermarking is on, a request without it is an error. The edge derives the bit position for the segment, reads that bit, and serves A or B, fetching from origin if needed. Bit-position data travels as metadata from the watermark pre-processor, so the edge does not depend on file naming.",
+          body: "**DASH-IF** published a forensic A/B watermarking spec in June 2023; ETSI published it as **ETSI TS 104 002** in August 2023.\n\nThe player fetches a **watermark token** in CBOR (a compact binary format, like a smaller JSON) and sends it with every CDN request. When watermarking is on, a request without it is an error. The edge derives the bit position, reads that bit, and serves A or B, fetching from origin if needed. Bit positions come as metadata from the watermark pre-processor, not from file naming.",
           callout: {
             type: "industry",
             text: "The DASH-IF work had input from watermarking vendors (NAGRA, Synamedia, Irdeto, Verimatrix) and from Akamai and AWS. The CDN is now part of the anti-piracy system, not just a pipe.",
@@ -1526,7 +1608,13 @@ const chapter: Chapter = {
           body: "- **Storage** roughly doubles for watermarked titles.\n- **Cache**: two objects per segment, each requested by about half the audience. Popular simulcasts still cache well; [[long tail]] titles lose hit ratio.\n- **Edge logic** must be identical on every CDN: Chapter 9's config-parity problem again.\n- **Cache key** must include the **variant** but not the token.\n- **Detection time**: one bit per segment means identifying a leaker needs a run of segments. The exact number depends on the vendor's coding. For live restreaming this delay matters.",
         },
         {
+          kind: "read",
+          title: "Worked example: A/B storage",
+          body: "A/B watermarking stores two variants of every segment, so a watermarked title needs about 2 x its normal storage.\n\nExample: a film whose normal encrypted ladder is 8 GB.\n\n- 2 x 8 GB = 16 GB with A/B watermarking\n\nThe extra 8 GB is small on disk. The bigger cost is in the cache, where each variant gets only about half the requests.",
+        },
+        {
           kind: "number",
+          teach: "Two variants of every segment means about twice the storage of one normal copy.",
           prompt: "Using the earlier assumption of ~2.7 GB per episode, how much storage does one A/B-watermarked episode need?",
           answer: 5.4,
           tolerance: 0.3,
@@ -1535,6 +1623,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "The cache must never mix up A and B, but it must still let many viewers share each object. Remember what a per-viewer token does to sharing.",
           prompt: "With A/B watermarking, what belongs in the cache key?",
           options: [
             "The variant (A or B), but not the token",
@@ -1548,7 +1637,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Watermark selectively",
-          body: "Simple **session controls** stop much casual abuse too: concurrent-stream limits via renewal, short token lifetimes, rate limits on manifest and license requests per account, and CDN-log anomaly detection (Chapter 11). Account sharing belongs to the identity team (Chapter 15 touches it).",
+          body: "Simple **session controls** stop much casual abuse too: concurrent-stream limits via renewal, short token lifetimes, rate limits on manifest and license requests per account, and CDN-log **anomaly detection** (Chapter 11). Anomaly detection looks for sessions that behave unlike a real viewer, who plays one rendition at about real-time speed.\n\nAccount sharing belongs to the identity team (Chapter 15 touches it).",
           callout: {
             type: "staff",
             text: "Watermark selectively: premium titles, the first days after a simulcast, live events. Watermarking the whole catalog doubles storage and hurts long-tail hit ratios where piracy is least likely. Ask which titles and windows the contracts or piracy data actually require.",
@@ -1556,6 +1645,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "A real viewer plays one rendition at about playback speed. Compare that with what this session does, and ask who would want that.",
           prompt: "CDN logs show one session fetching every rendition far faster than real time. What is it most likely?",
           options: ["A slow network", "A stream ripper", "A normal ABR switch", "A CDN prefetch"],
           answer: 1,
@@ -1580,6 +1670,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Media Delivery's share is always about delivery: availability, replication, edge logic and cache cost. Use the right-hand column of the table.",
           prompt: "Match each area to what Media Delivery usually owns.",
           pairs: [
             ["DRM", "License endpoint availability in delivery SLOs"],
@@ -1621,10 +1712,16 @@ const chapter: Chapter = {
       id: "ch08-l8",
       title: "Checkpoint",
       goal: "Check that you can explain DRM, tokens, geo-licensing and watermarking in terms of their delivery cost.",
-      minutes: 9,
+      minutes: 10,
       steps: [
         {
+          kind: "read",
+          title: "What this chapter covered",
+          body: "Here is what this chapter covered:\n\n- **Contracts drive protection.** DRM encrypts shared bytes once; the license personalizes access.\n- **Keys and levels.** Per-track keys send HD only to hardware DRM. The license server is tier-0.\n- **Edge tokens.** The API signs once; the edge verifies every request, then removes the token from the cache key.\n- **Rights.** The playback API is the authority; key release time is the simulcast embargo.\n- **Watermarking.** A/B variants trace leaks, at a cache cost.\n\nNow check yourself.",
+        },
+        {
           kind: "quiz",
+          teach: "Think about what is identical for every viewer, and the two places where each viewer is checked individually.",
           prompt: "Why can a CDN cache one encrypted segment for millions of viewers while each still gets individual access control?",
           options: [
             "The CDN re-encrypts the segment per viewer on the fly",
@@ -1637,6 +1734,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall the scheme table: each scheme uses a different AES cipher mode, and one of them encrypts only a pattern of blocks.",
           prompt: "How do cenc and cbcs differ?",
           options: [
             "cenc is AES-CTR over all protected bytes; cbcs is AES-CBC over a pattern of blocks",
@@ -1654,6 +1752,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Requests per second = streams / renewal interval in seconds. Convert 5 minutes to seconds first.",
           prompt: "Estimate license renewal requests per second at a 2M simulcast peak with a 5-minute renewal interval.",
           answer: 6667,
           tolerance: 400,
@@ -1663,6 +1762,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "The cache key decides which requests share one cached object. Every viewer's signature is different.",
           prompt: "An engineer puts the CloudFront Signature parameter in the cache key \"to be safe.\" What happens during a simulcast?",
           options: [
             "Nothing changes; CloudFront ignores it",
@@ -1680,6 +1780,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "Separate the bytes from the permission: what locks the key, what stops fetching, and what about unencrypted files? Ask whether a country rule is also a time lock.",
           prompt: "A simulcast episode is on the shield an hour before release. What stops a viewer from watching early? Select all that apply.",
           options: [
             "Segments are encrypted and the license proxy refuses keys before the window",
@@ -1692,6 +1793,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall the A/B lesson: what must the cache tell apart, what must it ignore, and how is each title's audience split across the variants?",
           prompt: "What does A/B watermarking change in the cache key, and what does it cost for long-tail titles?",
           options: [
             "Adds the token; long-tail titles are unaffected",
@@ -1704,6 +1806,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall where the content security schedule comes from, and who writes it.",
           prompt: "\"4K requires hardware DRM.\" What kind of rule is that?",
           options: [
             "An engineering preference of the DRM team",
@@ -1716,6 +1819,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "The license call is small and personal, but every playback needs it before the first frame. Remember the premiere estimate.",
           prompt: "Is the license server data plane or control plane, and how critical is it?",
           options: [
             "Data plane; it can be cached at the edge",
@@ -1728,6 +1832,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "A good answer lets one authorization cover a whole episode. Which option needs one signature per file?",
           prompt: "Which of these solve the thousands-of-URLs problem for a stream? Select all that apply.",
           options: [
             "Akamai hdnts access token yielding an hdntl session token",
@@ -1740,6 +1845,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Only one layer holds the rights database with titles and dates. A CDN country rule knows countries, not titles.",
           prompt: "What is the right role for CDN geo-blocking?",
           options: [
             "The authority for per-title, per-window rights",
@@ -1752,6 +1858,7 @@ const chapter: Chapter = {
         },
         {
           kind: "order",
+          teach: "Follow one playback: a decision, then a token, then the edge check, then the keys, then decryption.",
           prompt: "Order the protection layers a single playback passes through.",
           items: [
             "Entitlement and geo check at the playback API",

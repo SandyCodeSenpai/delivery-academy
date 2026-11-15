@@ -295,8 +295,14 @@ const chapter: Chapter = {
       minutes: 11,
       steps: [
         {
+          kind: "read",
+          title: "The most powerful thing you touch",
+          body: "A delivery team owns the **configuration** of its CDNs: the settings that decide how every video segment is cached, signed, routed or rejected. One commit can change that for every viewer in seconds.\n\nThis chapter is about **how change flows safely**. By the end of this lesson you can explain why config is the riskiest code a team owns, estimate what one cache bug costs, and name the main config-as-code tools.\n\nNeighbours: cache (Ch 4), CDN internals (5), tokens (8), steering (9), alerting (11), incidents (12), security (15).",
+        },
+        {
           kind: "quiz",
-          prompt: "Three big CDN outages: Fastly in June 2021, Cloudflare in July 2019 and Cloudflare in November 2025. What started all three?",
+          guess: true,
+          prompt: "Three big CDN outages: Fastly in June 2021, Cloudflare in July 2019 and Cloudflare in November 2025. What would you guess started all three?",
           options: [
             "Hardware failures in large PoPs",
             "DDoS attacks on the edge network",
@@ -304,7 +310,7 @@ const chapter: Chapter = {
             "A BGP route leak by a transit provider",
           ],
           answer: 2,
-          explain: "None of them were hardware failures and none were attacks. All three were **configuration** reaching the edge: a customer's valid config change at Fastly, one new WAF rule at Cloudflare in 2019, and a generated config file at Cloudflare in 2025.",
+          explain: "None of them were hardware failures and none were attacks. All three were **configuration** reaching the edge: a customer's valid config change at Fastly, one new WAF rule at Cloudflare in 2019, and a generated config file at Cloudflare in 2025. The next step tells each story.",
         },
         {
           kind: "read",
@@ -321,13 +327,8 @@ const chapter: Chapter = {
         },
         {
           kind: "read",
-          title: "The most powerful thing you touch",
-          body: "For a delivery team, **configuration** is the most powerful thing you touch, and the most dangerous. One commit can change how every video segment in the world is cached, signed, routed or rejected.\n\nThis chapter is about **how change flows safely**: config as code, edge code and its tests, staged rollout, drift, secrets, the TypeScript services next to the CDN, and the review norms around all of it.\n\nNeighbours: cache semantics (Ch 4), CDN internals (5), tokens and DRM (8), steering (9), alerting (11), incidents (12), security (15).",
-        },
-        {
-          kind: "read",
           title: "What \"delivery config\" really means",
-          body: "People say \"the CDN config\" and mean one Fastly service or one CloudFront distribution. The real surface is much larger. Look at the last column: the [[blast radius]] if a change is wrong.",
+          body: "People say \"the CDN config\" and mean one Fastly service or one CloudFront distribution. The real surface is much larger.\n\nLook at the last column. The **[[blast radius]]** is how much traffic is hurt if a change is wrong. Most application changes hurt one service. Most delivery config changes hurt **all traffic for a domain**, and they spread in seconds to minutes.\n\nThe rest of the chapter covers config as code, edge code, tests, rollout, drift, secrets, the services next to the CDN, and review norms.",
           visual: {
             kind: "table",
             headers: ["Layer", "Examples", "Change rate", "Blast radius if wrong"],
@@ -352,15 +353,17 @@ const chapter: Chapter = {
             "Nothing until the next certificate renewal",
           ],
           answer: 1,
+          teach: "Find the \"Edge data\" row in the table. The last column says who is hurt when a value there is wrong.",
           explain: "Edge data (Config Store, KV stores, dictionaries, steering weights) changes daily or even minute-by-minute, and a wrong value hits **every request that reads it**. Most application changes affect one service. Most delivery config changes affect all traffic for a domain, and they spread in seconds to minutes.",
         },
         {
           kind: "read",
           title: "Why click-ops breaks",
-          body: "**Click-ops** means changing production by hand in a web console. For a streaming platform it fails in five ways:\n- **No review** before the change goes live.\n- **No history** to answer \"what changed at 20:00?\"\n- **No reliable rollback.** Fastly keeps old versions, but DNS records, IAM policies and bucket settings do not.\n- **No parity** across two or three CDNs (Chapter 9).\n- **No reproducibility** for a clean test copy.",
+          body: "**Click-ops** means changing production by hand in a web console. For a streaming platform it fails in five ways:\n- **No review** before the change goes live.\n- **No history** to answer \"what changed at 20:00?\"\n- **No reliable rollback.** Fastly keeps old versions, but DNS records, IAM policies and bucket settings do not.\n- **No parity** (sameness) across two or three CDNs (Chapter 9).\n- **No reproducibility** for a clean test copy.",
         },
         {
           kind: "multi",
+          teach: "Click-ops fails on review, history, rollback, parity and reproducibility. Check each option carefully: one of them says something false about a vendor.",
           prompt: "Which of these are real problems with click-ops on a delivery platform? Select all that apply.",
           options: [
             "Nobody reviews the change before it is live",
@@ -378,7 +381,13 @@ const chapter: Chapter = {
           body: "**[[Infrastructure as Code (IaC)|IaC]]** means you describe the desired state of infrastructure in files, keep those files in git, review them like code, and let a tool make the real world match the files.\n\nFor delivery, IaC is not about convenience. It is the foundation for **review, testing, staging, rollback and audit**. Every later lesson in this chapter builds on it.",
         },
         {
+          kind: "read",
+          title: "Worked example: what reaches the origin",
+          body: "The **byte hit ratio** is the share of bytes the edge serves from its cache. The rest are **misses**, and misses go back to the **shield** and **origin**.\n\n**Origin load = total traffic x (100% - hit ratio)**\n\nExample: a CDN delivers 2 Tbps (2,000 Gbps) with a 90% hit ratio. The miss share is 100% - 90% = 10%. So 10% x 2,000 Gbps = **200 Gbps** reaches the origin.\n\nOur assumed model: ~1M streams x ~4 Mbps = ~4 Tbps delivered.",
+        },
+        {
           kind: "number",
+          teach: "Origin load is total traffic times the miss share, and the miss share is 100% minus the hit ratio. Write 4 Tbps as 4,000 Gbps.",
           prompt: "Assumed model: ~1M concurrent streams at a normal evening peak, ~4 Mbps each, so ~4 Tbps delivered. The byte hit ratio is 95%. How much traffic reaches the shields and origins?",
           answer: 200,
           tolerance: 10,
@@ -387,25 +396,23 @@ const chapter: Chapter = {
           explain: "5% of 4 Tbps = 0.05 x 4,000 Gbps = **200 Gbps** on the shields and origins.",
         },
         {
+          kind: "read",
+          title: "One extra parameter in the cache key",
+          body: "The **[[cache key]]** is the name the cache stores a copy under, usually built from the URL. Same key, same cached copy.\n\nNow someone ships a change that accidentally adds a tracking query parameter, like `?utm_source=...`, to the key. One segment now has many names, so many requests miss even though the bytes are identical.\n\nIn our model the hit ratio falls from 95% to **80%**.",
+        },
+        {
           kind: "number",
-          prompt: "Someone ships a change that accidentally adds a tracking query parameter to the [[cache key]]. The hit ratio falls to 80%. Same ~4 Tbps. What is the origin load now?",
+          teach: "The formula has not changed: total traffic times the miss share. Only the hit ratio is different now.",
+          prompt: "The tracking parameter drops the hit ratio to 80%. Same ~4 Tbps delivered. What is the origin load now?",
           answer: 800,
           tolerance: 40,
           unit: "Gbps",
           explain: "20% of 4 Tbps = **800 Gbps**. That is 4x more traffic on the shields and origins, within minutes.",
         },
         {
-          kind: "number",
-          prompt: "Now the same mistake during a simulcast spike at the assumed ~2M streams (~8 Tbps). At an 80% hit ratio, what is the origin load? (It was ~400 Gbps at 95%.)",
-          answer: 1600,
-          tolerance: 100,
-          unit: "Gbps",
-          explain: "20% of 8 Tbps = **1.6 Tbps** (1,600 Gbps), up from ~400 Gbps. The bug hurts most exactly when the origin is busiest.",
-        },
-        {
           kind: "read",
           title: "A bug that throws no error",
-          body: "A cache-key bug throws **no error**. Every request still succeeds. It quietly multiplies origin [[egress]] and latency, and it can push an origin past its limits exactly when you most need it.",
+          body: "A cache-key bug throws **no error**. Every request still succeeds. It quietly multiplies origin **[[egress]]** (bytes sent out) and latency.\n\nIt hurts most when the origin is busiest. During a simulcast spike at the assumed ~2M streams (~8 Tbps), the same mistake moves origin load from ~400 Gbps (5%) to **~1.6 Tbps** (20%).",
           callout: {
             type: "staff",
             text: "In a design review, ask: \"What is the blast radius of one bad commit to this repo, and how long until we can undo it?\" If the answer is \"all traffic, and undo takes 10 minutes\", the process around that repo must be stricter than for any application service.",
@@ -425,6 +432,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Every IaC tool has four parts: what you want, the plugin that talks to a vendor, the record of what exists, and the preview of changes.",
           prompt: "Match each IaC idea to what it is.",
           pairs: [
             ["Desired state", "Files or a program describing what should exist"],
@@ -437,7 +445,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Terraform",
-          body: "**Terraform** uses a declarative language, **HCL**, and has providers for every CDN in this book: Fastly, AWS (CloudFront, Route 53, S3, ACM), Akamai, Google (including Media CDN) and Cloudflare.\n\nState lives in a shared **remote backend** with **locking**. For the S3 backend, locking is opt-in through `use_lockfile`. DynamoDB-based locking \"is deprecated and will be removed in a future minor version\".",
+          body: "**Terraform** uses a declarative language, **HCL**, and has providers for every CDN in this book: Fastly, AWS (CloudFront, Route 53, S3, ACM), Akamai, Google (including Media CDN) and Cloudflare.\n\nState lives in a shared **remote backend** (for example an S3 bucket) with **locking**, so two people cannot apply at the same time. For the S3 backend, locking is opt-in through `use_lockfile`. DynamoDB-based locking \"is deprecated and will be removed in a future minor version\".",
         },
         {
           kind: "read",
@@ -465,9 +473,14 @@ const chapter: Chapter = {
               ["Risk", "HCL gets awkward for complex logic", "\"Too clever\" code hides intent", "Locked to AWS"],
             ],
           },
+          callout: {
+            type: "mistake",
+            text: "Writing so much TypeScript abstraction around infrastructure that reviewers cannot tell what will change. Real languages bring loops, types and shared libraries, and also clever code that hides intent. The plan must stay readable. If a reviewer must run the code in their head, the abstraction is too deep.",
+          },
         },
         {
           kind: "quiz",
+          teach: "Check which tool can reach which vendors. One tool only speaks to AWS; another has mature providers for every CDN.",
           prompt: "Your team writes TypeScript. It manages Fastly, Akamai and CloudFront config, plus AWS services for steering and URL signing. Which split does the book call common?",
           options: [
             "AWS CDK for everything, including Fastly and Akamai",
@@ -477,15 +490,6 @@ const chapter: Chapter = {
           ],
           answer: 1,
           explain: "CDK is AWS only, so it cannot model Fastly or Akamai. Terraform has mature providers for every CDN. TypeScript tools (CDK or Pulumi) fit the AWS application infrastructure and let the team share types with the services.",
-        },
-        {
-          kind: "read",
-          title: "Keep the plan readable",
-          body: "Real languages bring loops, types and shared libraries. They also bring a new risk: clever code that hides what will change.",
-          callout: {
-            type: "mistake",
-            text: "Writing so much TypeScript abstraction around infrastructure that reviewers cannot tell what will change. The plan must stay readable. If a reviewer must run the code in their head, the abstraction is too deep.",
-          },
         },
         {
           kind: "summary",
@@ -509,8 +513,14 @@ const chapter: Chapter = {
       minutes: 11,
       steps: [
         {
+          kind: "read",
+          title: "Four CDNs, four rulebooks",
+          body: "Your team runs Fastly, CloudFront and Akamai, and maybe Google Media CDN. Each one stores config in its own shape, tests it in its own way, and **rolls back** (undoes a change) in its own way.\n\nYour pipeline must respect each model. By the end of this lesson you can describe how each CDN versions, stages and rolls back config, and write one typed policy that renders for every vendor.",
+        },
+        {
           kind: "quiz",
-          prompt: "Your pipeline must roll back a bad change quickly on three different CDNs. Does \"rollback\" mean the same thing on each?",
+          guess: true,
+          prompt: "Your pipeline must roll back a bad change quickly on three different CDNs. What would you expect: does \"rollback\" mean the same thing on each?",
           options: [
             "Yes, every CDN keeps numbered versions you can reactivate",
             "No: some activate an older version, others re-apply the previous config and wait for propagation",
@@ -518,7 +528,7 @@ const chapter: Chapter = {
             "Yes, rollback is always a DNS change",
           ],
           answer: 1,
-          explain: "Fastly and Akamai activate an older version. CloudFront and Google Media CDN have no version to go back to, so you re-apply the previous config. Each vendor's model decides how your pipeline looks.",
+          explain: "Different vendors, different answers. Fastly and Akamai keep numbered **versions**, so rollback means activating an older one. CloudFront and Google Media CDN have no version to go back to, so you re-apply the previous config and wait for it to spread. Each vendor's model decides how your pipeline looks.",
         },
         {
           kind: "read",
@@ -527,6 +537,7 @@ const chapter: Chapter = {
         },
         {
           kind: "order",
+          teach: "An active Fastly version can never be edited. Think about where the editable copy comes from, and what makes it live.",
           prompt: "You need to change one cache rule on a Fastly service. Put the steps in order.",
           items: [
             "Clone the active (locked) version into a draft",
@@ -544,11 +555,12 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "A Fastly service in HCL",
-          body: "CI applies this as a staged draft. A later pipeline step activates it only after the checks pass.",
+          body: "**Staging** is a pre-production copy of the config on the CDN's network. Only test devices reach it; real viewers do not.\n\nCI applies this resource as a staged draft. A later pipeline step activates it only after the checks pass.",
           visual: { kind: "code", lang: "hcl", code: FASTLY_HCL, caption: "fastly_service_vcl with activate = false and stage = true." },
         },
         {
           kind: "quiz",
+          teach: "Read the two flags one at a time. `activate` decides whether the new version goes live; `stage` decides whether it goes to staging.",
           prompt: "In the HCL above, `activate = false` and `stage = true`. What does `terraform apply` do?",
           options: [
             "Activates the new version on production immediately",
@@ -571,6 +583,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "CloudFront splits behavior into three policies: one for caching, one for what is forwarded to the origin, one for response headers.",
           prompt: "Which CloudFront policy decides what goes into the cache key and the TTLs?",
           options: ["The cache policy", "The origin request policy", "The response headers policy", "The continuous deployment policy"],
           answer: 0,
@@ -579,7 +592,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "No version to roll back to",
-          body: "CloudFront has no version number. \"Rollback\" means re-applying the previous config and waiting for propagation.\n\nDefault quotas shape platform design. At the assumed ~8 Tbps simulcast peak, the per-distribution defaults are far too small. Quota raises belong in capacity planning (Chapter 13) and in the IaC repo's notes.",
+          body: "CloudFront has no version number. \"Rollback\" means re-applying the previous config and waiting for propagation.\n\nDefault **quotas** (limits) shape platform design. To compare a peak with a limit, divide: if one distribution had to carry 600 Gbps, that is 600 / 150 = **4x** its default.\n\nAt the assumed ~8 Tbps simulcast peak, the defaults are far too small. Quota raises belong in capacity planning (Chapter 13) and in the IaC repo's notes.",
           visual: {
             kind: "stats",
             items: [
@@ -593,6 +606,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Divide the peak by the limit, in the same units. 1 Tbps is 1,000 Gbps.",
           prompt: "The assumed simulcast peak is ~8 Tbps. The default CloudFront limit is 150 Gbps per distribution. About how many times bigger is the peak than one distribution's default?",
           answer: 53,
           tolerance: 3,
@@ -607,7 +621,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Akamai: two networks",
-          body: "Akamai has two physical networks: **staging** and **production**. An activation targets one of them. Akamai's docs say: \"Activate on staging first, promoting your configuration to production when you're satisfied with your test results.\"\n\nThe second number below matters for rollback. Undoing a bad production activation is **not instant**.",
+          body: "Akamai has two physical networks: **staging** and **production**. An activation targets one of them. Akamai's docs say: \"Activate on staging first, promoting your configuration to production when you're satisfied with your test results.\"\n\nThe second number below matters for rollback. Rolling back is also an activation, so undoing a bad production change takes about 5 to 7 minutes too. It is **not instant**.",
           visual: {
             kind: "stats",
             items: [
@@ -615,18 +629,6 @@ const chapter: Chapter = {
               { value: "5 to 7 min", label: "Production activation", note: "average" },
             ],
           },
-        },
-        {
-          kind: "quiz",
-          prompt: "A bad Akamai property is live on production. You activate the previous version. Roughly how long until production runs the old config again?",
-          options: [
-            "A few seconds",
-            "About 5 to 7 minutes on average",
-            "About 24 hours",
-            "It depends on the DNS TTL",
-          ],
-          answer: 1,
-          explain: "Akamai lists average production activations of about 5 to 7 minutes (staging: 1 to 3). Rolling back is an activation too, so it takes about as long.",
         },
         {
           kind: "read",
@@ -651,6 +653,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Use the first row of the side-by-side table: the unit of config for each vendor.",
           prompt: "Match each CDN to its unit of config.",
           pairs: [
             ["Fastly", "Service with numbered, locked versions"],
@@ -683,6 +686,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Look at the guard line at the top of the CDK code. It runs before any CloudFront config is built. What does its regex look for?",
           prompt: "A teammate adds `\"token\"` to `cacheKeyQueryParams`. What happens?",
           options: [
             "CloudFront rejects the cache policy at deploy time",
@@ -715,8 +719,14 @@ const chapter: Chapter = {
       minutes: 10,
       steps: [
         {
+          kind: "read",
+          title: "Your code, on every request",
+          body: "CDNs let you run your own small programs inside the edge, on every request. That is powerful: you can clean URLs, check tokens and pick a backend before the cache even looks.\n\nIt is also dangerous, because a video platform sends a huge number of requests. By the end of this lesson you can decide what belongs in edge code, compare the four main edge runtimes, and explain why network calls must stay off the segment path.",
+        },
+        {
           kind: "multi",
-          prompt: "Which of these jobs belong in edge code that runs on every video segment request? Select all that apply.",
+          guess: true,
+          prompt: "Code that runs on every video segment request runs a huge number of times per second. Which of these jobs would you expect belong there? Select all that seem right.",
           options: [
             "Strip query parameters so one segment has one cache entry",
             "Validate the URL token",
@@ -726,15 +736,21 @@ const chapter: Chapter = {
             "Hold the full episode catalog in memory",
           ],
           answers: [0, 1, 3, 4],
-          explain: "Edge code is for cache key normalization, token validation, backend routing, headers (CORS, CMCD handling) and geo policy. It should **not** call your entitlement service per segment, hold large data, or contain business logic that changes daily.",
+          explain: "Good edge jobs are small, local and fast: clean the cache key, check the token, pick the backend, add headers. Calling another service on every segment would send the whole request flood to that service, and a full catalog is far too much data to hold at the edge.",
         },
         {
           kind: "read",
           title: "What edge code is for",
-          body: "**[[Edge code|Edge compute]]** is logic that runs inside the CDN on each request. For video it typically does:\n- **cache key normalization** (strip query parameters so one segment has one cache entry)\n- **token validation** (Chapter 8)\n- **backend routing** to shield or origin\n- **headers** such as [[CORS]] and CMCD handling\n- **geo policy**\n\nIt should not call your entitlement service per segment, hold large data, or hold business logic that changes daily.",
+          body: "**[[Edge code|Edge compute]]** is logic that runs inside the CDN on each request. For video it typically does:\n- **cache key normalization** (strip query parameters so one segment has one cache entry)\n- **token validation** (Chapter 8)\n- **backend routing** to shield or origin\n- **headers** such as [[CORS]] and CMCD handling\n- **geo policy**\n\nIt should not call your **entitlement** service (the one that checks a subscription) per segment, hold large data, or hold business logic that changes daily.",
+        },
+        {
+          kind: "read",
+          title: "Worked example: how often edge code runs",
+          body: "A player fetches one video **segment** (a few seconds of video) at a time. So each stream makes one segment request per segment length.\n\n**Requests per second = streams / segment length in seconds**\n\nExample: 300,000 streams with 6-second segments. 300,000 / 6 = **50,000 requests per second**, for video segments alone. Any code on that path runs 50,000 times every second.",
         },
         {
           kind: "number",
+          teach: "Each stream asks for one segment per segment length. Divide the number of streams by the segment length in seconds.",
           prompt: "Assumed: ~1M concurrent streams, ~5-second segments. How many video segment requests per second does the edge handle, before audio, subtitles and manifests?",
           answer: 200000,
           tolerance: 10000,
@@ -765,6 +781,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Every viewer's URL carries a different token. Think about what the cache key would look like if that token stayed in the URL.",
           prompt: "Why does the handler set `url.search = \"\"` for segment files?",
           options: [
             "To hide the token from the viewer",
@@ -778,7 +795,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Two AWS edge runtimes",
-          body: "AWS offers two edge runtimes with very different limits.",
+          body: "AWS offers two edge runtimes with very different limits. Watch the **Scale** row: it says how many requests per second each can take.\n\nTo compare a load with a limit, divide. Example: 30,000 req/s in one Region against a 10,000 req/s limit is 30,000 / 10,000 = **3x** over the limit.",
           visual: {
             kind: "table",
             headers: ["", "CloudFront Functions", "Lambda@Edge"],
@@ -797,6 +814,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "CloudFront Functions are the tiny, fast runtime; Lambda@Edge is the heavy one with network access. Use the Code size, Memory, Scale and Duration rows.",
           prompt: "Match each limit to the runtime and the number.",
           pairs: [
             ["CloudFront Functions code size", "10 KB"],
@@ -822,6 +840,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Each value can be at most 1 KB, and a whole store at most 5 MB. Which option would never fit in that space?",
           prompt: "Which of these is a poor fit for CloudFront KeyValueStore?",
           options: [
             "Feature flags",
@@ -843,6 +862,7 @@ const chapter: Chapter = {
         },
         {
           kind: "order",
+          teach: "Each step away from a plain setting adds latency, cost, test burden and a new failure mode. Start with the option that has no code at all.",
           prompt: "Put the places for delivery logic in the order a staff engineer prefers them, most preferred first.",
           items: [
             "Declarative vendor setting (for example a cache policy)",
@@ -854,6 +874,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Divide the load by the limit. The load is the segment request rate you worked out earlier in this lesson.",
           prompt: "Lambda@Edge defaults to 10,000 requests per second per Region. The assumed evening peak is ~200,000 segment requests per second. How many times over the default is that?",
           answer: 20,
           tolerance: 1,
@@ -896,8 +917,14 @@ const chapter: Chapter = {
       minutes: 11,
       steps: [
         {
+          kind: "read",
+          title: "How do you test a CDN?",
+          body: "Application code has unit tests and a test server. CDN config is harder: the real behavior lives on the vendor's network, which you cannot run on your laptop.\n\nIn this lesson you will walk the full pipeline a config change travels, learn the test layers from cheapest to most real, and see how one test suite can prove that several CDNs behave the same.",
+        },
+        {
           kind: "quiz",
-          prompt: "Before modern tooling, how did most teams test CDN config?",
+          guess: true,
+          prompt: "Before modern tooling, how would you guess most teams tested CDN config?",
           options: [
             "With a full unit-test framework from each vendor",
             "Deploy to production and hope, or keep a hand-made test service that drifted from production",
@@ -905,22 +932,23 @@ const chapter: Chapter = {
             "They did not need to, because CDN config cannot break",
           ],
           answer: 1,
-          explain: "Historically there were two options: deploy to production and hope, or keep a hand-made test service that drifted away from production. The modern answer is layers of tests, cheapest first.",
+          explain: "Historically there were two options: deploy to production and hope, or keep a hand-made test service that slowly **drifted** away from production, so tests on it proved little. The modern answer is **layers** of tests, cheapest first, which the rest of this lesson builds up.",
         },
         {
           kind: "read",
           title: "The pipeline: before merge",
-          body: "An engineer opens a PR. CI runs format, validate and lint for VCL and TypeScript, then unit tests (falco, function tests, TS tests). Then `terraform plan` runs **per CDN and per environment**. **Policy checks** read the plan JSON. A human reviews the code **and** the plan, then merges.",
+          body: "An engineer opens a PR. CI runs format, validate and **lint** (automatic style and error checks) for VCL and TypeScript, then unit tests (falco, function tests, TS tests).\n\nThen `terraform plan` runs **per CDN and per environment**. **Policy checks** are rules in code that read the plan as JSON and block forbidden settings. A human reviews the code **and** the plan, then merges.",
           visual: pipe(["pr", "ci", "plan", "pol", "rev", "pr>ci", "ci>plan", "plan>pol", "pol>rev"], ["pr>ci", "ci>plan", "plan>pol", "pol>rev"]),
         },
         {
           kind: "read",
           title: "The pipeline: after merge",
-          body: "After merge, the change is applied to **staging targets** first. The **conformance suite** runs against staging. Then a **canary** in production.\n\nIf the canary is healthy, the change rolls out fully, **one CDN at a time**. If not, it rolls back automatically and pages the owner.",
+          body: "After merge, the change is applied to **staging targets** first. A **conformance suite** (one set of HTTP tests every CDN must pass) runs against staging. Then a **canary**: the change goes to a small slice of real production traffic first.\n\nIf the canary is healthy, the change rolls out fully, **one CDN at a time**. If not, it rolls back automatically and pages the owner.",
           visual: pipe(["stg", "conf", "can", "full", "rb", "rev>stg", "stg>conf", "conf>can", "can>full", "can>rb"], ["rev>stg", "stg>conf", "conf>can", "can>full"]),
         },
         {
           kind: "order",
+          teach: "Cheap automated checks come first and real traffic comes last. Merge splits the pipeline: everything before it runs on the PR, everything after it touches a CDN.",
           prompt: "Put the delivery config pipeline in order.",
           items: [
             "CI: format, validate, lint and unit tests",
@@ -939,6 +967,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Each layer is more real than the one before. Ask what that layer can see that the cheaper one cannot.",
           prompt: "Match each test layer to what it catches.",
           pairs: [
             ["Static checks", "Syntax and forbidden settings"],
@@ -951,10 +980,16 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Static checks and policy as code",
-          body: "Run on every PR, in seconds: `terraform fmt` and `validate`; `tsc --noEmit` and ESLint for TypeScript; and **falco**, an open-source tool that lints VCL locally, can lint the Fastly provider's Terraform plan JSON, and also formats, simulates and unit-tests VCL.\n\nAdd **policy as code** on the plan JSON, for example Open Policy Agent with Conftest, or HashiCorp Sentinel.",
+          body: "Run on every PR, in seconds: `terraform fmt` and `validate`; `tsc --noEmit` and ESLint for TypeScript; and **falco**, an open-source tool that lints VCL locally, can lint the Fastly provider's Terraform plan JSON, and also formats, simulates and unit-tests VCL.",
+        },
+        {
+          kind: "read",
+          title: "Policy as code for video",
+          body: "**Policy as code** means rules, written as code, that read the plan JSON and fail the PR if a forbidden setting appears. Tools: Open Policy Agent with Conftest, or HashiCorp Sentinel.\n\nUseful rules for video:\n- no `no-store` on segment paths\n- no auth parameters in any cache key\n- bounded manifest TTLs for live\n- TLS on every backend\n- log streaming on every service\n\nRemember from Lesson 2: VOD segments never change, so they get very long TTLs.",
         },
         {
           kind: "multi",
+          teach: "The rules protect caching, token safety, live freshness, encryption and visibility. One option sounds strict but goes against how immutable segments should be cached.",
           prompt: "Which of these are useful policy rules on the plan JSON for a video platform? Select all that apply.",
           options: [
             "No `no-store` on segment paths",
@@ -970,11 +1005,12 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Unit testing VCL with falco",
-          body: "falco runs tests written in VCL itself. Test files match `*.test.vcl`, use a `@scope` annotation, call a subroutine with `testing.call_subroutine`, and check results with `assert` functions.\n\nThis test checks that `vcl_recv` strips the query string from segment URLs. Run it in CI with `falco test -I ./vcl ./vcl/main.vcl`.",
+          body: "falco runs tests written in VCL itself. Test files match `*.test.vcl`, use a `@scope` annotation, call a subroutine with `testing.call_subroutine`, and check results with `assert` functions.\n\nThis test checks that `vcl_recv` strips the query string from segment URLs. Run it in CI with `falco test -I ./vcl ./vcl/main.vcl`.\n\nfalco is a **re-implementation** of Fastly's behavior, not Fastly itself.",
           visual: { kind: "code", lang: "vcl", code: FALCO_VCL, caption: "A falco unit test for vcl_recv." },
         },
         {
           kind: "quiz",
+          teach: "falco copies Fastly's behavior; it does not run Fastly's own engine. A copy can be close without being exact.",
           prompt: "Your falco tests all pass. How much should you trust them?",
           options: [
             "Fully: falco runs Fastly's own engine",
@@ -1001,18 +1037,6 @@ const chapter: Chapter = {
           body: "Each Fastly staging environment has an **anycast IPv4 address** (no IPv6). You reach it through a hosts file or a test DNS record.\n\nIt runs on the same type of POPs as production, with separate metrics. VCL can check `fastly.is_staging`. Staging is purged with a `Fastly-Purge-Environment: staging` header.",
         },
         {
-          kind: "quiz",
-          prompt: "How does a test device reach Fastly staging?",
-          options: [
-            "Through an anycast IPv4 address, via a hosts file or a test DNS record",
-            "Through a special IPv6 address only",
-            "By adding `?staging=1` to the URL",
-            "Fastly staging receives a random 5% of production users",
-          ],
-          answer: 0,
-          explain: "Fastly staging is reached by IP: an anycast IPv4 address (no IPv6), through a hosts file or a test DNS record. It does not take a share of real users, so it is not a production canary.",
-        },
-        {
           kind: "read",
           title: "Cross-CDN conformance suites",
           body: "With multiple CDNs, the most valuable test is a **conformance suite**: one set of HTTP assertions that every CDN must pass for the same URLs. It is the executable definition of **config parity**.",
@@ -1031,6 +1055,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Look at the \"Why it matters\" column for the expired-token row. The player decides what to do next based on what it gets back.",
           prompt: "One CDN returns 404 for an expired token, the others return 403. Why does the suite treat this as a failure?",
           options: [
             "404 responses cost more to serve",
@@ -1090,8 +1115,14 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "Tests passed. Now what?",
+          body: "Tests catch a lot, but some problems only appear with real viewers, real devices and real ISPs. So you do not switch a change on for everyone at once. You let it reach a little traffic, watch, and widen step by step.\n\nBy the end of this lesson you can climb a rollout ladder, run canaries on CloudFront and across CDNs, read canary signals with simple math, and pick the fastest way to undo a change.",
+        },
+        {
           kind: "quiz",
-          prompt: "In 2019, Cloudflare's software went through staged PoPs before going global. Yet one WAF rule still took down the network. Why?",
+          guess: true,
+          prompt: "In 2019, Cloudflare's software went through staged PoPs before going global. Yet one WAF rule still took down the network. What would you guess went wrong?",
           options: [
             "An attacker pushed the rule",
             "WAF rules went global in seconds through a separate path, skipping the staged rollout",
@@ -1099,15 +1130,16 @@ const chapter: Chapter = {
             "The rule was correct, but a PoP lost power",
           ],
           answer: 1,
-          explain: "Software went through \"animal PoPs\" (DOG, PIG, then Canaries), but WAF rules went global in seconds through the Quicksilver key-value store. Afterwards Cloudflare committed to staged rollout for rules too, keeping an emergency path for active attacks.",
+          explain: "The rule took a different road. Software went through \"animal PoPs\" (DOG, PIG, then Canaries), but WAF rules went global in seconds through the Quicksilver key-value store. Afterwards Cloudflare committed to staged rollout for rules too, keeping an emergency path for active attacks. Lesson: **every** path that changes the edge needs the same care.",
         },
         {
           kind: "read",
           title: "Config changes are releases",
-          body: "Google's SRE Workbook defines **canarying** as \"a partial and time-limited deployment of a change in a service and its evaluation\". It includes configuration and data, because config pushes are a common incident trigger.\n\nIn 2025 the bad input at Cloudflare was a machine-generated file. One stated fix was \"hardening ingestion of Cloudflare-generated configuration files in the same way we would for user-generated input\".",
+          body: "Google's SRE Workbook defines **canarying** as \"a partial and time-limited deployment of a change in a service and its evaluation\". It includes configuration and data, because config pushes are a common incident trigger. So a **release** is anything that changes what the edge does: code, one setting, a stored value, or a generated file.\n\nIn 2025 the bad input at Cloudflare was a machine-generated file. One stated fix was \"hardening ingestion of Cloudflare-generated configuration files in the same way we would for user-generated input\".",
         },
         {
           kind: "multi",
+          teach: "The test is simple: does the change alter what the edge does with a request? If yes, it is a release, whatever its form.",
           prompt: "Which of these must be treated as a release, with staging, canary and rollback? Select all that apply.",
           options: [
             "A VCL change",
@@ -1128,7 +1160,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Gates and the way back",
-          body: "Each step has a **gate**: compare errors, hit ratio, [[TTFB]] and QoE against a control. Pass, and the weight grows. After a **bake time**, a second gate decides full rollout on that CDN.\n\nFail at any gate: roll back and open an incident.",
+          body: "Each step has a **gate**: compare errors, hit ratio, [[TTFB]] and QoE against a **control** (traffic still on the old config). Pass, and the weight grows. After a **bake time** (a wait long enough for slow problems to show), a second gate decides full rollout on that CDN.\n\nFail at any gate: roll back and open an incident.",
           visual: ladder(["w", "g1", "lw", "g2", "rb", "w>g1", "g1>lw", "lw>g2", "g1>rb", "g2>rb"], ["w>g1", "g1>lw", "lw>g2"]),
         },
         {
@@ -1139,6 +1171,7 @@ const chapter: Chapter = {
         },
         {
           kind: "order",
+          teach: "Each rung exposes more real traffic than the one before. Internal devices come before real viewers, and one CDN finishes before the next starts.",
           prompt: "Put the rollout ladder in order.",
           items: [
             "Staging targets on each CDN",
@@ -1161,13 +1194,6 @@ const chapter: Chapter = {
           body: "- Primary and staging **do not share a cache**.\n- CloudFront sends **all** requests to the primary during peak traffic on the CloudFront service, regardless of policy.\n- Not usable with HTTP/3 distributions. WAF web ACL association is restricted. With OAC, the S3 bucket policy must also allow staging.",
         },
         {
-          kind: "quiz",
-          prompt: "What is the largest share of real requests a CloudFront weight-based policy can send to the staging distribution?",
-          options: ["5%", "15%", "50%", "100%"],
-          answer: 1,
-          explain: "Weight-based routing goes up to **15%** of requests, optionally with cookie-based session stickiness (idle timeout 300 to 3,600 seconds).",
-        },
-        {
           kind: "reveal",
           prompt: "What could go wrong? Name three ways a CloudFront canary can mislead or hurt a video platform.",
           answer: "- **Cold cache:** staging does not share the primary's cache. A 15% canary on a cold staging distribution sends extra misses to the shield. Never canary during a premiere window.\n- **Stickiness:** without it, one viewer's segments alternate between two configs. A header or CORS change then shows up as intermittent player errors.\n- **Peak bypass:** during CloudFront service peaks all requests go to the primary. An evening canary may silently receive no traffic. Check canary request volume before declaring \"no errors\".",
@@ -1184,6 +1210,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "A versionless write takes effect without creating a new service version. Think about what that gains in speed, and which safety step it skips.",
           prompt: "Why are versionless edge stores both useful and risky?",
           options: [
             "Useful because they are free; risky because they are slow",
@@ -1200,7 +1227,13 @@ const chapter: Chapter = {
           body: "**Kayenta**, the canary analysis tool released by Google and Netflix in 2018, compares a canary against a fresh **baseline**, runs statistical tests per metric, and scores success, marginal or failure. For edge config:\n- Compare canary to control **by slice**.\n- Use a few user-facing metrics (the Workbook suggests no more than about a dozen): edge 4xx and 5xx, hit ratio, origin request rate, TTFB, and [[RUM]] QoE such as [[video start failures|video start failure]] and rebuffering.\n- Confirm the canary **received traffic**.",
         },
         {
+          kind: "read",
+          title: "Worked example: slice math",
+          body: "**A small canary hides in the total.** Overall error rate = canary share x canary error rate (when the rest is healthy).\n\nExample: a 10% canary with a 30% error rate shows 10% x 30% = **3%** on the overall graph. That is why you compare by slice.\n\n**How many errors will I see?** Canary requests = share x total. Errors = canary requests x error rate.\n\nExample: a 2% canary of 100,000 req/s gets 2,000 req/s. At a 1% error rate that is **20 errors per second**.",
+        },
+        {
           kind: "number",
+          teach: "Multiply the canary's share of traffic by the canary's error rate. The healthy rest adds almost nothing.",
           prompt: "A canary gets 5% of traffic and has a 20% error rate. The rest is healthy. What error rate do you see on the overall graph?",
           answer: 1,
           tolerance: 0.1,
@@ -1209,6 +1242,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Two steps: first the canary's request rate (its share times the total), then the errors (that rate times the new error rate).",
           prompt: "Assumed model: ~200,000 segment requests per second. A 1% canary's error rate rises from 0.1% to 0.5%. How many errors per second does the canary now show?",
           answer: 10,
           tolerance: 1,
@@ -1237,13 +1271,6 @@ const chapter: Chapter = {
             type: "staff",
             text: "Ask of every rollout plan: \"If this breaks at the 5% step during a Friday simulcast, what is the first action, who takes it, and how many seconds does it take?\" A good plan names a flag or a steering change, not \"revert the PR and wait for CI\".",
           },
-        },
-        {
-          kind: "quiz",
-          prompt: "Which rollback is bound by the DNS TTL and resolver behavior?",
-          options: ["Flipping an edge store flag", "Activating an older Fastly version", "Changing DNS steering weights", "Disabling a CloudFront continuous deployment policy"],
-          answer: 2,
-          explain: "DNS steering changes are TTL-bound, plus resolver behavior (Chapter 3). An edge store flag flips in seconds; a Fastly version activates fast; disabling the CloudFront policy takes minutes and leaves the primary untouched.",
         },
         {
           kind: "widget",
@@ -1283,22 +1310,28 @@ const chapter: Chapter = {
       minutes: 10,
       steps: [
         {
+          kind: "read",
+          title: "Keeping code and reality in sync",
+          body: "IaC only works if the files in git match what is really running. In real life they slowly stop matching. People also need somewhere safe to keep secret keys, and certificates quietly expire.\n\nBy the end of this lesson you can detect and govern mismatches between code and reality, lay out Terraform state safely, keep secrets out of git, rotate keys without breaking playback, and watch certificates.",
+        },
+        {
           kind: "multi",
-          prompt: "Real CDN config and the IaC files can disagree. Which of these can cause it? Select all that apply.",
+          guess: true,
+          prompt: "The real CDN config and the IaC files in git can end up different. Which of these would you expect could cause it? Select all that seem likely.",
           options: [
             "An on-call engineer edits the console during an incident",
             "Vendor support changes a setting for you",
             "Another tool creates resources in the same account",
             "A provider upgrade brings a new default",
-            "Running `terraform plan -refresh-only`",
+            "Someone only reads the config in the console, changing nothing",
           ],
           answers: [0, 1, 2, 3],
-          explain: "These are the common causes of drift. A refresh-only plan only **shows** differences; Terraform \"will not take any actions to undo these\".",
+          explain: "Anything that changes the real config **without** changing the files causes a mismatch: a console edit during an incident, vendor support, another tool, or a new default from a provider upgrade. Only reading the console changes nothing, so it causes nothing. This mismatch has a name, which comes next.",
         },
         {
           kind: "read",
           title: "Drift",
-          body: "**[[Drift]]** is when real config differs from what IaC says. Common causes: an on-call engineer edits a console during an incident and forgets to back-port it; vendor support changes a setting for you; another tool creates resources in the same account; a provider upgrade brings a new default.",
+          body: "**[[Drift]]** is when real config differs from what IaC says. Common causes: an on-call engineer edits a console during an incident and forgets to **back-port** it (copy the change into the code); vendor support changes a setting for you; another tool creates resources in the same account; a provider upgrade brings a new default.",
         },
         {
           kind: "read",
@@ -1323,6 +1356,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "There are three things: real infrastructure, state, and your config files. A refresh-only apply touches exactly one of them.",
           prompt: "What does `terraform apply -refresh-only` do?",
           options: [
             "Reverts the real infrastructure to match the code",
@@ -1345,6 +1379,7 @@ const chapter: Chapter = {
         },
         {
           kind: "order",
+          teach: "Break-glass is allowed but logged. The scheduled drift job notices the change and acts as the reminder; the back-port closes the gap.",
           prompt: "An incident needs a console fix. Put the governed break-glass flow in order.",
           items: [
             "Use the logged break-glass role and change the console",
@@ -1357,23 +1392,11 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "State layout",
-          body: "Split state by **blast radius and owner**: one state per CDN per environment; separate states for DNS, certificates, origins and observability; and shared **modules** rather than shared state.\n\nSmaller states give plans humans actually read, fewer lock collisions, and a smaller worst case if one is corrupted.",
+          body: "Split state by **blast radius and owner**: one state per CDN per environment; separate states for DNS, certificates, origins and observability; and shared **modules** (reusable blocks of IaC code) rather than shared state.\n\nSmaller states give plans humans actually read, fewer lock collisions, and a smaller worst case if one is corrupted.",
           callout: {
             type: "mistake",
             text: "One giant state file for \"all delivery infra\". Every PR then shows a 2,000-line plan, reviewers stop reading, and an unrelated DNS change has to wait for a CDN apply lock. Big plans train people to approve without reading.",
           },
-        },
-        {
-          kind: "quiz",
-          prompt: "Which is NOT a benefit of splitting state by CDN, environment and resource type?",
-          options: [
-            "Plans small enough that humans read them",
-            "Fewer lock collisions between unrelated changes",
-            "A smaller worst case if one state is corrupted",
-            "No need for shared modules",
-          ],
-          answer: 3,
-          explain: "Split state, but **share modules**. Smaller states give readable plans, fewer lock collisions and a smaller worst case.",
         },
         {
           kind: "read",
@@ -1387,6 +1410,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "`sensitive` controls what Terraform prints on screen. State is a different thing: it records resource attributes.",
           prompt: "All secret variables are marked `sensitive`. Is the Terraform state file safe to share widely?",
           options: [
             "Yes, `sensitive` removes secrets from state",
@@ -1404,6 +1428,7 @@ const chapter: Chapter = {
         },
         {
           kind: "order",
+          teach: "Two rules: the edge must know a key before any URL uses it, and must keep the old key until every token signed with it has expired.",
           prompt: "Put a safe signing-key rotation in order.",
           items: [
             "Every signed URL already carries a key ID",
@@ -1426,6 +1451,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "One CDN uses AWS's certificate service in one fixed Region, one renews through ACME, and one attaches certificates to its edge hostnames.",
           prompt: "Match each CDN to how its certificates work.",
           pairs: [
             ["CloudFront", "ACM certificate in us-east-1"],
@@ -1470,21 +1496,14 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
-          kind: "quiz",
-          prompt: "A player presses Play. Before it fetches the first segment, which two delivery services next to the CDN must answer?",
-          options: [
-            "The steering service and the URL signer",
-            "The DNS resolver and the packager",
-            "The encoder and the origin",
-            "The DRM license server and the WAF",
-          ],
-          answer: 0,
-          explain: "The Playback API asks the **steering service** which CDN to use, then asks the **URL signer** to sign the manifest path for that CDN. Both sit in the playback [[control plane]], and both are natural TypeScript services.",
+          kind: "read",
+          title: "Beyond the CDN itself",
+          body: "A delivery team owns more than CDN settings. It also runs small services next to the CDN, serves partner teams who need changes, and reviews risky changes before they ship.\n\nBy the end of this lesson you can design the URL signer and the steering config, build a self-service \"paved road\" so partner teams can make safe changes alone, and run a good delivery config review.",
         },
         {
           kind: "read",
           title: "Delivery logic outside the CDN",
-          body: "Not all delivery logic lives in the CDN. The Playback API first runs the [[entitlement]] and geo check. Then it asks the **steering service** which CDN this session should use. The answer is a CDN plus a fallback.",
+          body: "Not all delivery logic lives in the CDN. When a player presses Play, the **Playback API** first runs the [[entitlement]] and geo check. Then it asks the **steering service** which CDN this session should use. The answer is a CDN plus a fallback.\n\nBoth services sit in the playback **[[control plane]]**: the systems that make decisions before any video bytes flow. Both are natural TypeScript services.",
           visual: play(3, "Steps 1 to 4: entitlement, then the steering decision."),
         },
         {
@@ -1505,7 +1524,13 @@ const chapter: Chapter = {
           visual: { kind: "code", lang: "typescript", code: SIGNER_TS, caption: "One interface, one implementation per CDN." },
         },
         {
+          kind: "read",
+          title: "Worked example: sizing the signer",
+          body: "Every playback start needs one signature. So the signer's load is the rate of session starts.\n\n**Starts per second = viewers joining / joining window in seconds**\n\nExample: 600,000 viewers join over 5 minutes. 5 minutes = 300 seconds. 600,000 / 300 = **2,000 signs per second** on average.\n\nThe average hides the rush: the first minute is much steeper, so you design for several times the average.",
+        },
+        {
           kind: "number",
+          teach: "Convert the joining window to seconds first, then divide the number of viewers by it.",
           prompt: "Assumed: ~2M viewers join a premiere over ~10 minutes. What is the average rate of session starts (and so of signing requests) per second?",
           answer: 3300,
           tolerance: 200,
@@ -1530,6 +1555,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Run each check from the code in turn: is it empty, do weights sum to 100, any negatives, how far does each CDN move, does the version increase?",
           prompt: "Previous config: version 7, weights { A: 50, B: 50 }. Next config: version 8, weights { A: 90, B: 10 }. What does `validate` return?",
           options: [
             "No errors",
@@ -1576,9 +1602,14 @@ const chapter: Chapter = {
               ["New edge function", "Not self-service", "Design review"],
             ],
           },
+          callout: {
+            type: "mistake",
+            text: "Four platform anti-patterns. **Lowest-common-denominator spec:** it only expresses what all CDNs share and loses each vendor's strengths (surrogate keys, Origin Shield, tiered distribution); allow marked, tested vendor extensions. **A ticket queue with a YAML form:** if every spec change still waits days for review, you only moved the queue. **Hidden magic:** always show the rendered vendor config and plan in the PR. **No escape hatch:** keep break-glass for incidents.",
+          },
         },
         {
           kind: "quiz",
+          teach: "Use the self-service table. Find the row for a new CORS origin and read its path and guardrail.",
           prompt: "The new TV app team needs its web origin added to the CORS allowlist. What path does it take?",
           options: [
             "A ticket to Media Delivery, done by hand on each CDN",
@@ -1590,23 +1621,17 @@ const chapter: Chapter = {
           explain: "A new CORS origin is a common, low-risk request, so it is self-service with a guardrail. Cache key changes and new edge functions are not self-service.",
         },
         {
-          kind: "match",
-          prompt: "Match each platform anti-pattern to its fix.",
-          pairs: [
-            ["Lowest-common-denominator spec", "Allow marked, tested vendor extensions"],
-            ["A ticket queue with a YAML form", "Review only risky change classes, so specs do not wait days"],
-            ["Hidden magic", "Show the rendered vendor config and plan in the PR"],
-            ["No escape hatch", "Keep break-glass for incidents"],
-          ],
-          explain: "A spec that only expresses what all CDNs share loses each vendor's strengths (surrogate keys, Origin Shield, tiered distribution). If every spec change still waits days, you only moved the queue. Always show what will really change, and keep break-glass.",
-        },
-        {
           kind: "read",
           title: "What a reviewer checks",
           body: "A PR template should make the author answer, and the reviewer check:\n- **Plan** for every CDN and environment, matching the description, with no surprise replacements.\n- **Cache impact:** key, TTL or `Vary` changes, expected hit ratio and origin load, any purge. A full purge before a premiere is a self-made [[thundering herd]].\n- **Player and security impact:** status codes, CORS, headers, token checks, origin paths.\n- **Parity** across CDNs, or a reason for difference.\n- **Evidence:** unit, staging and conformance results.\n- **Rollout, rollback and timing.**",
+          callout: {
+            type: "staff",
+            text: "Some changes are too big for a PR review and need a **design doc**: adding or removing a CDN, shield or origin; changing the cache key or URL layout; adding edge code to the segment path; new key types or token schemes; changing steering inputs; and large cost changes (Chapter 16). The doc states blast radius, rollout ladder, success metrics, rollback path and per-CDN testing.",
+          },
         },
         {
           kind: "multi",
+          teach: "Design docs are for changes to the shape of delivery: which CDNs, shields and origins exist, how caching and URLs work, what code runs per segment, how tokens and steering work.",
           prompt: "Which of these changes need a design doc, not just a PR review? Select all that apply.",
           options: [
             "Adding or removing a CDN, shield or origin",
@@ -1651,7 +1676,13 @@ const chapter: Chapter = {
       minutes: 8,
       steps: [
         {
+          kind: "read",
+          title: "Here is what this chapter covered",
+          body: "- **Config is the riskiest code:** global blast radius, spreads in seconds, and a cache-key bug throws no error.\n- **IaC:** desired state, providers, state, plan and apply. Reviewers read the plan.\n- **Each CDN differs:** versions, staging and rollback speed are vendor-specific.\n- **Edge code:** small and local; nothing heavy or networked on the segment path.\n- **Test and roll out in layers:** checks, staging, conformance, canary by slice, one CDN at a time.\n- **Keep reality honest:** drift, state, secrets, certificates, a paved road and good reviews.",
+        },
+        {
           kind: "number",
+          teach: "Origin load is total traffic times the miss share. Total traffic is streams times bitrate; the miss share is 100% minus the hit ratio.",
           prompt: "A teammate adds `utm_campaign` to the CloudFront cache policy allowlist for segment paths. Assumed: 1M streams, 4 Mbps, 95% hit ratio. If the hit ratio falls toward 80%, what could origin load rise to?",
           answer: 800,
           tolerance: 40,
@@ -1660,6 +1691,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Think about what a viewer sees when a request misses the cache: the response still arrives, just from further away.",
           prompt: "In that same case, why will no error alert fire?",
           options: [
             "CloudFront suppresses alerts for cache policies",
@@ -1672,6 +1704,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Compare the Lambda@Edge default scale per Region with the segment request rate at ~1M streams and ~5-second segments.",
           prompt: "Why is Lambda@Edge a poor choice for logic on every segment request at this platform's scale?",
           options: [
             "It cannot read request headers",
@@ -1684,6 +1717,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Fastly and Akamai staging are reached by IP address or hostname. Only one vendor has a built-in way to route a share of real requests.",
           prompt: "Fastly staging, Akamai staging and CloudFront staging distributions all exist. Which can send a percentage of real users to the new config?",
           options: [
             "All three",
@@ -1696,6 +1730,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Recall the weight-based option of CloudFront continuous deployment and its upper limit.",
           prompt: "What is the maximum share of requests a CloudFront continuous deployment policy can send to staging?",
           answer: 15,
           tolerance: 0.5,
@@ -1704,6 +1739,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "CloudFront has a special rule for what happens to staging traffic during peaks on the CloudFront service itself.",
           prompt: "You start a CloudFront weight-based canary at 20:00 local time, see zero errors after an hour, and promote. What CloudFront behavior might have made \"zero errors\" meaningless?",
           options: [
             "Staging distributions never log errors",
@@ -1721,6 +1757,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "The code still holds the old value. A normal apply makes the real world match the code.",
           prompt: "An on-call engineer raised a shield timeout in the Fastly console during an incident. Two days later an unrelated Terraform apply runs. What happens?",
           options: [
             "Nothing, Terraform ignores console changes",
@@ -1733,6 +1770,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "`sensitive` controls what is printed. State records resource attributes.",
           prompt: "Why should Terraform state be treated as sensitive even if all secret variables are marked `sensitive`?",
           options: [
             "State holds resource attributes, including secrets; `sensitive` only hides display",
@@ -1750,6 +1788,7 @@ const chapter: Chapter = {
         },
         {
           kind: "order",
+          teach: "Cheapest and fastest checks run on every PR; the most real and most expensive check uses live traffic.",
           prompt: "Put the test layers in order, cheapest first.",
           items: [
             "Static and policy checks",
@@ -1762,6 +1801,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "With multi-CDN, the other CDNs still run the old config. Compare how fast each option takes effect.",
           prompt: "A bad edge config is live on CDN A during a premiere. What is often the fastest rollback?",
           options: [
             "Revert the PR and wait for CI",

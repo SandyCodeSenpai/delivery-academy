@@ -112,11 +112,20 @@ const chapter: Chapter = {
       id: "ch16-l1",
       title: "Every byte has a price",
       goal: "Explain why delivery cost is an engineering input and name every meter on the delivery path.",
-      minutes: 8,
+      minutes: 9,
       steps: [
         {
+          kind: "read",
+          title: "Who pays for a stream?",
+          body:
+            "A video service sends megabytes per second to every viewer, for hours at a time. Someone pays for each of those bytes.\n\n" +
+            "In this lesson you will see which companies charge for a byte, which of **your** engineering choices change the bill, and every place on the path where a provider counts and bills.\n\n" +
+            "By the end you can draw the cost map of a delivery path.",
+        },
+        {
           kind: "quiz",
-          prompt: "A new anime becomes a huge hit. Viewing hours triple this month. What happens to the delivery bill?",
+          guess: true,
+          prompt: "A new anime becomes a huge hit. Viewing hours triple this month. What would you expect to happen to the delivery bill?",
           options: [
             "It stays flat, because the CDN contract is fixed",
             "It grows roughly with the viewing hours",
@@ -148,6 +157,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Each lever changes one thing the bill counts: requests, hit ratio, bytes leaving the origin, bytes per hour, or which vendor carries the traffic.",
           prompt: "Match each engineering choice to what it changes on the bill.",
           pairs: [
             ["Segment duration", "Request count"],
@@ -164,7 +174,7 @@ const chapter: Chapter = {
           title: "Cost and reliability trade off",
           body:
             "[[Multi-CDN]], multi-origin and multi-cloud designs (Chapters 6, 9 and 12) remove single points of failure. But each extra provider adds:\n\n" +
-            "- more cache fills,\n- duplicate storage,\n- smaller volume per vendor, which weakens your discount.\n\n" +
+            "- more cache **fills** (fetches back to the origin when a cache misses),\n- duplicate storage,\n- smaller volume per vendor, which weakens your discount.\n\n" +
             "A staff engineer can say what resilience costs, in dollars per month, and defend it.",
           callout: {
             type: "staff",
@@ -174,6 +184,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Each extra provider has its own caches and its own contract. Think about what that does to fills at the origin and to the volume each vendor gets.",
           prompt: "Your team adds a third CDN for resilience. Which cost effect should you expect?",
           options: [
             "Lower origin egress, because traffic is spread out",
@@ -240,6 +251,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "A meter is something a provider counts and bills. For each option, ask: does it appear on someone's invoice?",
           prompt: "Which of these are meters on the delivery path? Select all that apply.",
           options: [
             "GB-months stored in object storage",
@@ -255,6 +267,7 @@ const chapter: Chapter = {
         },
         {
           kind: "order",
+          teach: "Follow one byte: where it sits, how it leaves the cloud, the cache tier in the middle, and the last hop to the viewer.",
           prompt: "Put the meters in order along the path, from where content sits to the viewer.",
           items: [
             "Storage GB-months",
@@ -283,11 +296,19 @@ const chapter: Chapter = {
       id: "ch16-l2",
       title: "How CDNs charge",
       goal: "Compare per-GB, per-request, 95th-percentile, bundle and per-minute pricing, and know which choices each one rewards.",
-      minutes: 10,
+      minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "A price is not one number",
+          body:
+            "CDNs do not all charge the same way. Some charge per GB, some per request, some for a traffic rate in Mbps, some per minute of video.\n\n" +
+            "Each way of charging rewards different engineering choices. In this lesson you will learn the five pricing models, read real 2026 list prices, and work out what one segment and one minute of video cost.",
+        },
+        {
           kind: "quiz",
-          prompt: "CDN X quotes $0.004 per GB. CDN Y quotes $0.30 per Mbps per month. Which is cheaper for you?",
+          guess: true,
+          prompt: "CDN X quotes $0.004 per GB. CDN Y quotes $0.30 per Mbps per month. The two quotes use different units. Which would you expect to be cheaper for you?",
           options: [
             "CDN X, the per-GB number is smaller",
             "CDN Y, per-Mbps is always cheaper at scale",
@@ -296,7 +317,7 @@ const chapter: Chapter = {
           ],
           answer: 2,
           explain:
-            "The two quotes measure different things. To compare them you need your **load factor** (how flat your traffic is), which Lesson 3 covers. The **model** matters more than the rate, because the model decides which engineering choices save money.",
+            "The two quotes measure different things, like comparing a price per kilogram with a price per hour. To compare them you need your **load factor** (how flat your traffic is), which Lesson 3 covers. The **model** matters more than the rate, because the model decides which engineering choices save money.",
         },
         {
           kind: "read",
@@ -347,6 +368,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Each row is the next block of traffic in the month. Add up the blocks before the last row and compare that total with 540 PB.",
           prompt: "At about 540 PB a month, which CloudFront tier do almost all your bytes land in?",
           options: ["Next 9 TB", "Next 350 TB", "Next 4 PB", "Over 5 PB"],
           answer: 3,
@@ -370,19 +392,6 @@ const chapter: Chapter = {
             "Akamai does not publish CDN delivery list prices either. For both, the only real price is **the contract**.",
         },
         {
-          kind: "quiz",
-          prompt: "Your service will deliver hundreds of petabytes a month. Where do you find the real price of Media CDN or Akamai?",
-          options: [
-            "On their public price pages",
-            "In the CloudFront table, scaled by region",
-            "In the contract you negotiate with them",
-            "In Fastly's fixed-price packages",
-          ],
-          answer: 2,
-          explain:
-            "Google Media CDN and Akamai publish no delivery list prices, and Fastly's fixed packages exclude streaming. At this scale the only real price is the negotiated contract.",
-        },
-        {
           kind: "read",
           title: "Per-request pricing",
           body:
@@ -392,7 +401,18 @@ const chapter: Chapter = {
             "Request fees look tiny. But video makes many requests: each segment is one.",
         },
         {
+          kind: "read",
+          title: "Worked example: how big is a segment?",
+          body:
+            "A [[segment]]'s size comes from its bitrate and its length:\n\n" +
+            "**bytes = bits per second x seconds / 8**\n\n" +
+            "Example: a 4-second segment at 8 Mbps.\n\n" +
+            "8,000,000 bits/s x 4 s / 8 = 4,000,000 bytes = **4 MB**.\n\n" +
+            "To move a fixed amount of bytes, the number of requests is total bytes divided by segment size. Smaller segments mean more requests.",
+        },
+        {
           kind: "number",
+          teach: "Size in bytes = bitrate in bits per second x seconds / 8. 1 Mbps = 1,000,000 bits per second.",
           prompt: "A 6-second video segment at 4 Mbps. How big is it?",
           answer: 3,
           tolerance: 0.2,
@@ -402,7 +422,8 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
-          prompt: "You switch to 2-second segments. Same bitrate, same total bytes. How many requests do you make now?",
+          teach: "Each segment is one request. Find the size of a 2-second segment at the same bitrate, then count how many you need to move the same bytes.",
+          prompt: "You switch from 6-second to 2-second segments. Same bitrate, same total bytes. How many requests do you make now?",
           options: ["The same number", "Twice as many", "Three times as many", "One third as many"],
           answer: 2,
           explain:
@@ -442,7 +463,19 @@ const chapter: Chapter = {
             "Since May 2023, Cloudflare's terms allow video and large files through its CDN only if hosted on a Cloudflare service such as Stream, Images or R2. Its general CDN plans are not a flat-price way to deliver video from your own origin.",
         },
         {
+          kind: "read",
+          title: "Worked example: per minute to per GB",
+          body:
+            "To compare a per-minute price with a per-GB price, find how many GB the minutes carry.\n\n" +
+            "Example: $1 per 1,000 minutes, at 2 Mbps.\n\n" +
+            "- 1,000 minutes = 60,000 s.\n" +
+            "- 60,000 s x 2 Mbps / 8 = 15,000 MB = **15 GB**.\n" +
+            "- $1 / 15 GB = about **$0.067 per GB**.\n\n" +
+            "Notice that the price per minute does not change with bitrate. The vendor charges $1 whether those minutes carry few bytes or many.",
+        },
+        {
           kind: "number",
+          teach: "GB delivered = seconds x Mbps / 8 / 1,000. Then price per GB = price / GB delivered.",
           prompt: "Cloudflare Stream: $1 per 1,000 minutes delivered. At 4 Mbps, what is that per GB?",
           answer: 0.033,
           tolerance: 0.004,
@@ -453,6 +486,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Under per-minute pricing, your bill depends only on minutes. Ask whose costs fall when each minute carries fewer bytes.",
           prompt: "You pay per minute delivered. You ship a better codec that cuts bitrate by 30% at the same quality. Who saves the delivery money?",
           options: ["You, the video service", "The vendor", "The viewer's ISP", "Nobody, bytes are free"],
           answer: 1,
@@ -460,7 +494,19 @@ const chapter: Chapter = {
             "Per-minute pricing moves **bitrate risk to the vendor**. You pay the same per minute whatever the bitrate, so fewer bytes save the vendor money, not you.",
         },
         {
+          kind: "read",
+          title: "Each model rewards a different choice",
+          body:
+            "Know the model before you compare rates, because each model rewards different engineering:\n\n" +
+            "- **Per GB** rewards fewer bytes.\n" +
+            "- **Per request** rewards longer segments.\n" +
+            "- **95th percentile** rewards flat traffic.\n" +
+            "- **Per minute** moves bitrate risk to the vendor.\n" +
+            "- **Flat-rate plans** bundle delivery with other services, but stop at small volumes.",
+        },
+        {
           kind: "match",
+          teach: "Each model counts one thing: total bytes, requests, a sustained traffic rate, minutes of video, or a fixed monthly fee.",
           prompt: "Match each pricing model to what it bills.",
           pairs: [
             ["Per GB", "Total bytes in the month"],
@@ -470,7 +516,7 @@ const chapter: Chapter = {
             ["Flat-rate plan", "A monthly fee with a transfer allowance"],
           ],
           explain:
-            "Know the model before comparing rates. Per GB rewards fewer bytes. Per request rewards longer segments. 95th percentile rewards flat traffic. Per minute moves bitrate risk to the vendor. Flat-rate plans bundle delivery with other services but stop at small volumes.",
+            "Per GB counts bytes. Per request counts blocks of 10,000 requests. 95th percentile bills a sustained Mbps rate. Per minute counts minutes of video. Flat-rate plans charge a monthly fee that includes a transfer allowance. At hundreds of petabytes a month, Fastly, Media CDN and Akamai are contract-only: the negotiated contract is the real price.",
         },
         {
           kind: "summary",
@@ -490,26 +536,34 @@ const chapter: Chapter = {
       id: "ch16-l3",
       title: "The 95th percentile",
       goal: "Compute a 95th-percentile bill, convert a per-Mbps price to an effective price per GB, and spot billing traps in spikes and failover.",
-      minutes: 11,
+      minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "Paying for a rate, not bytes",
+          body:
+            "The biggest video customers often pay for a **traffic rate** (Mbps), not for bytes. The rule that sets that rate is called the **95th percentile** (often written **p95**).\n\n" +
+            "In this lesson you will compute a 95th-percentile bill, turn a price per Mbps into a price per GB, and see when a premiere spike or a failover makes the whole month more expensive.",
+        },
+        {
           kind: "quiz",
-          prompt: "You are billed at the 95th percentile. A premiere doubles your traffic for 20 hours this month. How much extra do you pay?",
+          guess: true,
+          prompt:
+            "Imagine a provider billed your whole month at your single busiest 5 minutes. Your traffic is calm all month, except one premiere evening when it doubles. What would you expect?",
           options: [
-            "Twice as much for the whole month",
-            "Exactly the extra bytes of those 20 hours",
-            "Nothing extra",
-            "It depends on the time of day",
+            "The whole month is billed at the doubled rate",
+            "Only the premiere evening costs more",
+            "The bill does not change",
           ],
-          answer: 2,
+          answer: 0,
           explain:
-            "95th percentile billing throws away the busiest 5% of samples. In a 30-day month that is about **36 hours**. A 20-hour burst fits inside that window, so it is **free at the margin**.",
+            "If the busiest moment set the price, one evening would set the bill for the **whole month**. That punishes rare spikes. So providers use **95th percentile billing** instead: they throw away the busiest 5% of the month's measurements and bill the next highest. Short spikes then cost nothing extra. The next steps show how.",
         },
         {
           kind: "read",
           title: "How the 95th percentile is computed",
           body:
-            "The provider samples your traffic rate, usually **every 5 minutes**. At month end the samples are sorted, the top 5% are discarded, and \"the next highest measurement becomes the billable use for the entire month.\"\n\n" +
+            "The provider measures your traffic rate, usually **every 5 minutes**. Each measurement is a **sample**. At month end the samples are sorted, the top 5% are discarded, and \"the next highest measurement becomes the billable use for the entire month.\"\n\n" +
             "The bill is: **billed Mbps x price per Mbps per month**.",
           visual: {
             kind: "stats",
@@ -521,20 +575,18 @@ const chapter: Chapter = {
           },
         },
         {
-          kind: "order",
-          prompt: "Put the steps of 95th percentile billing in order.",
-          items: [
-            "Sample the traffic rate every 5 minutes",
-            "Sort all the month's samples",
-            "Discard the top 5% of samples",
-            "Bill the next highest sample for the whole month",
-            "Multiply by the price per Mbps per month",
-          ],
-          explain:
-            "Sample, sort, drop the top 5%, take the next highest value as the billed rate for the entire month, then multiply by the price per Mbps.",
+          kind: "read",
+          title: "Worked example: the free window in one week",
+          body:
+            "The discarded top 5% is a window of time where you can burst for free. Here is the calculation for one week:\n\n" +
+            "- Samples: 7 days x 24 hours x 12 per hour = **2,016**.\n" +
+            "- Top 5%: 2,016 x 0.05 = about **101 samples**.\n" +
+            "- Time: 101 x 5 minutes = 505 minutes = about **8.4 hours**.\n\n" +
+            "Bursts shorter than this window are thrown away. Longer bursts set your bill.",
         },
         {
           kind: "number",
+          teach: "Free time = samples in the month x 5% x 5 minutes. Count samples as days x 24 x 12.",
           prompt: "A 30-day month has 8,640 five-minute samples. The top 5% are discarded. How many hours of bursting are free?",
           answer: 36,
           tolerance: 1,
@@ -544,7 +596,17 @@ const chapter: Chapter = {
             "5% of 8,640 = **432 samples**. 432 x 5 min = 2,160 min = **36 hours**. You can burst above your billed rate for about 36 hours a month for free. Longer bursts set your bill.",
         },
         {
+          kind: "read",
+          title: "Worked example: from bytes to an average rate",
+          body:
+            "To compare traffic with a billed rate, turn a month of bytes into an average rate in bits per second:\n\n" +
+            "**rate = bytes x 8 / seconds in the month**\n\n" +
+            "Example: 100 PB in a 30-day month (2,592,000 s).\n\n" +
+            "100 x 10^15 bytes x 8 = 8 x 10^17 bits. 8 x 10^17 / 2.592 x 10^6 s = about 3.1 x 10^11 bit/s = **0.31 Tbps**.",
+        },
+        {
           kind: "number",
+          teach: "Rate = bytes x 8 / seconds. 1 PB = 10^15 bytes, 30 days = 2,592,000 s, and 1 Tbps = 10^12 bits per second.",
           prompt: "The assumed model delivers 540 PB in a 30-day month. What is the average delivery rate?",
           answer: 1.67,
           tolerance: 0.08,
@@ -557,7 +619,7 @@ const chapter: Chapter = {
           kind: "read",
           title: "Load factor",
           body:
-            "The **load factor** is average traffic divided by billed (95th percentile) traffic.\n\n" +
+            "The **load factor** is average traffic divided by billed (95th percentile) traffic. Example: average 3 Tbps, billed 5 Tbps, load factor 3 / 5 = **0.6**.\n\n" +
             "In the assumed model, the normal evening peak is 1M streams x 4 Mbps = **4 Tbps** (assumed). It lasts several hours every day, far more than 36 hours a month. So the evening peak **sets the 95th percentile**.",
           visual: {
             kind: "stats",
@@ -570,6 +632,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Load factor = average traffic / billed (95th percentile) traffic.",
           prompt: "Average 1.67 Tbps, billed (95th percentile) 4 Tbps. What is the load factor?",
           answer: 0.42,
           tolerance: 0.02,
@@ -580,9 +643,9 @@ const chapter: Chapter = {
           kind: "read",
           title: "From $ per Mbps to $ per GB",
           body:
-            "One Mbps running flat out for 30 days moves about **324 GB**. At a load factor of 0.42, each billed Mbps carries about **135 GB**.\n\n" +
-            "Check: 540,000,000 GB / 4,000,000 Mbps = 135.\n\n" +
-            "So the effective price per GB is the monthly price per Mbps divided by 135.",
+            "One Mbps running flat out for 30 days moves about **324 GB**. At a load factor of 0.42, each billed Mbps carries about **135 GB**. Check: 540,000,000 GB / 4,000,000 Mbps = 135.\n\n" +
+            "So the effective price per GB is the monthly price per Mbps divided by 135.\n\n" +
+            "Example: at $0.54 per Mbps per month, $0.54 / 135 = **$0.004 per GB**.",
           visual: {
             kind: "code",
             lang: "text",
@@ -595,6 +658,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Effective $/GB = price per Mbps per month / GB carried by each billed Mbps (about 135 GB in the assumed model).",
           prompt: "At an illustrative $0.20 per Mbps per month (not a quoted market rate), what is the effective price per GB?",
           answer: 0.0015,
           tolerance: 0.0002,
@@ -616,6 +680,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Flatter traffic means a higher load factor, so each billed Mbps carries more GB. Think about where evening peaks overlap less.",
           prompt: "Region A sits in one time zone. Region B spreads across many. Same price per Mbps. Which has the lower effective price per GB?",
           options: [
             "Region A",
@@ -636,13 +701,19 @@ const chapter: Chapter = {
             "- In a busy season with many hits on different days, spike hours add up. Past 36 hours, the 95th percentile rises into spike territory, and the **whole month** is billed at that level.",
         },
         {
-          kind: "number",
-          prompt: "A popular show causes a 2-hour spike every day of a 30-day month. How many spike hours is that?",
-          answer: 60,
-          tolerance: 1,
-          unit: "hours",
+          kind: "quiz",
+          teach: "About 36 hours of the busiest samples are thrown away each month. Compare the length of the burst with that window.",
+          prompt: "You are billed at the 95th percentile. A premiere doubles your traffic for 20 hours this month, and there are no other spikes. How much extra do you pay?",
+          options: [
+            "Twice as much for the whole month",
+            "Exactly the extra bytes of those 20 hours",
+            "Nothing extra",
+            "It depends on the time of day",
+          ],
+          answer: 2,
+          hint: "Is 20 hours inside or outside the discarded window?",
           explain:
-            "2 hours x 30 days = **60 hours**, well over the 36-hour free window. So the 95th percentile rises to the spike level for the whole month. Two short spikes per week, by contrast, stay well under 36 hours and are discarded.",
+            "95th percentile billing throws away the busiest 5% of samples. In a 30-day month that is about **36 hours**. A 20-hour burst fits inside that window, so it is **free at the margin**. A 2-hour spike every day, by contrast, adds up to 60 hours and would raise the whole month.",
         },
         {
           kind: "read",
@@ -652,7 +723,15 @@ const chapter: Chapter = {
             "Contracts for large events often add **reservation fees**. Rayburn reported in 2019 that customers pay for reserved capacity \"even if they don't use it,\" priced **per Tbps sustained**. Chapter 13 covers spike capacity planning.",
         },
         {
+          kind: "read",
+          title: "Each CDN has its own 95th percentile",
+          body:
+            "With [[multi-CDN]], every CDN samples **only the traffic it carries** and computes its **own** 95th percentile. Your bill is the sum of those separate billed rates.\n\n" +
+            "So the same total traffic can produce different bills, depending on how you split it between CDNs and for how long.",
+        },
+        {
           kind: "quiz",
+          teach: "Each CDN computes its own 95th percentile, and a burst longer than about 36 hours sets that CDN's billed rate.",
           prompt:
             "CDN A and CDN B each carry half your traffic, each with a 95th percentile of 2 Tbps. During an incident you move everything to CDN A for 48 hours. What happens to the bill?",
           options: [
@@ -669,7 +748,7 @@ const chapter: Chapter = {
           kind: "read",
           title: "The multi-CDN trap",
           body:
-            "Each CDN computes its own 95th percentile. So moving traffic between CDNs is a **billing event**, not only an operations event. Failover and steering are billing-sensitive.",
+            "Moving traffic between CDNs is a **billing event**, not only an operations event. Failover and steering are billing-sensitive.",
           visual: {
             kind: "compare",
             left: { title: "Normal month", points: ["CDN A: 95th percentile 2 Tbps", "CDN B: 95th percentile 2 Tbps", "Billed total about 4 Tbps"] },
@@ -708,15 +787,23 @@ const chapter: Chapter = {
       id: "ch16-l4",
       title: "What big customers really pay",
       goal: "Explain the gap between list and contract prices, why regions cost 2x to 4x more, and how engineering shapes a CDN contract.",
-      minutes: 11,
+      minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "Behind the price list",
+          body:
+            "Public price lists are only a starting point. Big streaming customers pay far less, and the same GB costs more in some regions than in others.\n\n" +
+            "In this lesson you will see what industry surveys say large customers pay, why some regions cost up to 4x more, and how engineers shape a CDN contract even though they do not sign it.",
+        },
+        {
           kind: "quiz",
-          prompt: "CloudFront's lowest US list rate in 2026 is $0.020 per GB. What did surveys report the very largest deals paying back in 2019?",
+          guess: true,
+          prompt: "CloudFront's lowest US list rate in 2026 is $0.020 per GB. What would you expect the very largest customers paid per GB back in 2019?",
           options: ["About $0.015 per GB", "About $0.010 per GB", "About $0.001 per GB", "About $0.020 per GB, the same"],
           answer: 2,
           explain:
-            "Rayburn's 2019 survey: \"pricing on very large deals is now down to an all-time low of **$0.001 per GB** delivered.\" In 2020 some of the biggest OTT and gaming companies were reported as low as $0.0006. List prices are a ceiling.",
+            "Far less than list. Rayburn's 2019 survey: \"pricing on very large deals is now down to an all-time low of **$0.001 per GB** delivered.\" In 2020 some of the biggest OTT and gaming companies were reported as low as $0.0006. List prices are a ceiling.",
         },
         {
           kind: "read",
@@ -736,7 +823,17 @@ const chapter: Chapter = {
           },
         },
         {
+          kind: "read",
+          title: "Worked example: how far below list?",
+          body:
+            "To see how far below list a deal is, divide the list price by the deal price:\n\n" +
+            "**times below list = list price / deal price**\n\n" +
+            "Example: a customer at about 40 PB a month paying near **$0.005** per GB, against CloudFront's **$0.020** US list.\n\n" +
+            "$0.020 / $0.005 = **4x** below list.",
+        },
+        {
           kind: "number",
+          teach: "Times below list = list price / deal price.",
           prompt: "A large customer pays $0.001 per GB. CloudFront's lowest US list rate is $0.020. How many times less does the customer pay?",
           answer: 20,
           tolerance: 1,
@@ -757,6 +854,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "A CDN's cost is mostly fixed, so it wants to keep your traffic. Think about what makes a vendor afraid of losing it.",
           prompt: "Above all, what gives you a lower CDN price?",
           options: [
             "Asking politely at renewal time",
@@ -769,17 +867,10 @@ const chapter: Chapter = {
             "Volume, term, commitment, traffic shape, geography and bundle all matter, but **competition** matters most. A vendor prices you lower when it knows you can move traffic elsewhere tomorrow.",
         },
         {
-          kind: "quiz",
-          prompt: "Same 1 GB, CloudFront's top volume tier, 2026. How much more does it cost in Australia than in the US?",
-          options: ["The same", "About 1.5x", "About 4x", "About 10x"],
-          answer: 2,
-          explain: "$0.080 in Australia vs $0.020 in the US: **4x**, even at the highest volume tier.",
-        },
-        {
           kind: "read",
           title: "Regional price differences",
           body:
-            "At CloudFront's highest volume tier in 2026, prices differ by up to 4x across regions.\n\n" +
+            "At CloudFront's highest volume tier in 2026, prices differ by up to 4x across regions. The same 1 GB costs $0.080 in Australia and $0.020 in the US.\n\n" +
             "Fastly's small-volume list shows the same shape. It even limits its fixed packages to no more than **10%** of traffic from African, Indian or South Korean billing regions.",
           visual: {
             kind: "table",
@@ -807,6 +898,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "A region's price follows the real cost of its network: cables, exchanges, competition and PoP size. Price per GB does not depend on how many bytes a viewer watches.",
           prompt: "Which of these explain why delivery to Australia costs more? Select all that apply.",
           options: [
             "Long submarine cables",
@@ -820,28 +912,32 @@ const chapter: Chapter = {
             "Australia depends on long submarine cables, has fewer large exchanges and transit competitors, and its smaller PoPs spread fixed costs over fewer bytes. The underlying cost is real, not margin. Bitrate changes bytes, not the price per byte.",
         },
         {
+          kind: "read",
+          title: "Worked example: how much does volume save?",
+          body:
+            "Volume tiers lower the price. To measure by how much, use the percent drop:\n\n" +
+            "**percent drop = (first price - top-tier price) / first price x 100**\n\n" +
+            "Example, the US on CloudFront: the rate falls from **$0.085** (Next 9 TB) to **$0.020** (Over 5 PB).\n\n" +
+            "($0.085 - $0.020) / $0.085 = $0.065 / $0.085 = about **76% lower**.",
+        },
+        {
           kind: "number",
+          teach: "Percent drop = (first price - top-tier price) / first price x 100.",
           prompt: "In Australia the CloudFront rate falls from $0.114 (Next 9 TB) to $0.080 (Over 5 PB). By what percent?",
           answer: 30,
           tolerance: 2,
           unit: "%",
-          explain: "($0.114 - $0.080) / $0.114 = $0.034 / $0.114 = about **30%** lower.",
-        },
-        {
-          kind: "read",
-          title: "Volume buys less in expensive regions",
-          body:
-            "In the US, the CloudFront rate falls from **$0.085 to $0.020** across tiers: **76% lower**. In Australia it falls from **$0.114 to $0.080**: only about **30% lower**.\n\n" +
-            "Volume cannot buy away the cost of submarine cables and thin competition. The underlying cost is real, not margin.",
+          explain: "($0.114 - $0.080) / $0.114 = $0.034 / $0.114 = about **30%** lower, against 76% in the US.",
         },
         {
           kind: "read",
           title: "Engineering responses to regional cost",
           body:
+            "Volume buys less in expensive regions: **76% lower** in the US, only about **30%** in Australia. Volume cannot buy away submarine cables and thin competition. Engineering can help:\n\n" +
             "- Regional CDNs or partners with better local peering (Chapter 9).\n" +
             "- Embedded ISP caches where scale allows.\n" +
             "- A **regional shield**, so fills do not cross oceans repeatedly.\n" +
-            "- With Playback and product, a **per-region bitrate policy** where the network is both expensive and slow. Never make that a silent cost cut.",
+            "- With Playback and product, a **per-region bitrate policy** where the network is expensive and slow. Never make that a silent cost cut.",
           callout: {
             type: "crunchyroll",
             text:
@@ -859,7 +955,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Contract terms (part 1)",
-          body: "Each term has an engineering angle. A [[commit]] is the one that bites hardest if your forecast is wrong.",
+          body: "Each term has an engineering angle. A [[commit]], a minimum you pay for even if you do not use it, is the term that bites hardest if your forecast is wrong.",
           visual: {
             kind: "table",
             headers: ["Term", "What it means", "Engineering angle"],
@@ -890,6 +986,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Use the two contract-term tables: each term ties to something engineering controls, such as forecasts, spikes, premieres, drills or cloud spend.",
           prompt: "Match each contract term to its engineering angle.",
           pairs: [
             ["Commit", "Forecast well; steering must fill it"],
@@ -918,6 +1015,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "A commit is paid even if you do not use it. Work out what each offer charges in a 20 PB month (1 PB = 1,000,000 GB).",
           prompt:
             "Hypothetical offers: A is $0.0015 per GB with a 30 PB/month commit. B is $0.002 per GB with no commit. In a slow month you deliver only 20 PB on this CDN. Which costs less that month?",
           options: [
@@ -958,21 +1056,29 @@ const chapter: Chapter = {
       id: "ch16-l5",
       title: "Origin egress and hit ratio are money",
       goal: "Explain how cloud-CDN pairing sets the price of each fill, and turn a change in hit ratio into dollars.",
-      minutes: 11,
+      minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "When the CDN goes back home",
+          body:
+            "When a CDN does not have a segment in cache, it fetches it from your origin in the cloud. That fetch can cost money, and how much depends on which cloud and which CDN you pair.\n\n" +
+            "In this lesson you will price these fetches, see why more CDNs mean more of them, and turn a change in cache hit ratio into dollars.",
+        },
+        {
           kind: "quiz",
-          prompt: "Your origin is S3. CDN misses pull 5 PB a month from it. Which CDN can fill from S3 with no egress charge?",
+          guess: true,
+          prompt: "Your video files sit in Amazon S3, Amazon's storage service. Which CDN would you expect to fetch them from S3 with no transfer charge?",
           options: ["Amazon CloudFront", "Fastly", "Akamai", "All of them"],
           answer: 0,
           explain:
-            "AWS lists origin fetches as \"free for origin fetches from any AWS origin such as Amazon Simple Storage Service (S3)\" for CloudFront. Any other CDN pulling over the internet pays S3 internet egress.",
+            "Amazon's own CDN. AWS lists origin fetches as \"free for origin fetches from any AWS origin such as Amazon Simple Storage Service (S3)\" for CloudFront. Any other CDN pulling over the internet pays S3 internet egress, the cloud's charge for data leaving it.",
         },
         {
           kind: "read",
           title: "Origin egress",
           body:
-            "When a CDN misses, it fetches from your cloud [[origin]], and the cloud may charge [[egress]] for those bytes.\n\n" +
+            "When a CDN misses, it fetches from your cloud [[origin]]. This fetch is called a **fill**. The cloud may charge [[egress]] for those bytes.\n\n" +
             "Internet egress is expensive at list. S3 data transfer out in us-east-1 was **$0.09 per GB** for the first 10 TB per month in 2026. It falls at higher tiers but stays far above CDN contract rates.\n\n" +
             "So \"which CDN pulls from which cloud, over what path\" changes the bill.",
         },
@@ -998,7 +1104,8 @@ const chapter: Chapter = {
           title: "A reported 2026 change (unconfirmed)",
           body:
             "A **third-party post** reports that Google raised CDN Interconnect and peering rates effective **May 1, 2026**. The book could not confirm this on Google's own pricing page, so check the current page before relying on it.\n\n" +
-            "If it holds, much of the old advantage of pairing Google origins with third-party CDNs is gone.",
+            "If it holds, much of the old advantage of pairing Google origins with third-party CDNs is gone.\n\n" +
+            "**Worked example** at the old rate: 1 PB of fills = 1,000,000 GB x $0.04 = **$40,000** a month.",
           visual: {
             kind: "table",
             headers: ["Region", "Old rate per GB", "Reported from May 2026"],
@@ -1012,6 +1119,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Monthly cost = GB of fills x price per GB. 1 PB = 1,000,000 GB.",
           prompt: "5.4 PB of origin fills a month go from Google Cloud over CDN Interconnect in North America. At the reported 2026 rate of $0.08 per GB, what is the monthly cost?",
           answer: 432,
           tolerance: 20,
@@ -1051,6 +1159,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Every CDN misses on its own. Look at the three controls for multi-CDN fills: which one makes a rare title get filled once instead of once per CDN?",
           prompt: "A rarely watched title gets cached in CDN A, then the next viewer is steered to CDN B. Which control stops these repeated paid fills?",
           options: [
             "Steer long-tail titles consistently to one CDN",
@@ -1061,16 +1170,6 @@ const chapter: Chapter = {
           answer: 0,
           explain:
             "**Content affinity:** if a long-tail title keeps hitting the same CDN, only that CDN fills it. Lower TTLs and more CDNs create more fills, and a distant shield makes each fill cost more.",
-        },
-        {
-          kind: "number",
-          prompt: "Assumed model: 540 PB a month, 95% edge hit ratio by bytes, shield catches 80% of edge misses. Origin fills are 5.4 PB. If the edge hit ratio drops to 90%, what are origin fills?",
-          answer: 10.8,
-          tolerance: 0.5,
-          unit: "PB",
-          hint: "Edge misses go from 5% to 10% of 540 PB. The shield still passes 20% of misses to the origin.",
-          explain:
-            "Edge misses: 10% x 540 = 54 PB (double the 27 PB). Shield misses: 20% x 54 = **10.8 PB**. Five points of hit ratio **double** origin fills.",
         },
         {
           kind: "read",
@@ -1084,12 +1183,26 @@ const chapter: Chapter = {
           kind: "read",
           title: "From misses to an egress bill",
           body:
-            "The shield catches 80% of the 27 PB: **21.6 PB**. The rest, **5.4 PB**, is fetched from the origin.\n\n" +
+            "The shield catches 80% of the 27 PB: **21.6 PB**. The rest, **5.4 PB**, is fetched from the origin. As one formula:\n\n" +
+            "**origin fills = delivered x edge miss share x shield miss share**\n\n" +
+            "540 PB x 0.05 x 0.20 = **5.4 PB**.\n\n" +
             "Whether those 5.4 PB cost nothing or hundreds of thousands of dollars depends on the cloud-CDN pairing.",
           visual: { kind: "flow", spec: { ...hitMap, focus: ["edgeMiss", "shieldHit", "originFill", "bill", "edgeMiss>shieldHit", "edgeMiss>originFill", "originFill>bill"], flow: ["total>edgeMiss", "edgeMiss>originFill", "originFill>bill"] } },
         },
         {
           kind: "number",
+          teach: "Origin fills = delivered bytes x edge miss share x shield miss share. Only the edge miss share changes here.",
+          prompt: "Assumed model: 540 PB a month, shield catches 80% of edge misses. At a 95% edge hit ratio, origin fills are 5.4 PB. If the edge hit ratio drops to 90%, what are origin fills?",
+          answer: 10.8,
+          tolerance: 0.5,
+          unit: "PB",
+          hint: "Edge misses go from 5% to 10% of 540 PB. The shield still passes 20% of misses to the origin.",
+          explain:
+            "Edge misses: 10% x 540 = 54 PB (double the 27 PB). Shield misses: 20% x 54 = **10.8 PB**. Five points of hit ratio **double** origin fills.",
+        },
+        {
+          kind: "number",
+          teach: "Extra cost = extra GB of fills x price per GB. 1 PB = 1,000,000 GB.",
           prompt: "The origin is S3, the CDN is not CloudFront. Fills rise by 5.4 PB a month. At roughly $0.05 per GB internet egress, what is the extra monthly cost at list?",
           answer: 270,
           tolerance: 15,
@@ -1105,25 +1218,29 @@ const chapter: Chapter = {
             "And if the CDN were CloudFront pulling from S3, the same extra fills would cost no egress at all. Hit ratio and pairing work together.",
         },
         {
-          kind: "number",
-          prompt: "5.4 PB of origin fills, in 3 MB segments. How many S3 GET requests is that?",
-          answer: 1.8,
-          tolerance: 0.1,
-          unit: "billion",
-          explain: "5.4 x 10^15 bytes / 3 x 10^6 bytes = **1.8 billion GETs**. At $0.0004 per 1,000 (2026) that is only about **$720 a month**.",
-        },
-        {
           kind: "read",
           title: "Costs beyond the CDN invoice",
           body:
             "Hit ratio also moves costs that are not on the CDN invoice:\n\n" +
-            "- **S3 GET requests:** $0.0004 per 1,000 in 2026; 1.8 billion GETs is about $720 a month.\n" +
+            "- **S3 GET requests:** $0.0004 per 1,000 in 2026. 5.4 PB of fills in 3 MB segments is 5.4 x 10^15 / 3 x 10^6 = **1.8 billion GETs**, about **$720 a month**.\n" +
             "- **CloudFront Origin Shield** request fees: $0.0075 per 10,000 in the US.\n" +
             "- **JIT packager** fees, per GB packaged.\n" +
             "- **QoE:** a miss adds latency to startup (Chapter 10).",
         },
         {
+          kind: "read",
+          title: "What moves hit ratio",
+          body:
+            "Hit ratio rises when **more viewers ask for the exact same object**, and that object **stays cached longer**. The book's cost checklist:\n\n" +
+            "- Strip session tokens and tracking parameters from [[cache keys|Cache key]] (Chapters 4 and 5).\n" +
+            "- One [[CMAF]] copy instead of separate HLS and DASH copies (Chapter 7).\n" +
+            "- Long [[TTL]]s for immutable segments.\n" +
+            "- Consistent steering, shields and tiered caching.\n\n" +
+            "Anything that splits one object into many cache entries, or expires it early, does the opposite.",
+        },
+        {
           kind: "multi",
+          teach: "Hit ratio rises when more viewers share the exact same cached object and it stays cached longer. Check each option against that idea.",
           prompt: "Which changes raise the cache hit ratio? Select all that apply.",
           options: [
             "Strip session tokens and tracking parameters from cache keys",
@@ -1135,7 +1252,7 @@ const chapter: Chapter = {
           ],
           answers: [0, 1, 2, 3],
           explain:
-            "The book's cost checklist: clean [[cache keys|Cache key]] (Chapters 4 and 5), one [[CMAF]] copy (Chapter 7), long [[TTL]]s for immutable segments, consistent steering, shields and tiered caching. Per-viewer tokens in the key and short TTLs split or expire the cache.",
+            "The book's cost checklist: clean cache keys (Chapters 4 and 5), one CMAF copy (Chapter 7), long TTLs for immutable segments, consistent steering, shields and tiered caching. Per-viewer tokens in the key and short TTLs split or expire the cache.",
         },
         {
           kind: "read",
@@ -1177,8 +1294,16 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "Where people expect big costs",
+          body:
+            "Storage feels like it should be expensive: 50,000 episodes, each in many versions.\n\n" +
+            "In this lesson you will size the catalog's storage bill, see why a managed packager can cost far more than the storage it saves, and learn when a better codec pays for itself.",
+        },
+        {
           kind: "quiz",
-          prompt: "At list prices, which is bigger per month: storing the whole 50,000-episode catalog, or delivering one month of viewing?",
+          guess: true,
+          prompt: "At list prices, which would you expect to be bigger per month: storing the whole 50,000-episode catalog, or delivering one month of viewing?",
           options: [
             "Storage, because the catalog is huge",
             "About the same",
@@ -1186,7 +1311,7 @@ const chapter: Chapter = {
           ],
           answer: 2,
           explain:
-            "Storage is where people expect large costs and usually find small ones. The whole catalog costs **tens of thousands** of dollars a month; delivery costs **millions** at list. Storage is a small line; delivery is the big line.",
+            "Storage is where people expect large costs and usually find small ones. A file is stored once, but it is delivered again for every view. The whole catalog costs **tens of thousands** of dollars a month; delivery costs **millions** at list. Storage is a small line; delivery is the big line.",
         },
         {
           kind: "read",
@@ -1200,18 +1325,10 @@ const chapter: Chapter = {
             "- **50,000 episodes.** Sony described a library of more than 50,000 episodes in May 2026; published descriptions also say \"more than 1,000 anime series.\"",
         },
         {
-          kind: "number",
-          prompt: "A 150 Mbps mezzanine for a 24-minute (1,440 s) episode. How big is it?",
-          answer: 27,
-          tolerance: 1,
-          unit: "GB",
-          explain: "150 Mbps x 1,440 s / 8 = 27,000 MB = about **27 GB**.",
-        },
-        {
           kind: "read",
           title: "Bytes per episode",
           body:
-            "The video ladder and mezzanine dominate. Dubs and subtitles, so important to the anime product, are almost free in bytes.\n\n" +
+            "Each size is bitrate x seconds / 8. The video ladder and mezzanine dominate. Dubs and subtitles, so important to the anime product, are almost free in bytes.\n\n" +
             "The renditions x audio x subtitles multiplication matters for **object count and cache fragmentation**, not for storage.",
           visual: {
             kind: "table",
@@ -1235,7 +1352,9 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "S3 storage classes, 2026 list",
-          body: "us-east-1 list prices in 2026. Cheaper classes add minimum durations and retrieval fees.",
+          body:
+            "us-east-1 list prices in 2026. Cheaper classes add minimum durations and **retrieval fees** (a charge per GB you read back).\n\n" +
+            "**Worked example:** 600 TB of packaged segments in Standard at about $0.022: 600,000 GB x $0.022 = about **$13,200 a month** per cloud.",
           visual: {
             kind: "table",
             headers: ["Class", "Per GB-month", "Catch"],
@@ -1251,6 +1370,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Monthly storage cost = GB stored x price per GB-month. 1 PB = 1,000,000 GB.",
           prompt: "1.35 PB of mezzanines in Glacier Instant Retrieval at $0.004 per GB-month. Monthly cost?",
           answer: 5400,
           tolerance: 300,
@@ -1276,22 +1396,10 @@ const chapter: Chapter = {
           },
         },
         {
-          kind: "quiz",
-          prompt: "Which kind of storage class should NOT sit behind a CDN origin path?",
-          options: [
-            "S3 Standard",
-            "Any class that charges per GB retrieved, unless fills are measured to be rare",
-            "Intelligent-Tiering after checking the per-object fee",
-            "Any class in the second cloud",
-          ],
-          answer: 1,
-          explain:
-            "Every CDN fill is a read. A class with retrieval fees turns each fill into an extra charge. Segments on the origin path belong in Standard, or Intelligent-Tiering after checking the per-object fee against your object count.",
-        },
-        {
           kind: "read",
           title: "Choosing classes",
           body:
+            "Every CDN fill is a read from storage. So:\n\n" +
             "- Segments on the origin path belong in **Standard** (or Intelligent-Tiering after checking the per-object fee against your object count).\n" +
             "- **Any class that charges per GB retrieved should not sit behind a CDN origin path**, unless you have measured that fills are rare.\n" +
             "- Mezzanines are read only on re-encode, so they fit cold classes.\n" +
@@ -1307,7 +1415,19 @@ const chapter: Chapter = {
             "Storage saved: perhaps half the packaged storage, about 300 TB per cloud, roughly **$6,600 a month per cloud** at list.",
         },
         {
+          kind: "read",
+          title: "Worked example: fee vs saving",
+          body:
+            "To judge JIT, compare the monthly packaging fee with the storage it saves:\n\n" +
+            "**ratio = (GB packaged x fee per GB) / storage saved**\n\n" +
+            "Example: a smaller service with **1 PB** of fills a month through the managed packager.\n\n" +
+            "- Fee: 1,000,000 GB x $0.05 = **$50,000** a month.\n" +
+            "- Saving: $6,600 a month.\n" +
+            "- $50,000 / $6,600 = about **7.6x** the storage it saves.",
+        },
+        {
           kind: "number",
+          teach: "First compute the monthly JIT fee (GB of fills x price per GB). Then divide by the monthly storage it saves.",
           prompt: "Every origin fill passes through the managed packager. Fills are 5.4 PB a month at $0.05 per GB. That fee is how many times the $6,600 of storage it saves?",
           answer: 41,
           tolerance: 4,
@@ -1330,6 +1450,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Storage is a small line; delivery and hit ratio are the big ones. Look for the option that helps the big line without adding a per-GB fee.",
           prompt: "Which saves the most money at Crunchyroll-like scale?",
           options: [
             "Managed JIT packaging to cut storage",
@@ -1352,20 +1473,23 @@ const chapter: Chapter = {
             "- Netflix, Dec 2025: **30%** of its streams use AV1.",
         },
         {
+          kind: "read",
+          title: "Worked example: bytes a codec saves",
+          body:
+            "A codec only saves bytes on devices that can play it:\n\n" +
+            "**bytes saved = total bytes x share on capable devices x bit saving**\n\n" +
+            "Example (illustrative): 100 PB a month, 50% of hours on capable devices, 20% bit saving.\n\n" +
+            "100 PB x 0.50 x 0.20 = **10 PB** saved. At $0.002 per GB that is only about **$20,000** a month. At very low contract rates the money saved gets small, and the main benefit becomes **quality**: a better picture at the same bitrate, or HD on slower networks.",
+        },
+        {
           kind: "number",
+          teach: "Bytes saved = total bytes x share of hours on capable devices x bit saving.",
           prompt: "Illustrative: 30% of viewing hours are on AV1-capable devices, and AV1 saves 30% of bits vs the H.264 ladder. Out of 540 PB a month, how many PB are saved?",
           answer: 48.6,
           tolerance: 2,
           unit: "PB",
           explain:
-            "0.30 x 0.30 x 540 PB = about **48.6 PB per month**. At an illustrative negotiated $0.002 per GB that is about **$97,000 a month**, roughly $1.2M a year. At the blended list rate of about $0.031 it is about **$1.5M a month**.",
-        },
-        {
-          kind: "read",
-          title: "At low contract rates, quality wins",
-          body:
-            "At very low contract rates, a codec's money saving gets small. The main benefit becomes **quality**: the same bitrate with a better picture, or HD on slower networks.\n\n" +
-            "This worked example is illustrative, not Crunchyroll data.",
+            "0.30 x 0.30 x 540 PB = about **48.6 PB per month**. At an illustrative negotiated $0.002 per GB that is about **$97,000 a month**, roughly $1.2M a year. At the blended list rate of about $0.031 it is about **$1.5M a month**. This worked example is illustrative, not Crunchyroll data.",
         },
         {
           kind: "read",
@@ -1405,6 +1529,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "In the break-even rule, the encode cost is paid once and the savings come back with every view. Look for the title whose savings are largest and arrive fastest.",
           prompt: "Which title should get an AV1 encode first?",
           options: [
             "A 2009 catalog episode watched a few times a week",
@@ -1434,22 +1559,30 @@ const chapter: Chapter = {
       id: "ch16-l7",
       title: "The bill and cost-aware steering",
       goal: "Build the assumed model's monthly bill line by line, and steer traffic by marginal cost without hurting quality.",
-      minutes: 12,
+      minutes: 13,
       steps: [
         {
+          kind: "read",
+          title: "Putting it all together",
+          body:
+            "You now know the meters, the pricing models, regional rates, egress and storage. Time to use them together.\n\n" +
+            "In this lesson you will build the assumed model's monthly delivery bill line by line, see which lines really matter, and learn how to steer traffic by cost without hurting viewers.",
+        },
+        {
           kind: "quiz",
-          prompt: "In the assumed model's monthly bill, which line do you expect to dominate?",
+          guess: true,
+          prompt: "In the assumed model's monthly bill, which line would you expect to be the biggest?",
           options: ["Storage", "CDN bytes delivered", "CDN requests", "Replication"],
           answer: 1,
           explain:
-            "**CDN bytes dominate**, at list or negotiated. Everything else is small, except origin egress when the cloud-CDN pairing is wrong.",
+            "Every viewer, every hour, every segment passes the CDN delivery meter, so **CDN bytes dominate**, at list or negotiated. Everything else is small, except origin egress when the cloud-CDN pairing is wrong.",
         },
         {
           kind: "read",
           title: "Inputs (all assumed)",
           body:
-            "Everything below uses the book's **assumed** traffic model, not Crunchyroll data, and list prices from November 2026.\n\n" +
-            "The regional mix is a pure assumption chosen to show regional pricing. Japan is set low on the assumption that many titles are licensed for outside Japan.",
+            "Everything below uses the book's **assumed** traffic model, not Crunchyroll data, and list prices from November 2026. The regional mix is a pure assumption; Japan is set low on the assumption that many titles are licensed for outside Japan.\n\n" +
+            "**Worked example:** Europe is 20% of 540 PB = 108 PB = 108,000,000 GB. At $0.020 per GB: about **$2.16M** a month.",
           visual: {
             kind: "table",
             headers: ["Input", "Assumed value"],
@@ -1464,6 +1597,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Region cost = region's share x 540 PB, converted to GB, x price per GB. 1 PB = 1,000,000 GB.",
           prompt: "North America is 45% of 540 PB, billed at CloudFront's $0.020 per GB. Monthly cost?",
           answer: 4.86,
           tolerance: 0.15,
@@ -1496,6 +1630,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Both regions carry the same bytes. Compare the $/GB column of the table.",
           prompt: "South America and Europe each carry 108 PB. Why does South America cost about twice as much?",
           options: [
             "South Americans watch more hours",
@@ -1508,7 +1643,18 @@ const chapter: Chapter = {
             "Same bytes, different rate card: about $0.041 vs $0.020 per GB. That is $4.4M vs $2.2M a month. Regional mix is one of the biggest levers on the bill.",
         },
         {
+          kind: "read",
+          title: "Worked example: counting requests",
+          body:
+            "Each segment is one request, so:\n\n" +
+            "**requests = bytes / segment size**\n\n" +
+            "With a separate audio track, each video segment has one audio segment too, so double it.\n\n" +
+            "Example: 30 PB in 2 MB segments.\n\n" +
+            "30 x 10^15 / 2 x 10^6 = **15 billion** video requests. With separate audio, about **30 billion**.",
+        },
+        {
           kind: "number",
+          teach: "Requests = bytes / segment size. A separate audio track adds one more request per video segment.",
           prompt: "540 PB in 3 MB video segments, plus one audio segment per video segment. How many CDN requests a month?",
           answer: 360,
           tolerance: 20,
@@ -1531,7 +1677,8 @@ const chapter: Chapter = {
           kind: "read",
           title: "List vs negotiated",
           body:
-            "The negotiated range is wide on purpose. It comes from 2019 and 2020 survey data; prices have fallen since, and real contracts have regional premiums, minimums and fees not shown. **Do not quote it as Crunchyroll's bill.**",
+            "The negotiated range is wide on purpose. It comes from 2019 and 2020 survey data; prices have fallen since, and real contracts have regional premiums, minimums and fees not shown. **Do not quote it as Crunchyroll's bill.**\n\n" +
+            "**Per streaming hour:** an hour at 4 Mbps is 1.8 GB. At an illustrative $0.002 per GB: 1.8 x $0.002 = about **$0.004 per hour**.",
           visual: {
             kind: "table",
             headers: ["Line", "At list (CloudFront 2026)", "Illustrative negotiated"],
@@ -1546,6 +1693,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Cost per hour = GB per streaming hour x price per GB.",
           prompt: "At list the bill is about $0.031 per GB. A streaming hour at 4 Mbps is 1.8 GB. What does one streaming hour cost at list?",
           answer: 0.056,
           tolerance: 0.004,
@@ -1574,7 +1722,27 @@ const chapter: Chapter = {
           props: { start: "book" },
         },
         {
+          kind: "read",
+          title: "Step 1: quality first",
+          body:
+            "Cost-aware steering does **not** mean \"send traffic to the cheapest CDN.\" It starts with quality.\n\n" +
+            "First, filter CDNs by health and a QoE threshold for this region and ISP.\n\n" +
+            "If **no** CDN passes, pick the best-QoE CDN, ignore cost, and alert. Cost never overrides a broken experience.",
+          visual: { kind: "flow", spec: { ...steer, focus: ["filter", "none", "state", "filter>none", "filter>state"] }, caption: "Cost-aware steering for one region and ISP" },
+        },
+        {
+          kind: "read",
+          title: "Step 2: marginal cost",
+          body:
+            "Among CDNs that pass, prefer the one with the lowest **marginal cost**: the cost of the next GB. It depends on contract state:\n\n" +
+            "- Unfilled commit this month: the next GB is effectively **free**, because you pay for the commit anyway.\n" +
+            "- 95th percentile billing: off-peak traffic below this month's p95 costs **nothing extra**; extra peak traffic may **raise** the whole month.\n" +
+            "- Above commit, per GB: the regional **overage rate**.",
+          visual: { kind: "flow", spec: { ...steer, focus: ["state", "zero", "low", "high", "over", "state>zero", "state>low", "state>high", "state>over"] } },
+        },
+        {
           kind: "quiz",
+          teach: "Marginal cost is the cost of the next GB, and it depends on contract state. Think about what a commit means for traffic you have not yet sent.",
           prompt: "It is the 10th of the month. CDN A is far below its monthly commit. What is the marginal cost of sending it one more GB?",
           options: [
             "Its full per-GB rate",
@@ -1588,42 +1756,31 @@ const chapter: Chapter = {
         },
         {
           kind: "read",
-          title: "Marginal cost, not cheapest CDN",
-          body:
-            "Cost-aware steering does **not** mean \"send traffic to the cheapest CDN.\" It means: among CDNs that meet the quality bar for this region and ISP right now, prefer the one with the lowest **marginal cost**, the cost of the next GB.\n\n" +
-            "- Unfilled commit this month: the next GB is effectively **free**.\n" +
-            "- 95th percentile billing: off-peak traffic below this month's 95th percentile costs **nothing extra**; extra peak traffic may **raise** the whole month.\n" +
-            "- Above commit, per GB: the regional **overage rate**.",
-        },
-        {
-          kind: "read",
-          title: "Step 1: quality first",
-          body:
-            "Start by filtering CDNs by health and a QoE threshold for this region and ISP.\n\n" +
-            "If **no** CDN passes, pick the best-QoE CDN, ignore cost, and alert. Cost never overrides a broken experience.",
-          visual: { kind: "flow", spec: { ...steer, focus: ["filter", "none", "state", "filter>none", "filter>state"] }, caption: "Cost-aware steering for one region and ISP" },
-        },
-        {
-          kind: "read",
-          title: "Step 2: compute marginal cost",
-          body:
-            "For each CDN that passes, compute marginal cost from its contract state:\n\n" +
-            "- Unfilled commit: near zero.\n" +
-            "- Billed at 95th percentile and staying below the current p95: low.\n" +
-            "- Would raise the p95: high.\n" +
-            "- Per-GB above commit: the overage rate.",
-          visual: { kind: "flow", spec: { ...steer, focus: ["state", "zero", "low", "high", "over", "state>zero", "state>low", "state>high", "state>over"] } },
-        },
-        {
-          kind: "read",
           title: "Step 3: weight, gently",
           body:
-            "Weight traffic by cost **within the QoE band**. Then apply [[hysteresis]] and a minimum share per CDN, so traffic does not flip back and forth.\n\n" +
+            "Weight traffic by cost **within the QoE band**. Then apply [[hysteresis]] (do not switch back until the difference is clear) and a minimum share per CDN, so traffic does not flip back and forth.\n\n" +
             "Cost data comes from contracts encoded as access-controlled config (rates, commits, tiers, billing model; Chapter 14), CDN usage APIs and logs, cloud billing exports by SKU, and a forecast of the month's remaining traffic.",
           visual: { kind: "flow", spec: { ...steer, focus: ["zero", "low", "high", "over", "weight", "zero>weight", "low>weight", "high>weight", "over>weight"], flow: ["filter>state", "state>zero", "zero>weight"] } },
         },
         {
+          kind: "read",
+          title: "Rules that keep cost steering safe",
+          body:
+            "- **Quality band:** choose on cost only near the best CDN's TTFB and rebuffering (Chapter 10).\n" +
+            "- **Minimum shares:** a CDN with cold caches is not a real backup (Chapter 12).\n" +
+            "- **Hysteresis:** each move cools caches and raises origin egress.\n" +
+            "- **Commit pacing:** track commit use daily; avoid a month-end rush that pushes up a p95.\n" +
+            "- **Content affinity:** keep a long-tail title on one CDN.\n" +
+            "- **Show the money:** dashboards show cost per GB and per hour, per CDN, per region, next to QoE.",
+          callout: {
+            type: "staff",
+            text:
+              "For any steering change, ask: \"What happens to each CDN's 95th percentile, our commit pacing and our origin fill volume if this runs for a full month?\" Replay the policy on last month's traffic before shipping. Cost bugs in steering do not page anyone; they arrive on an invoice six weeks later.",
+          },
+        },
+        {
           kind: "match",
+          teach: "Each rule protects one thing: viewer quality, real backups, warm caches, the 95th percentile, or one title's hit ratio.",
           prompt: "Match each steering rule to why it exists.",
           pairs: [
             ["Quality band", "Choose on cost only near the best CDN's TTFB and rebuffering"],
@@ -1633,18 +1790,7 @@ const chapter: Chapter = {
             ["Content affinity", "Keep a long-tail title on one CDN"],
           ],
           explain:
-            "Quality band: cost decides only among CDNs near the best, validated with QoE data (Chapter 10). Minimum shares: keep every CDN warm where you might fail over; it is an insurance premium (Chapter 12). Hysteresis: do not flip traffic every minute for small savings. Commit pacing: track daily and adjust gently. Content affinity protects the hit ratio.",
-        },
-        {
-          kind: "read",
-          title: "Show the money",
-          body:
-            "Dashboards should show **cost per GB and per streaming hour, per CDN, per region**, next to QoE. Cost that nobody sees does not get managed.",
-          callout: {
-            type: "staff",
-            text:
-              "For any steering change, ask: \"What happens to each CDN's 95th percentile, our commit pacing and our origin fill volume if this runs for a full month?\" Replay the policy on last month's traffic before shipping. Cost bugs in steering do not page anyone; they arrive on an invoice six weeks later.",
-          },
+            "Quality band: cost decides only among CDNs near the best, validated with QoE data (Chapter 10). Minimum shares: keep every CDN warm where you might fail over; it is an insurance premium (Chapter 12). Hysteresis: do not flip traffic every minute for small savings. Commit pacing: track daily and adjust gently. Content affinity protects the hit ratio. Cost that nobody sees does not get managed, so show it on dashboards.",
         },
         {
           kind: "read",
@@ -1683,10 +1829,23 @@ const chapter: Chapter = {
       id: "ch16-l8",
       title: "Checkpoint",
       goal: "Answer the chapter's review questions and recall its key numbers.",
-      minutes: 10,
+      minutes: 11,
       steps: [
         {
+          kind: "read",
+          title: "What this chapter covered",
+          body:
+            "Here is what this chapter covered:\n\n" +
+            "- Delivery cost grows with viewing; most levers are engineering choices.\n" +
+            "- List prices are a ceiling: $0.020 per GB list vs about $0.001 in large deals.\n" +
+            "- 95th percentile billing drops about 36 hours a month, and each CDN has its own.\n" +
+            "- Regions cost 2x to 4x more; cloud-CDN pairing sets origin egress.\n" +
+            "- Hit ratio 95% to 90% doubles origin fills.\n" +
+            "- Storage is small, delivery is big; steer by marginal cost within the quality bar.",
+        },
+        {
           kind: "number",
+          teach: "Origin fills = delivered bytes x edge miss share x shield miss share. Only the edge miss share changes.",
           prompt: "Assumed model: edge hit ratio falls from 95% to 90%, shield behaviour unchanged. Origin fills were 5.4 PB a month. What are they now?",
           answer: 10.8,
           tolerance: 0.5,
@@ -1702,6 +1861,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Free time = samples in the month x 5% x 5 minutes. A 30-day month has 30 x 24 x 12 samples.",
           prompt: "How many hours of bursting are free under 95th percentile billing in a 30-day month?",
           answer: 36,
           tolerance: 1,
@@ -1710,6 +1870,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Spikes are free only while their total hours in the month stay inside the discarded top 5% window. Add up the spike hours for each case.",
           prompt: "Why might two short simulcast spikes per week be free, but a 2-hour spike every day not?",
           options: [
             "Weekly spikes are smaller in Mbps",
@@ -1723,6 +1884,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "GB per billed Mbps = GB a fully used Mbps moves in a month x load factor.",
           prompt: "Your load factor is 0.42. One Mbps fully used for 30 days moves about 324 GB. How many GB does each billed Mbps carry?",
           answer: 135,
           tolerance: 5,
@@ -1732,6 +1894,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Fills are free only when the CDN and the origin belong to the right pairing. Other CDNs pull over the internet.",
           prompt: "Your origin is S3 and CloudFront fills from it for free. You add Fastly with the same S3 origin. What changes?",
           options: [
             "Nothing: S3 fills are free for every CDN",
@@ -1745,6 +1908,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Ratio = Australia's rate / the US rate, both at the same volume tier.",
           prompt: "CloudFront 2026, over-5-PB tier: Australia $0.080, US $0.020. What is the ratio?",
           answer: 4,
           tolerance: 0.1,
@@ -1753,6 +1917,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "A region's price follows the real cost of its network: cables, exchanges, competition and PoP size.",
           prompt: "Which are network reasons for Australia's higher price? Select all that apply.",
           options: [
             "Dependence on long submarine cables",
@@ -1778,6 +1943,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Marginal cost depends on contract state: whether the commit is filled yet, and whether extra traffic would raise the 95th percentile.",
           prompt: "Why might the marginal cost of sending traffic to a CDN be zero on the 10th of the month but high on the 28th?",
           options: [
             "CDNs raise prices at month end",
@@ -1791,6 +1957,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Remember the gap between the published CloudFront table and what industry surveys reported for very large deals.",
           prompt: "Which statement about list prices is right?",
           options: [
             "List prices are what large streaming services pay",
@@ -1804,6 +1971,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Monthly cost = GB delivered x price per GB. 1 PB = 1,000,000 GB.",
           prompt: "The assumed model delivers 540 PB a month. At an illustrative negotiated $0.002 per GB, roughly what are CDN bytes per month?",
           answer: 1.08,
           tolerance: 0.05,
@@ -1813,6 +1981,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "Cost-aware steering chooses on cost only among CDNs that meet the quality bar, and it has rules that keep backups warm and traffic stable.",
           prompt: "Which are true about cost-aware steering? Select all that apply.",
           options: [
             "It picks the lowest marginal cost among CDNs that meet the quality bar",

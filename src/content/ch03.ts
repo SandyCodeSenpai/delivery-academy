@@ -137,11 +137,20 @@ const chapter: Chapter = {
       id: "ch03-l1",
       title: "The front door: one DNS lookup",
       goal: "Name the actors in a DNS lookup, follow one lookup to a CDN edge, and know the record types a delivery engineer meets.",
-      minutes: 9,
+      minutes: 10,
       steps: [
         {
+          kind: "read",
+          title: "Press Play: the hidden first step",
+          body:
+            "A fan presses Play on a new episode. Before a single byte of video moves, the player has to find out **where** to connect.\n\n" +
+            "That first step is a DNS lookup. It quietly makes big choices: which CDN, which city, and whether a broken server is still in the path.\n\n" +
+            "**By the end of this lesson** you can name the actors in a lookup, follow one lookup to a CDN edge, and read the record types a delivery engineer meets.",
+        },
+        {
           kind: "quiz",
-          prompt: "A viewer presses Play on a new episode. Before one byte of video moves, what must the player do first?",
+          guess: true,
+          prompt: "Take a guess. A viewer presses Play. Before one byte of video moves, what would you expect the player to do first?",
           options: [
             "Turn a name like `video.example.com` into an IP address",
             "Download the first video segment from the origin",
@@ -149,7 +158,9 @@ const chapter: Chapter = {
             "Open a connection to every PoP and pick the fastest",
           ],
           answer: 0,
-          explain: "The player cannot connect to anything until it has an IP address. That lookup is the **first routing decision** in the delivery path. It picks the CDN, the city the bytes come from, and whether a broken component is still in the path.",
+          explain:
+            "It must turn the name into an **IP address**. A computer cannot open a connection to a name, only to an address.\n\n" +
+            "That lookup is the **first routing decision** in the delivery path. It picks the CDN, the city the bytes come from, and whether a broken component is still in the path.",
         },
         {
           kind: "read",
@@ -169,6 +180,7 @@ const chapter: Chapter = {
         {
           kind: "match",
           prompt: "Match each DNS job to an example.",
+          teach: "Each job answers a different question: who gets which answer, what happens when something breaks, and who controls a name.",
           pairs: [
             ["Steering", "Tokyo and Sao Paulo get different IPs for one name"],
             ["Failover", "Stop handing out a broken PoP"],
@@ -190,6 +202,7 @@ const chapter: Chapter = {
         {
           kind: "quiz",
           prompt: "Which of these jobs is DNS steering good at?",
+          teach: "DNS answers stay in caches for a TTL, and a player that is already connected does not ask DNS again. Look for the job that is coarse and can wait a few minutes.",
           options: [
             "Send all viewers in one country to a different CDN",
             "Move one struggling viewer to another CDN right now",
@@ -211,33 +224,29 @@ const chapter: Chapter = {
           kind: "read",
           title: "The actors, part 2",
           body:
-            "- **Root and TLD servers.** They hold the **delegation**: for `.com`, which name servers are authoritative for `example.com` (NS records, and sometimes **glue** addresses).\n" +
-            "- **Authoritative server.** Holds the real records for a zone. For a CDN-backed name there are often two layers: yours, then the CDN's.",
+            "- **Root and TLD servers.** The **root** sits at the top of the name tree. **TLD** (top-level domain) servers run endings like `.com`. They hold the **delegation**: which name servers are authoritative for `example.com` (NS records, and sometimes **glue**, the IP addresses of those servers).\n" +
+            "- **Authoritative server.** Holds the real records for a **zone**: one operator's part of the name tree, such as `example.com`. For a CDN-backed name there are often two layers: yours, then the CDN's.",
           visual: { kind: "sequence", spec: { ...lookupSeq, upTo: 3 }, caption: "The resolver learns who is authoritative for example.com" },
-        },
-        {
-          kind: "quiz",
-          prompt: "The CDN's authoritative server receives the query. Whose IP address does it see?",
-          options: [
-            "The viewer's device",
-            "The recursive resolver that asked",
-            "The root server",
-            "The viewer's home router",
-          ],
-          answer: 1,
-          explain: "The authoritative server only sees the IP address of the **recursive resolver** that asked, not the viewer's IP. This one fact drives most of this chapter: a CDN that maps by resolver location can pick the wrong city when the resolver is far from the viewer.",
         },
         {
           kind: "read",
           title: "Two authoritative layers",
           body:
             "Your authoritative server answers with a CNAME to a CDN-owned name, with a TTL of 300 seconds.\n\n" +
-            "The resolver then asks the **CDN's** authoritative server. It answers with edge IPs near the resolver, with a TTL of only 20 seconds. The short TTL lets the CDN change its PoP choice often.",
+            "The resolver then asks the **CDN's** authoritative server, on the viewer's behalf. It answers with edge IPs near the resolver, with a TTL of only 20 seconds. The short TTL lets the CDN change its PoP choice often.",
           visual: { kind: "sequence", spec: { ...lookupSeq, upTo: 7 }, caption: "Your zone hands off to the CDN's zone" },
+        },
+        {
+          kind: "reveal",
+          prompt: "Look at the diagram. The CDN's authoritative server gets the query from the resolver, not from the player. Whose IP address does it see: the viewer's, or someone else's?",
+          answer:
+            "Only the **recursive resolver's** IP address. It never sees the viewer's IP.\n\n" +
+            "This one fact drives most of this chapter. A CDN that picks a PoP by the resolver's location can pick the wrong city when the resolver is far from the viewer. Lesson 4 shows how big that problem is, and how it is fixed.",
         },
         {
           kind: "order",
           prompt: "Put this cold lookup in order.",
+          teach: "Follow the arrows in the diagram: the question goes from the app to servers that know more and more, and only at the very end can a connection open.",
           items: [
             "Player asks the OS stub resolver",
             "Stub asks the recursive resolver",
@@ -252,7 +261,7 @@ const chapter: Chapter = {
           kind: "read",
           title: "In real life, most steps are skipped",
           body:
-            "That full walk happens only on a cold cache. In practice:\n\n" +
+            "That full walk happens only on a **cold cache** (a cache that holds nothing yet). In practice:\n\n" +
             "- Delegations are cached for hours or days.\n" +
             "- Your CNAME is cached for minutes.\n" +
             "- Only the CDN's final A record is short-lived.\n\n" +
@@ -290,12 +299,13 @@ const chapter: Chapter = {
           kind: "read",
           title: "The HTTPS record",
           body:
-            "The **HTTPS** record (RFC 9460, November 2023) is a service binding record. It can announce [[HTTP/3]] support before the first connection, so the client does not have to discover it later.\n\n" +
-            "Its **AliasMode** allows aliasing at the zone apex, \"which is not possible with CNAME\". You will see why that matters in the CNAME lesson.",
+            "The **HTTPS** record (RFC 9460, November 2023) is a service binding record. It can list **ALPN** values (the HTTP versions a server speaks, such as h2 and h3), so the client learns about [[HTTP/3]] support before the first connection.\n\n" +
+            "Its **AliasMode** allows aliasing at the **zone apex** (the bare name, `example.com` itself), \"which is not possible with CNAME\". Lesson 3 shows why that matters.",
         },
         {
           kind: "match",
           prompt: "Match each record type to its job.",
+          teach: "Use the \"Why you care\" column of the record table. For each record, ask: is it an address, an alias, zone settings, certificate rules, or service hints?",
           pairs: [
             ["A / AAAA", "The address the player connects to"],
             ["CNAME", "Hands a hostname to a CDN"],
@@ -323,11 +333,20 @@ const chapter: Chapter = {
       id: "ch03-l2",
       title: "TTL: the dial between agility and load",
       goal: "Choose TTLs on purpose, explain why real cache lifetimes are longer than the TTL, and estimate DNS-only failover time.",
-      minutes: 11,
+      minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "Why old answers live on",
+          body:
+            "You switch a hostname from one CDN to another. Some viewers move at once. Others are still on the old CDN an hour later.\n\n" +
+            "The reason is the **TTL** you met in Lesson 1, plus many caches you do not control.\n\n" +
+            "**By the end of this lesson** you can choose TTLs on purpose, explain why real cache lifetimes are longer than the TTL, and estimate how long a DNS-only failover takes.",
+        },
+        {
           kind: "quiz",
-          prompt: "At 10:00 you change a DNS answer that has a 1-hour TTL. When can you be sure every viewer has the new answer?",
+          guess: true,
+          prompt: "Take a guess. At 10:00 you change a DNS answer that has a 1-hour TTL. When would you expect every viewer to have the new answer?",
           options: [
             "At 10:00, the moment you save it",
             "Within a few seconds",
@@ -335,41 +354,34 @@ const chapter: Chapter = {
             "Only after the authoritative server restarts",
           ],
           answer: 2,
-          explain: "Every cache may keep the old answer until its TTL runs out, so the change takes up to an hour. Real lifetimes can be even longer: some resolvers apply a minimum TTL, apps cache addresses, and open connections never ask again.",
+          explain:
+            "Not before about **11:00**. A cache that fetched the old answer at 9:59 may keep it for a full hour.\n\n" +
+            "Real lifetimes can be even longer: some resolvers apply a minimum TTL, apps cache addresses, and open connections never ask again. This lesson explains each of these.",
         },
         {
           kind: "read",
           title: "How DNS travels",
           body:
-            "DNS mostly runs over **UDP port 53**, with TCP for large answers.\n\n" +
-            "**EDNS0** extends the old 512-byte size limit. It also carries options, such as Client Subnet, which you will meet in the resolver lesson.",
+            "DNS mostly runs over **UDP port 53**: one small packet out, one back. Large answers use TCP.\n\n" +
+            "**EDNS0** (Extension Mechanisms for DNS) lifts the old 512-byte size limit. It also carries extra options, such as **Client Subnet**, which you will meet in Lesson 4.",
         },
         {
           kind: "read",
           title: "Encrypted DNS and where caches live",
           body:
-            "Encrypted DNS (**DoT** and **DoH**) hides queries from the network. It often moves users from their ISP resolver to a big public resolver, and that changes what your authoritative server sees.\n\n" +
+            "**DoT** (DNS over TLS) and **DoH** (DNS over HTTPS) encrypt DNS and hide queries from the network. They often move users from their ISP resolver to a big public resolver, and that changes what your authoritative server sees.\n\n" +
             "Caches live in the app, the OS, home routers and resolvers. You control none of them. You control only the TTL you publish.",
         },
         {
           kind: "read",
           title: "Caching \"no\": negative caching",
           body:
-            "If a name does not exist (**NXDOMAIN**), or has no record of the asked type, resolvers cache that \"no\" too. This is [[negative caching]] (RFC 2308). Its time comes from the zone's SOA record.\n\n" +
-            "In a public snapshot of `crunchyroll.com` taken on 2026-11-14, the SOA minimum field was 1,800 seconds.",
+            "If a name does not exist (**NXDOMAIN**, \"no such domain\"), or has no record of the asked type, resolvers cache that \"no\" too. This is [[negative caching]] (RFC 2308). Its time comes from the zone's SOA record.\n\n" +
+            "In a public snapshot of `crunchyroll.com` taken on 2026-11-14, the SOA minimum field was 1,800 seconds. So a \"does not exist\" answer could be cached for up to **30 minutes**.",
           callout: {
             type: "mistake",
             text: "Creating DNS records \"just in time\" during a launch. If any client asked before the record existed, its resolver may cache the NXDOMAIN for the negative TTL. Create records days before a simulcast launch or a CDN migration, not minutes before.",
           },
-        },
-        {
-          kind: "number",
-          prompt: "The SOA minimum is 1,800 seconds. For up to how many minutes could a resolver cache \"this name does not exist\"?",
-          answer: 30,
-          tolerance: 0.5,
-          unit: "min",
-          hint: "Divide seconds by 60.",
-          explain: "1,800 / 60 = **30 minutes**. A record created one minute after a client asked could stay invisible to that client's resolver for up to half an hour.",
         },
         {
           kind: "read",
@@ -386,6 +398,7 @@ const chapter: Chapter = {
         {
           kind: "multi",
           prompt: "Which of these are costs of a short TTL?",
+          teach: "A short TTL means caches forget fast. Think about what every cache must then do more often, and which server must be there to answer it.",
           options: [
             "More queries and a bigger DNS bill",
             "More lookup latency for viewers",
@@ -422,6 +435,7 @@ const chapter: Chapter = {
         {
           kind: "quiz",
           prompt: "Which record should get a short TTL?",
+          teach: "Short TTLs cost queries and dependence on your DNS provider. They only pay off on a record whose answer you plan to change.",
           options: [
             "The NS delegation for your zone",
             "A TXT record used for domain verification",
@@ -455,18 +469,6 @@ const chapter: Chapter = {
           },
         },
         {
-          kind: "quiz",
-          prompt: "In the Disney+ chain, which hop has the shortest TTL?",
-          options: [
-            "www.disneyplus.com to edgekey.net (about 1 hour)",
-            "edgekey.net to akamaiedge.net (several hours)",
-            "The last akamaiedge.net hop (10 to 20 s)",
-            "All hops share one TTL",
-          ],
-          answer: 2,
-          explain: "The last hop is where Akamai picks a PoP, so it must change often: 10 to 20 seconds. The earlier hops never change, so they can be cached for hours. Each hop's TTL is set by whoever owns that record.",
-        },
-        {
           kind: "read",
           title: "TTL is a request, not a promise",
           body:
@@ -486,7 +488,8 @@ const chapter: Chapter = {
           kind: "read",
           title: "Failover time with DNS alone",
           body:
-            "How long does it take to move viewers off a dead CDN using only DNS? Add up each stage (assumed values). The total for most new requests is about **1 to 3 minutes**.",
+            "How long does it take to move viewers off a dead CDN using only DNS? Add up each stage (assumed values). The total for most new requests is about **1 to 3 minutes**.\n\n" +
+            "That is why DNS is the **backstop**, not the first line of defense. Faster tools are player retry on another CDN host (Chapter 10) and per-session CDN choice in the playback API (Chapter 9).",
           visual: {
             kind: "table",
             headers: ["Step", "Typical time"],
@@ -502,25 +505,9 @@ const chapter: Chapter = {
           },
         },
         {
-          kind: "number",
-          prompt: "A health check runs every 10 seconds and needs 3 consecutive failures. About how many seconds until it detects a dead CDN?",
-          answer: 30,
-          tolerance: 3,
-          unit: "s",
-          explain: "10 s x 3 failures = **about 30 s**. And that is only the first stage. Aggregation, resolver caches, client caches and open connections all add time.",
-        },
-        {
-          kind: "number",
-          prompt: "The steered record has a 60-second TTL. On average, how many seconds until a resolver's cached copy expires after the answer changes?",
-          answer: 30,
-          tolerance: 3,
-          unit: "s",
-          hint: "Each resolver cached the answer at a random moment, so the remaining time is anywhere from 0 to 60 s.",
-          explain: "Remaining TTL is spread evenly between 0 and 60 s, so the **average is 30 s**. Some resolvers expire at once, some wait the full minute.",
-        },
-        {
           kind: "order",
           prompt: "Put the DNS-only failover stages in order.",
+          teach: "Something must notice the failure before the answer can change. After that, the waiting starts at the caches nearest the DNS servers and ends at the player's open connection.",
           items: [
             "Health check detects the failure",
             "Health status aggregates and the authoritative answer changes",
@@ -528,7 +515,42 @@ const chapter: Chapter = {
             "Client and app-level caches expire",
             "Existing connections break and the player re-resolves",
           ],
-          explain: "Detect, change the answer, then wait for every cache layer, then wait for open connections to break. That is why DNS is the **backstop**, not the first line of defense. Faster tools are player retry on another CDN host (Chapter 10) and per-session CDN choice in the playback API (Chapter 9).",
+          explain: "Detect, change the answer, then wait for every cache layer, then wait for open connections to break. That is why DNS is the **backstop**, not the first line of defense.",
+        },
+        {
+          kind: "read",
+          title: "Worked example: detection time",
+          body:
+            "A health check marks a target dead only after several failures **in a row**. So:\n\n" +
+            "**detection time = check interval x failures needed**\n\n" +
+            "Example: a check runs every **30 s** and needs **2** failures in a row. 30 x 2 = **60 s** before DNS even knows the target is dead. Every later stage starts only after that.",
+        },
+        {
+          kind: "number",
+          prompt: "A health check runs every 10 seconds and needs 3 consecutive failures. About how many seconds until it detects a dead CDN?",
+          teach: "Detection time is the check interval multiplied by the number of failures in a row the check needs.",
+          answer: 30,
+          tolerance: 3,
+          unit: "s",
+          explain: "10 s x 3 failures = **about 30 s**. And that is only the first stage. Aggregation, resolver caches, client caches and open connections all add time.",
+        },
+        {
+          kind: "read",
+          title: "Worked example: the average cache wait",
+          body:
+            "When the answer changes, each resolver is somewhere in the middle of its TTL. It fetched its copy at a random moment, so its remaining time is spread evenly from 0 up to the full TTL.\n\n" +
+            "**average wait = TTL / 2**\n\n" +
+            "Example: a **20 s** TTL gives waits from 0 to 20 s. Some resolvers update at once, some wait the full 20 s. The average is 20 / 2 = **10 s**.",
+        },
+        {
+          kind: "number",
+          prompt: "The steered record has a 60-second TTL. On average, how many seconds until a resolver's cached copy expires after the answer changes?",
+          teach: "Remaining time is spread evenly from 0 up to the full TTL. Take the middle of that range.",
+          answer: 30,
+          tolerance: 3,
+          unit: "s",
+          hint: "Each resolver cached the answer at a random moment, so the remaining time is anywhere from 0 to 60 s.",
+          explain: "Remaining TTL is spread evenly between 0 and 60 s, so the **average is 30 s**. Some resolvers expire at once, some wait the full minute.",
         },
         {
           kind: "reveal",
@@ -562,11 +584,20 @@ const chapter: Chapter = {
       id: "ch03-l3",
       title: "CNAME chains: handing a hostname to a CDN",
       goal: "Explain how a CNAME hands one hostname to a CDN, what a chain costs, and how to solve the zone apex problem.",
-      minutes: 8,
+      minutes: 9,
       steps: [
         {
+          kind: "read",
+          title: "Lend one name, keep the rest",
+          body:
+            "You want a CDN to serve `video.example.com`. But `example.com` also runs your website, your email and your API. You do not want to give all of that away.\n\n" +
+            "DNS has a tool for exactly this: hand over one hostname and keep the rest.\n\n" +
+            "**By the end of this lesson** you can explain how that hand-off works, what a chain of hand-offs costs, and how to put a CDN in front of the bare domain.",
+        },
+        {
           kind: "quiz",
-          prompt: "You want a CDN to serve `video.example.com`. What do you hand to the CDN?",
+          guess: true,
+          prompt: "Take a guess. You want a CDN to serve only `video.example.com`. What would you expect to hand to the CDN?",
           options: [
             "Your whole domain: move the NS records for example.com to the CDN",
             "One CNAME record for that hostname, pointing to a CDN-owned name",
@@ -574,14 +605,16 @@ const chapter: Chapter = {
             "Your registrar account",
           ],
           answer: 1,
-          explain: "You create one record in your zone: a CNAME to a CDN-owned name. The CDN's authoritative DNS then decides which edge IPs each resolver gets. You keep the rest of your domain. Fixed A records would take away the CDN's ability to pick a PoP for each resolver.",
+          explain:
+            "You create **one record** in your zone: a CNAME to a CDN-owned name. The CDN's authoritative DNS then decides which edge IPs each resolver gets. You keep the rest of your domain.\n\n" +
+            "Fixed A records would take away the CDN's ability to pick a PoP for each resolver.",
         },
         {
           kind: "read",
           title: "The hand-off",
           body:
-            "You own the first link and the vendor owns the rest. The vendor's authoritative DNS decides which edge IPs each resolver gets.\n\n" +
-            "So the CDN can steer inside its network every few seconds without touching your zone.",
+            "You create one record in your zone: a **CNAME** (canonical name), which says \"this name is an alias of that name\". It points to a name the CDN owns.\n\n" +
+            "You own the first link and the vendor owns the rest. The vendor's authoritative DNS decides which edge IPs each resolver gets. So the CDN can steer inside its network every few seconds without touching your zone.",
           visual: { kind: "code", lang: "dns", code: "video.example.com.  300  IN  CNAME  example.cdn-vendor.net.", caption: "One record hands one hostname to a CDN" },
         },
         {
@@ -589,7 +622,7 @@ const chapter: Chapter = {
           title: "An Akamai-style chain",
           body:
             "Here is a chain seen with `dig` on 2026-11-14 (TTLs abbreviated, and the ISP-specific part of the name replaced). Long TTLs at the top, very short ones at the bottom.\n\n" +
-            "The last CNAME appears to encode the client's ISP and subnet. That is a visible hint of **end-user mapping**, which you will meet in the resolver lesson.",
+            "The last CNAME appears to encode the client's ISP and subnet. That is a visible hint of **end-user mapping**, which you will meet in Lesson 4.",
           visual: {
             kind: "code",
             lang: "dns",
@@ -604,6 +637,7 @@ const chapter: Chapter = {
         {
           kind: "quiz",
           prompt: "In that chain, who sets the 10-second TTL on `e14245.dscb.akamaiedge.net`?",
+          teach: "A record's TTL is set by whoever runs the zone that record lives in. Look at which domain the name ends in.",
           options: ["Disney+, in its own zone", "Akamai, in its own zone", "The viewer's resolver", "The .com registry"],
           answer: 1,
           explain: "Each hop's TTL is owned by the party that owns that zone. Disney+ controls only its first CNAME. The akamaiedge.net names are Akamai's, so Akamai sets their TTLs and their health.",
@@ -612,13 +646,14 @@ const chapter: Chapter = {
           kind: "read",
           title: "What a chain costs",
           body:
-            "- **Extra lookups.** Each hop into another zone can cost another query on a cold cache. That adds to [[video start time]].\n" +
+            "- **Extra lookups.** Each hop into another zone can cost another query on a cold cache. That adds to [[video start time]], the wait between Play and the first frame.\n" +
             "- **Split TTLs and split health.** Each hop has a TTL owned by a different party. If the vendor's DNS is down, your TTL does not matter.\n" +
             "- **Query billing.** Route 53 bills a CNAME that points to another Route 53 record as two queries.",
         },
         {
           kind: "multi",
           prompt: "Which are real costs of a CNAME chain?",
+          teach: "Think about what each extra hop adds on a cold cache, who controls each hop, and how a DNS provider counts queries. Also recall exactly what a CNAME hands over.",
           options: [
             "Extra lookups on a cold cache, adding to video start time",
             "TTLs and health owned by different parties",
@@ -632,30 +667,29 @@ const chapter: Chapter = {
           kind: "read",
           title: "The zone apex problem",
           body:
-            "You cannot put a CNAME at the **zone apex** (`example.com` itself). The apex holds SOA and NS records, and a CNAME cannot coexist with other records.\n\n" +
+            "The **zone apex** is the bare name of your zone: `example.com` itself. You cannot put a CNAME there.\n\n" +
+            "Why? A CNAME says \"this name is only an alias\", so that name may hold no other records. But the apex must hold the zone's SOA and NS records. The two rules clash.\n\n" +
             "So how do you put a CDN in front of `example.com`? There are three workarounds.",
         },
         {
           kind: "read",
-          title: "Three workarounds",
+          title: "Workaround 1: Route 53 alias records",
           body:
-            "- **Route 53 alias records.** Route 53 answers at the apex with the IPs of an AWS resource, such as a CloudFront distribution. Alias queries to AWS resources are free. You cannot set the TTL; it uses the target's default.\n" +
-            "- **CNAME flattening / ANAME.** The authoritative server follows the CNAME itself and returns A records. The catch: it resolves the CDN name from its own location, so the CDN may map the DNS provider instead of the user.\n" +
-            "- **HTTPS records in AliasMode** (RFC 9460): the standard fix, as clients adopt it.",
+            "An **alias record** is a Route 53 extension. At the apex, Route 53 answers directly with the IPs of an AWS resource, such as a CloudFront distribution.\n\n" +
+            "- Route 53 does not charge for alias queries to AWS resources.\n" +
+            "- You cannot set the TTL. It uses the target's default.",
         },
         {
-          kind: "match",
-          prompt: "Match each apex workaround to its property.",
-          pairs: [
-            ["Route 53 alias record", "No charge for alias queries to AWS resources; TTL is the target's"],
-            ["CNAME flattening / ANAME", "CDN may map the DNS provider, not the user"],
-            ["HTTPS record, AliasMode", "The standard fix, as clients adopt it"],
-          ],
-          explain: "Alias records are a Route 53 extension for AWS targets. Flattening resolves the CDN name from the DNS provider's location. HTTPS AliasMode (RFC 9460) is the standards-based answer.",
+          kind: "read",
+          title: "Workaround 2: CNAME flattening",
+          body:
+            "Other DNS providers offer **CNAME flattening**, also called **ANAME**. Your authoritative server follows the CNAME itself, then returns plain A records at the apex.\n\n" +
+            "**The catch:** the provider resolves the CDN name from **its own location**. Remember that a CDN sees only whoever asks it. So the CDN may map the DNS provider instead of the user, and pick a PoP near the provider.",
         },
         {
           kind: "quiz",
           prompt: "Your DNS provider flattens the apex CNAME to a CDN. Viewers in Brazil get a PoP in the US. What is the most likely reason?",
+          teach: "With flattening, think about who actually sends the question to the CDN's DNS. The CDN picks a PoP near whoever asks.",
           options: [
             "The CDN has no PoP in Brazil",
             "The provider resolved the CDN name from its own location, so the CDN mapped the provider",
@@ -664,6 +698,24 @@ const chapter: Chapter = {
           ],
           answer: 1,
           explain: "With flattening, the authoritative server asks the CDN on the viewer's behalf. The CDN sees the DNS provider's location, not the viewer's, and may pick a PoP near the provider.",
+        },
+        {
+          kind: "read",
+          title: "Workaround 3: HTTPS records in AliasMode",
+          body:
+            "You met the **HTTPS** record in Lesson 1. In **AliasMode** (RFC 9460) it can alias the zone apex, which a CNAME cannot do.\n\n" +
+            "It is the **standard fix**. It helps more and more as clients adopt it.",
+        },
+        {
+          kind: "match",
+          prompt: "Match each apex workaround to its property.",
+          teach: "Recall the three workarounds: one is an extension from one cloud provider, one has a mapping catch, and one is a standard.",
+          pairs: [
+            ["Route 53 alias record", "No charge for alias queries to AWS resources; TTL is the target's"],
+            ["CNAME flattening / ANAME", "CDN may map the DNS provider, not the user"],
+            ["HTTPS record, AliasMode", "The standard fix, as clients adopt it"],
+          ],
+          explain: "Alias records are a Route 53 extension for AWS targets. Flattening resolves the CDN name from the DNS provider's location. HTTPS AliasMode (RFC 9460) is the standards-based answer.",
         },
         {
           kind: "read",
@@ -676,16 +728,11 @@ const chapter: Chapter = {
           },
         },
         {
-          kind: "quiz",
-          prompt: "In the 2026-11-14 snapshot, what did `static.crunchyroll.com` point to?",
-          options: [
-            "Cloudflare addresses, like the apex",
-            "A CNAME to a CloudFront distribution",
-            "A CNAME to an Akamai edgekey.net name",
-            "An API Gateway endpoint in us-west-2",
-          ],
-          answer: 1,
-          explain: "`static.crunchyroll.com` was a CNAME to CloudFront. The apex and `www` answered with Cloudflare addresses, and a playback-service hostname on a separate domain pointed to API Gateway in us-west-2. Different hostnames, different jobs, different providers. It is a snapshot only and says nothing about video segment hostnames.",
+          kind: "reveal",
+          prompt: "In that snapshot, the apex, `static.crunchyroll.com` and a playback-service hostname each went to a different provider. What pattern does that show?",
+          answer:
+            "**Different hostnames for different jobs, fronted by different providers**: Cloudflare for the apex and `www`, CloudFront for `static.crunchyroll.com`, and API Gateway in `us-west-2` for a playback service.\n\n" +
+            "It is a snapshot only, and it says nothing about video segment hostnames. Lesson 7 builds a full design on this same idea.",
         },
         {
           kind: "summary",
@@ -705,11 +752,20 @@ const chapter: Chapter = {
       id: "ch03-l4",
       title: "The resolver problem: ECS and public resolvers",
       goal: "Explain why public resolvers cause bad PoP choices, how EDNS Client Subnet fixes it, and what ECS costs.",
-      minutes: 10,
+      minutes: 11,
       steps: [
         {
+          kind: "read",
+          title: "Where you are vs where your resolver is",
+          body:
+            "A fan in Sao Paulo presses Play. Their phone uses a public resolver whose nearest site is in another country.\n\n" +
+            "The CDN wants to send the fan to a nearby PoP. But remember Lesson 1: the CDN's DNS sees only the resolver's IP.\n\n" +
+            "**By the end of this lesson** you can explain why public resolvers cause bad PoP choices, how **EDNS Client Subnet** fixes it, and what that fix costs.",
+        },
+        {
           kind: "quiz",
-          prompt: "A viewer in Sao Paulo uses a public resolver whose nearest site is in another country. The CDN maps by resolver location. Where is the viewer sent?",
+          guess: true,
+          prompt: "Take a guess. The CDN picks a PoP near whoever asked it. Where would you expect this Sao Paulo viewer to be sent?",
           visual: { kind: "flow", spec: { ...ecsFlow, focus: ["v", "pr", "ca1", "v>pr", "pr>ca1"] } },
           options: [
             "To the Sao Paulo edge, because the CDN knows the viewer's city",
@@ -718,14 +774,16 @@ const chapter: Chapter = {
             "To a random edge",
           ],
           answer: 1,
-          explain: "The CDN's authoritative server sees only the resolver's IP. So it picks an edge near the **resolver**. Every segment then crosses a long, lossy path: lower bitrate, more rebuffering.",
+          explain:
+            "To an edge near the **resolver**. The CDN's authoritative server sees only the resolver's IP, so it maps the resolver, not the viewer.\n\n" +
+            "Every segment then crosses a long, lossy path: lower bitrate, more rebuffering.",
         },
         {
           kind: "read",
           title: "The authoritative server is half-blind",
           body:
             "A CDN's authoritative server wants the PoP closest to the **viewer**, but it sees only the **resolver's** IP.\n\n" +
-            "Classic **NS-based mapping** assumes the resolver is near its users. That is mostly true for ISP resolvers. It is often false for public ones.",
+            "Classic **NS-based mapping** (picking a PoP by the resolver's location) assumes the resolver is near its users. That is mostly true for ISP resolvers. It is often false for public ones.",
           visual: { kind: "flow", spec: { ...ecsFlow, focus: ["v", "pr", "ca1", "e1", "v>pr", "pr>ca1", "ca1>e1"], flow: ["v>pr", "pr>ca1", "ca1>e1"] }, caption: "Without client information, the CDN maps the resolver" },
         },
         {
@@ -733,7 +791,7 @@ const chapter: Chapter = {
           title: "How big is the problem?",
           body:
             "Akamai's 2015 study of its production network (Chen, Sitaraman and Torres) measured it. Public resolvers carried close to **8 percent of client demand worldwide**, with much higher shares in some countries.\n\n" +
-            "The paper names India, Brazil and Argentina, where many clients use public resolvers despite large client-to-resolver distances, and Turkey as a very heavy user. In some countries, peering sent clients to a distant resolver site.",
+            "The viewers behind one public resolver can be far apart. For public-resolver users, 99 percent of demand came from **client clusters** (the clients behind one resolver) with radii of 470 to 3,800 miles.",
           visual: {
             kind: "stats",
             items: [
@@ -745,10 +803,18 @@ const chapter: Chapter = {
         },
         {
           kind: "read",
+          title: "Where it hurts most",
+          body:
+            "The paper names **India, Brazil and Argentina**, where many clients use public resolvers despite large client-to-resolver distances, and **Turkey** as a very heavy user. In some countries, peering sent clients to a distant resolver site.\n\n" +
+            "For video, a viewer mapped to a far edge pulls every segment across a long, lossy path. That means lower bitrate and more rebuffering.",
+        },
+        {
+          kind: "read",
           title: "EDNS Client Subnet",
           body:
             "[[ECS]] (**EDNS Client Subnet**), RFC 7871 (May 2016, Informational), lets the recursive resolver attach a **truncated prefix** of the client's IP to its query.\n\n" +
-            "The resolver sends a **SOURCE PREFIX-LENGTH**: how many leading bits of the client address it reveals. The RFC strongly encourages truncating IPv4 to **/24** and IPv6 to **/56**, for privacy.",
+            "A **prefix** is the first bits of an address. `203.0.113.0/24` means \"the first 24 bits\": the 256 addresses 203.0.113.0 to .255.\n\n" +
+            "The resolver sends a **SOURCE PREFIX-LENGTH**: how many leading bits it reveals. The RFC strongly encourages **/24** for IPv4 and **/56** for IPv6, for privacy.",
           visual: { kind: "flow", spec: { ...ecsFlow, focus: ["v", "pr", "ca2", "v>pr", "pr>ca2"] }, caption: "The resolver passes the viewer's /24, not the full address" },
         },
         {
@@ -762,6 +828,7 @@ const chapter: Chapter = {
         {
           kind: "quiz",
           prompt: "The authoritative answer comes back with SCOPE PREFIX-LENGTH /20. What does that tell the resolver?",
+          teach: "ECS has two prefix lengths. One says how much of the client's address the resolver revealed. The other comes back in the answer and says how widely that answer may be reused.",
           options: [
             "Reveal 20 bits of the next client's address",
             "This answer may be reused for any client in the same /20",
@@ -772,8 +839,17 @@ const chapter: Chapter = {
           explain: "Source prefix-length is what the resolver reveals. Scope prefix-length is how wide a block the answer is valid for. With /20, the resolver can reuse the answer for every client inside that /20, and must ask again for clients outside it.",
         },
         {
+          kind: "read",
+          title: "Worked example: blocks inside a block",
+          body:
+            "A shorter prefix is a bigger block. Each bit you remove from the prefix **doubles** the block size.\n\n" +
+            "**number of /B blocks inside one /A = 2^(B - A)**\n\n" +
+            "Example: how many /24 blocks fit in one /22? 24 - 22 = 2 bits, and 2^2 = **4**. So an answer with scope /22 can be reused for clients from 4 different /24s.",
+        },
+        {
           kind: "number",
           prompt: "How many /24 blocks fit inside one /20?",
+          teach: "Count the bits between the two prefix lengths, then double once for each bit.",
           answer: 16,
           tolerance: 0.5,
           unit: "blocks",
@@ -797,15 +873,9 @@ const chapter: Chapter = {
           },
         },
         {
-          kind: "read",
-          title: "What ECS cost",
-          body:
-            "The cost was query volume. With ECS, one resolver keeps separate cache entries per client block, so it asks the authoritative server more often. Akamai saw DNS queries to its name servers rise roughly **eight-fold** for the affected traffic.\n\n" +
-            "RFC 7871 itself warns that ECS \"will significantly increase the size of the cache\" on resolvers, and should be disabled by default where it gives no clear benefit.",
-        },
-        {
           kind: "quiz",
           prompt: "Why does a CDN with only a few locations gain less from end-user mapping?",
+          teach: "Picture a CDN with only three sites. If the viewer and the resolver are in nearby countries, would knowing the viewer's exact subnet change which site is chosen?",
           options: [
             "Its resolvers do not support ECS",
             "With few sites, client and resolver often map to the same site anyway",
@@ -817,9 +887,29 @@ const chapter: Chapter = {
         },
         {
           kind: "read",
+          title: "What ECS cost",
+          body:
+            "The cost was query volume. With ECS, one resolver keeps a separate cache entry per client block, so it asks the authoritative server more often. Akamai saw DNS queries to its name servers rise roughly **eight-fold** for the affected traffic.\n\n" +
+            "RFC 7871 warns that ECS \"will significantly increase the size of the cache\" on resolvers, and should be off by default where it gives no clear benefit. ECS also exposes part of the client address to every server in the chain.",
+        },
+        {
+          kind: "multi",
+          prompt: "Which are costs of ECS?",
+          teach: "ECS splits each resolver's cache by client block and sends part of the client address along. Ask what that does to privacy, cache size and query count, and what it does to mapping distance.",
+          options: [
+            "Part of the client address is exposed to every server in the chain",
+            "Larger resolver caches",
+            "Many more queries to the authoritative server",
+            "Longer mapping distance for public-resolver users",
+          ],
+          answers: [0, 1, 2],
+          explain: "ECS costs privacy, cache size and query volume (about eight times in Akamai's rollout). It **shortens** mapping distance; that is its benefit.",
+        },
+        {
+          kind: "read",
           title: "Who sends ECS?",
           body:
-            "You cannot choose your viewers' resolver. You can only measure the effect. ECS also exposes part of the client address to every server in the chain.",
+            "You cannot choose your viewers' resolver. You can only measure the effect. Here is which resolvers send ECS, and which authoritative services use it.",
           visual: {
             kind: "table",
             headers: ["Resolver or server", "ECS behaviour"],
@@ -835,6 +925,7 @@ const chapter: Chapter = {
         {
           kind: "quiz",
           prompt: "A viewer uses Cloudflare's 1.1.1.1. What does your CDN's authoritative server learn about the viewer's subnet?",
+          teach: "Look at the Cloudflare row of the table: does that resolver attach the client subnet to its queries?",
           options: [
             "The viewer's /24, via ECS",
             "The viewer's /56, via ECS",
@@ -843,18 +934,6 @@ const chapter: Chapter = {
           ],
           answer: 2,
           explain: "Cloudflare's 1.1.1.1 does not send the EDNS Client Subnet header, for privacy (except for one debug domain). The authoritative server sees only the resolver's IP.",
-        },
-        {
-          kind: "multi",
-          prompt: "Which are costs of ECS?",
-          options: [
-            "Part of the client address is exposed to every server in the chain",
-            "Larger resolver caches",
-            "Many more queries to the authoritative server",
-            "Longer mapping distance for public-resolver users",
-          ],
-          answers: [0, 1, 2],
-          explain: "ECS costs privacy, cache size and query volume (about eight times in Akamai's rollout). It **shortens** mapping distance; that is its benefit.",
         },
         {
           kind: "widget",
@@ -901,20 +980,31 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "Many CDNs, one name",
+          body:
+            "You run two or three CDNs and serve viewers in many countries. You want Japan on one mix of CDNs, Brazil on another, and any broken CDN dropped fast.\n\n" +
+            "An authoritative DNS server can make those choices for every query. This is called **GSLB**.\n\n" +
+            "**By the end of this lesson** you can pick a routing policy for a delivery need, combine policies into a tree, and predict exactly how Route 53 health checks behave.",
+        },
+        {
           kind: "quiz",
-          prompt: "You want 70% of viewers on CDN A and 30% on CDN B. Which DNS routing policy does that?",
+          guess: true,
+          prompt: "Take a guess. You want 70% of viewers on CDN A and 30% on CDN B. Which DNS routing policy sounds right?",
           options: ["Simple", "Weighted", "Failover", "Multivalue answer"],
           answer: 1,
-          explain: "A **weighted** policy returns answers in proportions you set. It is also how you canary a new CDN at 1 to 5 parts in 100.",
+          explain:
+            "A **weighted** policy returns answers in proportions you set, here 70 to 30.\n\n" +
+            "It is also how you **canary** a new CDN: give it 1 to 5 parts in 100 and watch its errors. You will see all eight Route 53 policies in a moment.",
         },
         {
           kind: "read",
           title: "GSLB: DNS as a global load balancer",
           body:
             "[[GSLB]] (**global server load balancing**) means an authoritative DNS server that computes each answer from inputs:\n\n" +
-            "- **Where** the client or resolver is (country, ASN, prefix).\n" +
+            "- **Where** the client or resolver is (country, **ASN** (the network it is on, such as one ISP), prefix).\n" +
             "- **Health** of each target.\n" +
-            "- **Performance** from probes or [[RUM]].\n" +
+            "- **Performance** from probes or [[RUM]] (real-user measurements).\n" +
             "- **Policy**: weights, cost, commits, capacity.",
           callout: {
             type: "industry",
@@ -944,6 +1034,7 @@ const chapter: Chapter = {
         {
           kind: "match",
           prompt: "Match each delivery need to the Route 53 policy.",
+          teach: "For each need, ask what kind of rule it is: a split by proportion, a backup, a rule by place, a list of IP ranges, or a choice by speed.",
           pairs: [
             ["Canary a new CDN at 2 parts in 100", "Weighted"],
             ["Keep a backup origin for when the primary fails", "Failover"],
@@ -957,32 +1048,21 @@ const chapter: Chapter = {
           kind: "read",
           title: "Google Cloud DNS and NS1",
           body:
-            "**Google Cloud DNS** offers weighted round robin (weights 0 to 1000), geolocation, **geofencing** (keep traffic in one geography even if all its endpoints are unhealthy) and failover, including a \"trickle\" of traffic to the backup so you know it works. It cannot combine weighted and geolocation in one record.\n\n" +
-            "**NS1** (now IBM NS1 Connect) builds answers with **filter chains**. Its **Pulsar** add-on steers by real-user data. It is still DNS: TTLs, resolver blindness and connection stickiness remain.",
-        },
-        {
-          kind: "quiz",
-          prompt: "In Google Cloud DNS, what does geofencing do when every endpoint in a geography is unhealthy?",
-          options: [
-            "Sends that traffic to the nearest healthy geography",
-            "Keeps the traffic in that geography anyway",
-            "Returns NXDOMAIN",
-            "Trickles 1% of traffic to the backup",
-          ],
-          answer: 1,
-          explain: "Geofencing keeps traffic in one geography **even if all its endpoints are unhealthy**. That suits rules like licensing or data residency. The \"trickle\" is a separate failover feature that sends a fraction of traffic to the backup so you know it works.",
+            "**Google Cloud DNS** offers weighted round robin (weights 0 to 1000), geolocation, and failover with a \"trickle\" of traffic to the backup, so you know the backup works. **Geofencing** keeps traffic in one geography even if all its endpoints are unhealthy. It cannot combine weighted and geolocation in one record.\n\n" +
+            "**NS1** (now IBM NS1 Connect) builds answers with **filter chains**: an ordered list of filters applied to candidate answers. Its **Pulsar** add-on steers by real-user data. It is still DNS: TTLs, resolver blindness and connection stickiness remain.",
         },
         {
           kind: "read",
           title: "Composing policies into a tree",
           body:
             "Real configs nest policies. Route 53 alias records can point to groups of records. That builds a tree: geolocation or latency at the top, weighted and health-checked leaves below.\n\n" +
-            "With **Evaluate Target Health** set to Yes, Route 53 backs out of a branch whose leaves are all unhealthy.",
-          visual: { kind: "flow", spec: { ...gslbTree, focus: ["g", "jp", "df", "br", "g>jp", "g>df", "g>br"] }, caption: "A geolocation top with weighted, health-checked leaves" },
+            "With **Evaluate Target Health** set to Yes, Route 53 backs out of a branch whose leaves are all unhealthy. The dashed line shows where the Japan branch falls back to.",
+          visual: { kind: "flow", spec: { ...gslbTree, focus: ["g", "jp", "df", "br", "g>jp", "g>df", "g>br", "jp>df"] }, caption: "A geolocation top with weighted, health-checked leaves" },
         },
         {
           kind: "quiz",
           prompt: "Evaluate Target Health is Yes. Both Japan leaves (CDN A and CDN B) fail their health checks. Where do Japanese resolvers go?",
+          teach: "Evaluate Target Health makes Route 53 back out of a branch whose leaves are all unhealthy. Follow the dashed line in the tree.",
           visual: { kind: "flow", spec: { ...gslbTree, focus: ["jp", "jpa", "jpb", "df", "dfa", "dfb", "jp>df", "df>dfa", "df>dfb"], flow: ["jp>df", "df>dfa"] } },
           options: [
             "Nowhere: they get an empty answer",
@@ -1022,13 +1102,23 @@ const chapter: Chapter = {
           },
         },
         {
+          kind: "read",
+          title: "Worked example: weights are shares",
+          body:
+            "Each healthy leaf gets a share of the answers:\n\n" +
+            "**share = its weight / sum of all healthy weights**\n\n" +
+            "Example: the Brazil group has CDN A at weight 30 and Regional CDN C at weight 70. CDN A gets 30 / (30 + 70) = **30%** of answers.\n\n" +
+            "Weights are proportions, not percentages. Weights 3 and 7 give the same split as 30 and 70.",
+        },
+        {
           kind: "number",
-          prompt: "A second leaf for CDN B has weight 30. Both are healthy. What percent of answers point to CDN A?",
-          answer: 70,
+          prompt: "The Terraform leaf gives CDN A weight 70. Next to it are CDN B at weight 30 and a new CDN C at weight 20. All three are healthy. About what percent of answers point to CDN A?",
+          teach: "A leaf's share is its weight divided by the sum of all the healthy weights in the group.",
+          answer: 58.3,
           tolerance: 1,
           unit: "%",
-          hint: "Share = its weight / sum of weights.",
-          explain: "70 / (70 + 30) = **70%**. Weights are proportions, not percentages, so 7 and 3 would give the same split.",
+          hint: "Add all three weights first.",
+          explain: "70 / (70 + 30 + 20) = 70 / 120 = **about 58%**. Adding a leaf shrinks every other leaf's share, even though their weights did not change.",
         },
         {
           kind: "read",
@@ -1052,6 +1142,7 @@ const chapter: Chapter = {
         {
           kind: "quiz",
           prompt: "You use Akamai and Fastly. Which layer can steer viewers **between** them?",
+          teach: "Each CDN's own DNS only knows about its own PoPs. Choosing between vendors needs something that sits above all of them.",
           options: [
             "Akamai's mapping system",
             "Fastly's DNS",
@@ -1062,24 +1153,13 @@ const chapter: Chapter = {
           explain: "Each CDN's DNS steers only inside its own network. Choosing between vendors needs a layer above them. For video, the playback API is the most precise, because it sees the real client IP.",
         },
         {
-          kind: "quiz",
-          prompt: "A CDN endpoint's TLS certificate expired yesterday. Its Route 53 HTTPS health check still returns 200. What does Route 53 report?",
-          options: [
-            "Unhealthy: the certificate is invalid",
-            "Healthy: Route 53 HTTPS checks do not validate certificates",
-            "Unknown until a human checks",
-            "Unhealthy, but only from US checkers",
-          ],
-          answer: 1,
-          explain: "**Route 53 HTTPS health checks do not validate TLS certificates.** The check passes while every player fails. Monitor certificates separately, or fail over on real error metrics.",
-        },
-        {
           kind: "read",
           title: "How Route 53 decides health",
           body:
-            "- Checkers run worldwide every **10 or 30 seconds**, uncoordinated, each with a **failure threshold** of consecutive failures.\n" +
+            "- Checkers run worldwide every **10 or 30 seconds**, uncoordinated. Each has a **failure threshold**: how many failures in a row it needs.\n" +
             "- **HTTP/HTTPS:** TCP must connect within **4 s**, and the endpoint must return **2xx or 3xx** within **2 s** after connecting. **TCP** checks only need a connection within 10 s.\n" +
-            "- **String matching** needs the string in the **first 5,120 bytes** of the body.",
+            "- **String matching** needs the string in the **first 5,120 bytes** of the body.\n" +
+            "- **HTTPS checks do not validate TLS certificates.** An expired certificate passes the check while every player fails.",
         },
         {
           kind: "read",
@@ -1102,6 +1182,7 @@ const chapter: Chapter = {
         {
           kind: "quiz",
           prompt: "In a Route 53 failover pair, both the primary and the secondary are unhealthy. What is returned?",
+          teach: "Route 53 would rather return some answer than none. Recall the rule for a failover pair from the last step.",
           options: ["Nothing (empty answer)", "The secondary", "The primary", "NXDOMAIN"],
           answer: 2,
           explain: "Route 53 returns the **primary**. Like the weighted fail-open rule, it prefers some answer over none, because \"everything is unhealthy\" often means the checker or a shared dependency is at fault.",
@@ -1129,6 +1210,7 @@ const chapter: Chapter = {
         {
           kind: "quiz",
           prompt: "Which check proves that edge, shield and origin all work for real media?",
+          teach: "Only a check that fetches real media through every layer can prove every layer works. Use the \"What it proves\" column.",
           options: [
             "TCP connect to the CDN host",
             "HTTPS GET of a tiny static object",
@@ -1143,7 +1225,7 @@ const chapter: Chapter = {
           title: "When health checks make things worse",
           body:
             "In the AWS us-east-1 event of October 2025, NLB health checks flapped for new instances. Nodes were repeatedly pulled from DNS, and health-check-driven AZ failover removed capacity. Engineers disabled automatic failover for hours. AWS added a **velocity control** that limits how much capacity health checks can remove.\n\n" +
-            "For CDN steering, a noisy check can remove a whole CDN. Add [[hysteresis]], **floors** and **rate limits** on weight changes (Chapter 12).",
+            "For CDN steering, a noisy check can remove a whole CDN. Add [[hysteresis]], **floors** (capacity never removed) and **rate limits** on weight changes (Chapter 12).",
         },
         {
           kind: "read",
@@ -1173,17 +1255,28 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "Two ways to pick a site",
+          body:
+            "There are two main ways to send a viewer to a nearby site. **DNS steering** hands out different IPs to different users. **Anycast** hands out one IP and lets internet routing pick the site.\n\n" +
+            "And DNS itself sometimes fails, taking huge services down with it.\n\n" +
+            "**By the end of this lesson** you can compare anycast and DNS steering with real measurements, and draw design lessons from four famous DNS incidents.",
+        },
+        {
           kind: "quiz",
-          prompt: "Microsoft measured its anycast CDN for Bing in 2015. About what share of clients did anycast send to a suboptimal front-end?",
+          guess: true,
+          prompt: "Take a guess. Microsoft measured its anycast CDN for Bing in 2015. What share of clients would you expect anycast to send to a worse site than the best nearby one?",
           options: ["About 1%", "About 20%", "About 50%", "About 80%"],
           answer: 1,
-          explain: "About **20 percent**. Anycast did well for most clients, but a meaningful minority got a worse site than a nearby unicast choice.",
+          explain:
+            "About **20 percent**. Anycast did well for most clients, but a meaningful minority got a worse site than a nearby unicast choice.\n\n" +
+            "The reason: internet routing picks the shortest path in routing terms. It knows nothing about latency or load.",
         },
         {
           kind: "read",
           title: "Anycast, measured",
           body:
-            "[[Anycast]] (Chapter 2) means many sites announce the same prefix with [[BGP]], and routing picks the \"nearest\" site in BGP terms. Calder and co-authors (IMC 2015) timed Bing's anycast front-end against three nearby unicast ones with JavaScript beacons.\n\n" +
+            "[[Anycast]] (Chapter 2) means many sites announce the same IP prefix with [[BGP]], the internet's routing protocol. Routing picks the \"nearest\" site in BGP terms. Calder and co-authors (IMC 2015) timed Bing's anycast front-end against three nearby **unicast** ones (one IP per site) with JavaScript beacons.\n\n" +
             "Most poor paths were short-lived: around 60 percent of poorly served /24s appeared on only one day in the month.",
           visual: {
             kind: "stats",
@@ -1223,6 +1316,7 @@ const chapter: Chapter = {
         {
           kind: "multi",
           prompt: "Which statements are true of anycast?",
+          teach: "Use the Anycast column of the table. BGP knows paths, not performance, and one prefix belongs to one network.",
           options: [
             "DDoS traffic is spread across all sites",
             "A route change can move even live flows",
@@ -1248,6 +1342,7 @@ const chapter: Chapter = {
         {
           kind: "quiz",
           prompt: "According to its own documentation, how does CloudFront send a request to a PoP?",
+          teach: "The previous step quotes CloudFront's own documentation. Check which system it says routes the request.",
           options: [
             "Pure anycast: BGP picks the PoP",
             "DNS routes it to the PoP that can best serve it, typically the nearest in latency",
@@ -1261,11 +1356,13 @@ const chapter: Chapter = {
           kind: "read",
           title: "Dyn, October 21, 2016",
           body:
-            "DNS sits at the start of every connection and is shared by many services. Dyn, a large managed DNS provider, was hit by DDoS attacks. The first began about 7:00 am ET and was mitigated about two hours later. A second, \"more global\" wave came just before noon and took just over an hour. A third had no customer impact. Dyn saw \"10s of millions of discrete IP addresses\" from the **Mirai** botnet of compromised IoT devices. Sites using only Dyn were unreachable for users without a cached answer.",
+            "Dyn, a large managed DNS provider, was hit by **DDoS** attacks (floods of traffic from many machines). The first began about 7:00 am ET and was mitigated about two hours later. A second, \"more global\" wave came just before noon and took just over an hour. A third had no customer impact.\n\n" +
+            "Dyn saw \"10s of millions of discrete IP addresses\" from the **Mirai** botnet of compromised IoT devices. Sites using only Dyn were unreachable for users without a cached answer.",
         },
         {
           kind: "quiz",
           prompt: "During the Dyn attack, why did short TTLs make things worse?",
+          teach: "A resolver can keep serving a cached answer only until its TTL runs out. After that it must ask the authoritative servers again.",
           options: [
             "Short TTLs make DDoS attacks larger",
             "Caches emptied quickly once the authoritative servers stopped answering",
@@ -1273,7 +1370,16 @@ const chapter: Chapter = {
             "Short TTLs force TCP instead of UDP",
           ],
           answer: 1,
-          explain: "With a short TTL, a resolver's cached answer expires fast and must be refreshed from the authoritative servers, which were not answering. Lessons: one authoritative DNS provider is a single point of failure, and serve-stale resolvers (RFC 8767) soften this kind of event.",
+          explain: "With a short TTL, a resolver's cached answer expires fast and must be refreshed from the authoritative servers, which were not answering. Users whose resolvers still had a cached answer could still reach the sites.",
+        },
+        {
+          kind: "read",
+          title: "Dyn: the lessons",
+          body:
+            "DNS sits at the start of every connection and is shared by many services. So one provider's outage hits many sites at once.\n\n" +
+            "- A **single authoritative DNS provider** is a single point of failure.\n" +
+            "- **Short TTLs** increase exposure, because caches empty quickly once the authoritative servers stop answering.\n" +
+            "- **Serve-stale** resolvers (RFC 8767, Lesson 2) soften this kind of event by reusing expired answers.",
         },
         {
           kind: "read",
@@ -1283,22 +1389,16 @@ const chapter: Chapter = {
             "Lesson: a CNAME to a CDN means **the CDN's DNS is your DNS**. Multi-provider DNS for your own zone does not help there.",
         },
         {
-          kind: "number",
-          prompt: "The Akamai event started at 15:45 UTC and the rollback completed at 16:44 UTC. How many minutes is that?",
-          answer: 59,
-          tolerance: 1,
-          unit: "min",
-          explain: "16:44 - 15:45 = **59 minutes**, which matches \"up to about an hour\" of impact for sites that CNAME to Akamai.",
-        },
-        {
           kind: "read",
           title: "Facebook, October 4, 2021",
           body:
-            "A backbone change disconnected Facebook's data centers. A safety rule made it worse: its DNS servers \"disable those BGP advertisements if they themselves can not speak to our data centers\". Every DNS site withdrew its anycast routes at once, so \"our DNS servers became unreachable even though they were still operational\". The loss of DNS also broke internal recovery tools.",
+            "A change to Facebook's **backbone** (the private network linking its data centers) disconnected those data centers. A safety rule made it worse: its DNS servers \"disable those BGP advertisements if they themselves can not speak to our data centers\".\n\n" +
+            "Every DNS site withdrew its anycast routes at once, so \"our DNS servers became unreachable even though they were still operational\". The loss of DNS also broke internal recovery tools.",
         },
         {
           kind: "quiz",
           prompt: "What is the main design lesson from the Facebook outage?",
+          teach: "The rule was sensible for one site. Think about what happens when every site applies it at the same moment, and recall Route 53's rule for \"everything is unhealthy\".",
           options: [
             "Never use anycast for DNS",
             "A local health rule needs a global floor: when every site trips it together, it is catastrophic",
@@ -1326,6 +1426,7 @@ const chapter: Chapter = {
         {
           kind: "order",
           prompt: "Put the DynamoDB DNS race in order.",
+          teach: "Start with the check that later went stale. The last step is the one that left the record with no addresses.",
           items: [
             "Enactor 1 checks that its plan is newer",
             "Enactor 1 is delayed by retries",
@@ -1341,21 +1442,13 @@ const chapter: Chapter = {
           body:
             "It began at 11:48 PM PDT on October 19. DNS information was restored at 2:25 AM. Connections recovered at about 2:40 AM **as cached DNS records expired**. Effects on EC2 and NLB lasted into the afternoon. AWS disabled the automation worldwide while it fixed the race.\n\n" +
             "- **Never publish an empty answer.** Reject and page on plans that drop all targets or too much capacity.\n" +
-            "- **Compare-and-set, not check-then-act.** Cleanup must never delete the live plan.\n" +
+            "- **Compare-and-set, not check-then-act** (check and write in one atomic step). Cleanup must never delete the live plan.\n" +
             "- **Cache delays recovery too.**",
-        },
-        {
-          kind: "number",
-          prompt: "From the start (11:48 PM) to DNS information being restored (2:25 AM), how many minutes passed?",
-          answer: 157,
-          tolerance: 3,
-          unit: "min",
-          hint: "11:48 PM to midnight is 12 minutes.",
-          explain: "12 min to midnight + 2 h 25 min = 12 + 145 = **157 minutes**. Then connections took until about 2:40 AM (another ~15 minutes) to recover, because clients waited for cached records to expire.",
         },
         {
           kind: "match",
           prompt: "Match each incident to its main lesson.",
+          teach: "Recall each trigger: a DDoS on one DNS provider, a bug in a CDN's DNS, every site withdrawing routes at once, and a race in automation that emptied a record.",
           pairs: [
             ["Dyn 2016", "Do not depend on one DNS provider"],
             ["Akamai 2021", "A CNAME to a CDN makes its DNS your dependency"],
@@ -1405,8 +1498,16 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "Signed answers, and a full design",
+          body:
+            "Two last questions for a video platform. Can a viewer trust that a DNS answer was not changed on the way? And how do all the tools in this chapter fit together for a real service?\n\n" +
+            "**By the end of this lesson** you can explain what **DNSSEC** does and why it is risky to run. Then you can sketch a DNS design for a platform like Crunchyroll and size its query load.",
+        },
+        {
           kind: "quiz",
-          prompt: "What does DNSSEC give you?",
+          guess: true,
+          prompt: "Take a guess. DNSSEC is \"DNS security\". What would you expect it to give you?",
           options: [
             "Encryption of DNS queries",
             "Integrity and authenticity of DNS answers",
@@ -1414,7 +1515,16 @@ const chapter: Chapter = {
             "Faster lookups",
           ],
           answer: 1,
-          explain: "[[DNSSEC]] signs DNS data so a validating resolver can check that an answer came from the zone owner unchanged. It gives **integrity and authenticity**. Encryption is DoH and DoT, and it does not protect against DDoS.",
+          explain:
+            "**Integrity and authenticity.** DNSSEC adds signatures, so a resolver can check that an answer came from the zone owner and was not changed.\n\n" +
+            "It does **not** encrypt anything (that is DoH and DoT), and it does not stop DDoS attacks. Many people guess encryption; that is a common mix-up.",
+        },
+        {
+          kind: "read",
+          title: "What DNSSEC does",
+          body:
+            "[[DNSSEC]] signs DNS data, so a **validating resolver** (one that checks signatures) can confirm that an answer came from the zone owner unchanged.\n\n" +
+            "It gives **integrity and authenticity**. It does **not** encrypt queries (that is DoH and DoT, Lesson 2), and it does not protect against DDoS.",
         },
         {
           kind: "read",
@@ -1424,18 +1534,7 @@ const chapter: Chapter = {
             "- **RRSIG**: a signature over a set of records.\n" +
             "- **DS** (delegation signer): a hash of your KSK in the **parent** zone (e.g. `.com`), linking the chain of trust to you.\n" +
             "- **NSEC / NSEC3**: signed proof that a name or type does **not** exist.\n\n" +
-            "A validating resolver walks the chain from the root. If anything fails, it returns **SERVFAIL** to every user of that resolver.",
-        },
-        {
-          kind: "match",
-          prompt: "Match each DNSSEC record to its job.",
-          pairs: [
-            ["DNSKEY", "The zone's public keys (KSK and ZSK)"],
-            ["RRSIG", "A signature over a set of records"],
-            ["DS", "Hash of your KSK, published in the parent"],
-            ["NSEC / NSEC3", "Signed proof that something does not exist"],
-          ],
-          explain: "DNSKEY holds keys, RRSIG holds signatures, DS links the parent to your key, and NSEC/NSEC3 prove non-existence. A failure anywhere in the chain means SERVFAIL for every user of that validating resolver.",
+            "A validating resolver walks the chain from the root. If anything fails, it returns **SERVFAIL** (\"server failure\") to every user of that resolver.",
         },
         {
           kind: "read",
@@ -1454,6 +1553,7 @@ const chapter: Chapter = {
         {
           kind: "quiz",
           prompt: "Why did removing the DS record not fix Slack at once?",
+          teach: "The DS record lives in the parent zone, `.com`, and resolvers cache it for the parent's TTL. Think about what a resolver still holding it expects to find.",
           options: [
             "The registrar ignored the change",
             "Resolvers kept the cached DS for up to 24 hours, set by .com, and still expected signatures",
@@ -1468,8 +1568,8 @@ const chapter: Chapter = {
           title: "DNSSEC and CDNs",
           body:
             "- Signing your zone covers only your records. After a CNAME into a CDN's zone, the chain is signed only if the CDN signs its zone.\n" +
-            "- GSLB answers are computed per query, so they need **online signing**. That adds CPU and response size. Larger responses push more queries to TCP or fragmented UDP.\n" +
-            "- In the 2026-11-14 snapshot, `crunchyroll.com` had no DS record in `.com`, so it was not DNSSEC-signed then. That is a common choice for large consumer services, not a flaw by itself.",
+            "- GSLB answers are computed per query, so they need **online signing** (signing each answer as it is built). That adds CPU and response size. Larger responses push more queries to TCP or fragmented UDP.\n" +
+            "- In the 2026-11-14 snapshot, `crunchyroll.com` had no DS record in `.com`, so it was not signed then: a common choice for large consumer services, not a flaw.",
         },
         {
           kind: "reveal",
@@ -1499,17 +1599,6 @@ const chapter: Chapter = {
           },
         },
         {
-          kind: "match",
-          prompt: "Match each hostname role to its DNS approach.",
-          pairs: [
-            ["Website front door", "Anycast CDN, long-lived records"],
-            ["Playback API", "Latency or geo routing, health checks, short TTL"],
-            ["Static assets", "CNAME to one CDN, longer TTL"],
-            ["Video segments", "One hostname per CDN, chosen by the playback API"],
-          ],
-          explain: "Each job gets the DNS it needs: stable and DDoS-resistant for the front door, region failover for the API, cheap and cacheable for static assets, and per-session vendor choice for video.",
-        },
-        {
           kind: "read",
           title: "The playback path, part 1",
           body:
@@ -1528,6 +1617,7 @@ const chapter: Chapter = {
         {
           kind: "quiz",
           prompt: "CDN A starts returning errors mid-session. In this design, how does the player escape fastest?",
+          teach: "The player already holds a list of CDN hostnames from the playback API. Which escape needs no DNS cache to expire?",
           visual: { kind: "flow", spec: { ...designFlow, focus: ["m", "h1", "h2", "e2", "m>h2", "h2>e2"], flow: ["m>h2", "h2>e2"] } },
           options: [
             "Wait for the DNS TTL on video-cdn-a to expire",
@@ -1542,7 +1632,10 @@ const chapter: Chapter = {
           kind: "read",
           title: "Back-of-envelope: query load at a premiere",
           body:
-            "How many queries per second hit the authoritative servers for steered hostnames at a premiere? All values are assumed. There are three steered hostnames (API, CDN A, CDN B), each with a 60-second TTL.",
+            "How many queries per second hit the authoritative servers at a premiere? All values are assumed (see the stats). Three steered hostnames (API, CDN A, CDN B), each with a 60-second TTL.\n\n" +
+            "Without ECS, each resolver asks once per TTL for each name:\n\n" +
+            "**queries per second = resolvers / TTL x names**\n\n" +
+            "Worked example with other numbers: 6,000 resolvers, a 30 s TTL and 2 names give 6,000 / 30 x 2 = **400 qps**.",
           visual: {
             kind: "stats",
             items: [
@@ -1556,7 +1649,8 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
-          prompt: "Without ECS, each resolver asks once per TTL per name. 20,000 resolvers, 60 s TTL, 3 names. About how many queries per second?",
+          prompt: "Without ECS: 20,000 resolvers, 60 s TTL, 3 names. About how many queries per second?",
+          teach: "Each resolver asks once per TTL for each name. Divide resolvers by the TTL in seconds, then multiply by the number of names.",
           answer: 1000,
           tolerance: 100,
           unit: "qps",
@@ -1564,31 +1658,41 @@ const chapter: Chapter = {
           explain: "20,000 / 60 x 3 = **about 1,000 queries per second**.",
         },
         {
+          kind: "read",
+          title: "With ECS, count client blocks",
+          body:
+            "With ECS and /24 scopes, a resolver keeps a separate cache entry for **each client block**, for each name. So each client block now causes one query per TTL:\n\n" +
+            "**queries per second = client blocks / TTL x names**\n\n" +
+            "Worked example with other numbers: 60,000 blocks, a 30 s TTL and 2 names give 60,000 / 30 x 2 = **4,000 qps**.",
+        },
+        {
           kind: "number",
-          prompt: "With ECS and /24 scopes, each resolver keeps one entry per client block. 200,000 blocks, 60 s TTL, 3 names. About how many queries per second?",
+          prompt: "With ECS and /24 scopes: 200,000 client blocks, 60 s TTL, 3 names. About how many queries per second?",
+          teach: "With ECS, count client blocks instead of resolvers. Same formula: blocks divided by the TTL, times the number of names.",
           answer: 10000,
           tolerance: 1000,
           unit: "qps",
           explain: "200,000 / 60 x 3 = **about 10,000 queries per second**: ten times more, because the cache is now split by client block.",
         },
         {
-          kind: "number",
-          prompt: "Same ECS case, but you shorten the TTL to 20 seconds. About how many queries per second now?",
-          answer: 30000,
-          tolerance: 3000,
-          unit: "qps",
-          explain: "200,000 / 20 x 3 = **about 30,000 queries per second**. A TTL three times shorter means three times the queries.",
-        },
-        {
           kind: "read",
           title: "The real lesson: cost and dependency",
           body:
-            "These are small numbers for managed anycast DNS. The lesson is **cost and dependency**: each halving of TTL doubles the query bill and your reliance on the authoritative service.\n\n" +
-            "Akamai's eight-fold ECS increase shows the multiplier is real.",
+            "Now shorten the TTL to 20 seconds in the ECS case: 200,000 / 20 x 3 = about **30,000 queries per second**. A TTL three times shorter means three times the queries.\n\n" +
+            "These are small numbers for managed anycast DNS. The lesson is **cost and dependency**: each halving of TTL doubles the query bill and your reliance on the authoritative service. Akamai's eight-fold ECS increase shows the multiplier is real.",
+        },
+        {
+          kind: "read",
+          title: "Worked example: sessions on one CDN",
+          body:
+            "How many viewers does a CDN failure hit? Divide the traffic on that CDN by the bitrate of one stream:\n\n" +
+            "**sessions = traffic on the CDN / bitrate per stream**\n\n" +
+            "Example: a CDN carries **3 Tbps** at **5 Mbps** per stream. 3 Tbps = 3,000,000 Mbps, and 3,000,000 / 5 = **600,000 sessions**.",
         },
         {
           kind: "number",
           prompt: "A CDN carries half of an 8 Tbps premiere spike and fails. At 4 Mbps per stream, about how many sessions are on it?",
+          teach: "Sessions = traffic on that CDN divided by the bitrate of one stream. Convert Tbps to Mbps first: 1 Tbps = 1,000,000 Mbps.",
           answer: 1,
           tolerance: 0.1,
           unit: "M sessions",
@@ -1620,11 +1724,23 @@ const chapter: Chapter = {
       id: "ch03-l8",
       title: "Checkpoint",
       goal: "Check your understanding of DNS and global traffic steering with the chapter's questions.",
-      minutes: 8,
+      minutes: 9,
       steps: [
+        {
+          kind: "read",
+          title: "Here is what this chapter covered",
+          body:
+            "- DNS is the first routing decision: slow, cached, and blind to sessions already connected.\n" +
+            "- TTL is the main dial: long on stable records, short only on steered ones.\n" +
+            "- A CNAME hands a hostname to a CDN, so the CDN's DNS becomes your dependency.\n" +
+            "- Authoritative servers see the resolver, not the viewer. ECS helps, at a cost in queries.\n" +
+            "- GSLB policies and Route 53 health checks have exact rules, such as fail-open.\n" +
+            "- Anycast, DNS and app-level steering work together, and DNS fails often.",
+        },
         {
           kind: "quiz",
           prompt: "A player is mid-episode on CDN A when you switch the video hostname to CDN B with a 30-second TTL. Two minutes later, is it on CDN B?",
+          teach: "A player asks DNS when it opens a connection. Think about whether a player that is already streaming opens a new one.",
           options: [
             "Yes: 30 seconds have passed four times over",
             "Probably not: the player keeps its HTTP/2 or HTTP/3 connection to CDN A",
@@ -1643,6 +1759,7 @@ const chapter: Chapter = {
         {
           kind: "order",
           prompt: "Put the CDN migration steps in order.",
+          teach: "A long old TTL has to drain out of caches before a switch can be fast. Records and certificates must exist before anyone asks for them.",
           items: [
             "Lower the TTL, a day before",
             "Pre-create the new records and certificates",
@@ -1662,6 +1779,7 @@ const chapter: Chapter = {
         {
           kind: "quiz",
           prompt: "Three weighted Route 53 records for CDNs A, B and C all fail their health checks at once. What does Route 53 return?",
+          teach: "When every record in a group is unhealthy, Route 53 would rather return some answer than none.",
           options: [
             "An empty answer",
             "NXDOMAIN",
@@ -1674,6 +1792,7 @@ const chapter: Chapter = {
         {
           kind: "quiz",
           prompt: "A Route 53 HTTPS health check passes, but every player fails with a TLS error. How?",
+          teach: "Recall what a Route 53 HTTPS health check looks at, and what it skips.",
           options: [
             "The check uses HTTP/1.1 and players use HTTP/3",
             "Route 53 HTTPS health checks do not validate certificates",
@@ -1686,6 +1805,7 @@ const chapter: Chapter = {
         {
           kind: "multi",
           prompt: "Which are lessons from the October 2025 DynamoDB DNS incident for a steering service you might build?",
+          teach: "The incident came from a stale check, then a write, then a cleanup, and recovery waited on caches. The fix was safer writes, not less redundancy.",
           options: [
             "Never publish an empty answer or a plan that drops too much capacity",
             "Make the version check and the write atomic",
@@ -1706,6 +1826,7 @@ const chapter: Chapter = {
         {
           kind: "number",
           prompt: "With DNS alone, about how many minutes does it take to move most new requests off a dead CDN? (Give the middle of the range.)",
+          teach: "Add the stages: detection, the answer change, resolver caches, client caches and open connections. The chapter gave a range in minutes; take its middle.",
           answer: 2,
           tolerance: 1,
           unit: "min",
@@ -1714,6 +1835,7 @@ const chapter: Chapter = {
         {
           kind: "number",
           prompt: "In Akamai's rollout of end-user mapping, DNS queries to its name servers rose by roughly what factor?",
+          teach: "With ECS, resolvers keep one cache entry per client block, so they ask much more often. Recall the factor Akamai reported; it matches its drop in mapping distance.",
           answer: 8,
           tolerance: 0.5,
           unit: "x",
@@ -1722,6 +1844,7 @@ const chapter: Chapter = {
         {
           kind: "quiz",
           prompt: "Which TTL rule does the chapter recommend?",
+          teach: "Short TTLs cost queries and dependence; long TTLs cost agility. Ask where agility is actually needed.",
           options: [
             "Short TTLs everywhere, for agility",
             "Long TTLs everywhere, for resilience",
@@ -1734,6 +1857,7 @@ const chapter: Chapter = {
         {
           kind: "multi",
           prompt: "Which statements match the chapter's key takeaways?",
+          teach: "Recall whose IP address the authoritative server sees, and what DNSSEC does and does not give.",
           options: [
             "DNS is a slow, cached, eventually consistent control plane, blind to sessions already connected",
             "A CNAME hands a hostname to a CDN, and the CDN's DNS becomes your dependency",

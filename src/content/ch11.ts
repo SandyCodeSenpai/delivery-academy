@@ -192,18 +192,24 @@ const chapter: Chapter = {
       id: "ch11-l1",
       title: "Nobody sees the whole path",
       goal: "Explain why delivery observability is hard, size the log volume, and say what each hop can and cannot see.",
-      minutes: 10,
+      minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "Green dashboards, unhappy viewers",
+          body: "Picture a Tuesday evening. Every server returns 200 (OK). Every dashboard is green. And yet fans in São Paulo on one ISP watch a spinning wheel every two minutes.\n\nThis chapter is about finding problems like that, fast. In this lesson you will learn who can see what along the delivery path, the main kinds of monitoring data, and how much data a big platform creates.\n\nBy the end you can explain why delivery observability is hard and size the log volume.",
+        },
+        {
           kind: "quiz",
-          prompt: "Every server returns 200. Every dashboard is green. Can viewers still be failing?",
+          guess: true,
+          prompt: "Take a guess. Every server returns 200 and every dashboard is green. What would you expect: can viewers still be having a bad time?",
           options: [
             "No. A 200 means the bytes arrived, so the viewer is fine.",
             "Yes. A 200 can arrive too slowly, and the player stalls.",
             "Only if the origin is down.",
           ],
           answer: 1,
-          explain: "A video platform can be \"up\" and still fail its viewers. Fans in São Paulo on one ISP can watch a spinning wheel every two minutes while every response is a 200. Status codes do not measure speed.",
+          explain: "Yes. A status code says the server answered, not how fast. Video needs each segment to arrive before the player runs out of video to show. If a 4-second segment takes 5 seconds to download, the response is still a 200, but the picture freezes. A video platform can be \"up\" and still fail its viewers.",
         },
         {
           kind: "read",
@@ -215,17 +221,6 @@ const chapter: Chapter = {
           kind: "read",
           title: "Each hop sees part of the truth",
           body: "The CDN knows a segment took 3 seconds to send. It does not know if the viewer's buffer was full (fine) or empty (a stall). The player sees the stall, but not why. The origin sees only cache misses.\n\n**Observability** for media delivery means joining these partial views into one story, fast enough to act. In general, observability is the ability to answer new questions about your system from the data it emits, without shipping new code.",
-        },
-        {
-          kind: "match",
-          prompt: "Match each hop to what it can see.",
-          pairs: [
-            ["Player", "The stall, but not its cause"],
-            ["CDN edge", "Every request, but not the buffer"],
-            ["Origin", "Only cache misses"],
-            ["Control plane", "API latency, but not the bytes"],
-          ],
-          explain: "Each vantage point holds one slice. The player sees experience, the CDN sees requests, the origin sees only misses, and the control plane sees API calls but not the bytes path.",
         },
         {
           kind: "read",
@@ -244,42 +239,11 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Look at the \"What it is\" column of the signal table. One signal keeps a separate record for every single event; the others summarize, follow one request, or come from the player.",
           prompt: "You need one record per segment request, with status, PoP, cache result and bytes. Which signal type is that?",
           options: ["Metrics", "Logs", "Traces", "RUM"],
           answer: 1,
           explain: "Logs are one record per event: rich, but expensive. Metrics are aggregated numbers, traces follow a request across your services, and RUM is the player's view.",
-        },
-        {
-          kind: "number",
-          prompt: "Assumed model: ~1M concurrent streams, ~4 s segments, separate (demuxed) audio and video. Each stream fetches one video and one audio segment every 4 s. How many segment requests per second?",
-          answer: 500000,
-          tolerance: 50000,
-          unit: "requests/s",
-          hint: "1M streams / 4 s, then x 2 for audio and video.",
-          explain: "1M / 4 s x 2 = ~500,000 requests per second, before manifests, subtitles and license calls. At a 2M-stream simulcast spike it is ~1M requests per second.",
-        },
-        {
-          kind: "number",
-          prompt: "At the spike (~1M requests per second), CloudFront's estimate of ~500 bytes per log record gives how many TB of logs per day?",
-          answer: 43,
-          tolerance: 4,
-          unit: "TB/day",
-          hint: "500 bytes x 1M = 500 MB per second. A day has 86,400 seconds.",
-          explain: "500 bytes x 1M per second = ~500 MB per second. x 86,400 s = ~43 TB per day. CloudFront says a typical real-time record is about 500 bytes, and about 1 KB with all fields.",
-        },
-        {
-          kind: "read",
-          title: "The number that drives this chapter",
-          body: "Per month: 300M hours x 3,600 s / 4 s x 2 = ~540 billion segment requests. You cannot index that in any observability vendor at a sane price.\n\nSo the rule is: **aggregate early, sample the rest, keep raw logs in cheap object storage.**",
-          visual: {
-            kind: "stats",
-            items: [
-              { value: "~500k/s", label: "Segment requests, normal peak", note: "assumed model" },
-              { value: "~43 TB", label: "Logs per day at 1M req/s", note: "500 bytes each" },
-              { value: "~540B", label: "Segment requests per month", note: "assumed model" },
-            ],
-          },
-          callout: { type: "industry", text: "Netflix built Mantis, an open-source stream-processing platform, for faster and deeper operational insight. Mantis runs queries on live event streams, so high-cardinality questions do not require storing everything first." },
         },
         {
           kind: "read",
@@ -303,6 +267,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "The study links each kind of bad event to one viewer behavior: slow starts to abandoning, stalls to watching less. Find the finding about coming back later.",
           prompt: "In the IMC 2012 study, which event made a viewer less likely to come back to the same site within a week?",
           options: ["A bitrate switch", "A playback failure", "A 2-second startup", "A seek"],
           answer: 1,
@@ -326,11 +291,65 @@ const chapter: Chapter = {
           },
         },
         {
-          kind: "quiz",
-          prompt: "A viewer stalled. Which vantage point can tell you which cache tier served their bytes?",
-          options: ["The player", "CDN edge logs", "Synthetic probes", "The playback API trace"],
-          answer: 1,
-          explain: "CDN logs record the cache result (hit, miss, shield hit) for every request. The player sees the stall but not the tier. Probes do not see real users, and the control plane does not see the bytes path.",
+          kind: "match",
+          teach: "Use the vantage-point table. For each hop, read its \"Sees well\" and \"Cannot see\" columns together.",
+          prompt: "Match each hop to what it can see.",
+          pairs: [
+            ["Player", "The stall, but not its cause"],
+            ["CDN edge", "Every request, but not the buffer"],
+            ["Origin", "Only cache misses"],
+            ["Control plane", "API latency, but not the bytes"],
+          ],
+          explain: "Each vantage point holds one slice. The player sees experience, the CDN sees requests, the origin sees only misses, and the control plane sees API calls but not the bytes path.",
+        },
+        {
+          kind: "reveal",
+          prompt: "A viewer stalled. Which vantage point can tell you which cache tier served their bytes? Think, then tap.",
+          answer: "The CDN edge logs. They record the cache result (hit, miss, shield hit) for every request. The player sees the stall but not the tier. Probes do not see real users, and the control plane does not see the bytes path.",
+        },
+        {
+          kind: "read",
+          title: "Counting requests: a worked example",
+          body: "Video is fetched in small files called **segments**. Each stream asks for a new one every few seconds. With separate (**demuxed**) audio and video, it asks for two each time.\n\nWorked example, with small numbers:\n\n- 200,000 streams, 6-second segments, demuxed audio and video\n- Requests per second = streams / segment length x 2\n- 200,000 / 6 x 2 = **~66,700 requests per second**",
+        },
+        {
+          kind: "number",
+          teach: "Use the same formula as the worked example: streams divided by segment length, then times 2 for audio and video.",
+          prompt: "Now the book's assumed model: ~1M concurrent streams, ~4 s segments, demuxed audio and video. How many segment requests per second?",
+          answer: 500000,
+          tolerance: 50000,
+          unit: "requests/s",
+          hint: "1M streams / 4 s, then x 2 for audio and video.",
+          explain: "1M / 4 s x 2 = ~500,000 requests per second, before manifests, subtitles and license calls. At a 2M-stream simulcast spike it is ~1M requests per second.",
+        },
+        {
+          kind: "read",
+          title: "From requests to log bytes",
+          body: "Every request writes one log line. CloudFront estimates a typical real-time log record at about **500 bytes**, and about 1 KB with all fields.\n\nWorked example: 100,000 requests per second, 1 KB each.\n\n- Per second: 100,000 x 1 KB = 100 MB\n- A day has 86,400 seconds\n- Per day: 100 MB x 86,400 = 8,640,000 MB = **~8.6 TB**\n\n(1 TB = 1,000,000 MB.)",
+        },
+        {
+          kind: "number",
+          teach: "Bytes per second = requests per second x record size. Multiply by the seconds in a day, then convert MB to TB.",
+          prompt: "At the simulcast spike there are ~1M requests per second. At ~500 bytes per log record, how many TB of logs per day?",
+          answer: 43,
+          tolerance: 4,
+          unit: "TB/day",
+          hint: "500 bytes x 1M = 500 MB per second. A day has 86,400 seconds.",
+          explain: "500 bytes x 1M per second = ~500 MB per second. x 86,400 s = ~43 TB per day. CloudFront says a typical real-time record is about 500 bytes, and about 1 KB with all fields.",
+        },
+        {
+          kind: "read",
+          title: "The number that drives this chapter",
+          body: "Per month: 300M hours x 3,600 s / 4 s x 2 = ~540 billion segment requests. You cannot index that in any observability vendor at a sane price.\n\nSo the rule is: **aggregate early, sample the rest, keep raw logs in cheap object storage.**",
+          visual: {
+            kind: "stats",
+            items: [
+              { value: "~500k/s", label: "Segment requests, normal peak", note: "assumed model" },
+              { value: "~43 TB", label: "Logs per day at 1M req/s", note: "500 bytes each" },
+              { value: "~540B", label: "Segment requests per month", note: "assumed model" },
+            ],
+          },
+          callout: { type: "industry", text: "Netflix built Mantis, an open-source stream-processing platform, for faster and deeper operational insight. Mantis runs queries on live event streams, so high-cardinality questions do not require storing everything first." },
         },
         {
           kind: "read",
@@ -371,16 +390,15 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
-          kind: "quiz",
-          prompt: "Where can you see every byte you pay for, broken down by PoP, country, ISP and cache result?",
-          options: ["The player SDK", "CDN logs", "Origin metrics", "Synthetic probes"],
-          answer: 1,
-          explain: "CDN logs are the only place with every byte you pay for, split by PoP, country, ISP and cache result. Each vendor exports them differently, so multi-CDN analysis needs one common schema.",
+          kind: "read",
+          title: "Where every byte shows up",
+          body: "Your CDN bill counts every byte. **CDN logs** are the only place where you can see each of those requests, split by PoP, country, ISP and cache result.\n\nThe catch: each vendor exports logs in its own way and names the fields differently.\n\nIn this lesson you will see what to log on Fastly, CloudFront and Akamai, how to size a log stream, and how to turn three formats into one schema.",
+          visual: { kind: "flow", spec: { ...VANTAGE, focus: ["e", "s", "l", "e>l", "s>l"], flow: ["e>l"] } },
         },
         {
           kind: "read",
           title: "Fastly real-time log streaming",
-          body: "Fastly streams one log line per request to an endpoint you choose: a native Datadog endpoint, S3, GCS, BigQuery, Kafka, HTTPS, syslog and dozens more.\n\nIn a VCL service, the logging call runs in `vcl_log`, after the response is delivered, so final values are known. You write a **log format string**:\n\n- `%{variable}V` for VCL variables\n- `%{Header}i` for request headers\n- `%{Header}o` for response headers",
+          body: "Fastly streams one log line per request to an endpoint you choose: a native Datadog endpoint, S3, GCS, BigQuery, Kafka, HTTPS, syslog and dozens more.\n\nIn a VCL service (VCL is Fastly's configuration language), the logging call runs in `vcl_log`, after the response is delivered, so final values are known. You write a **log format string**:\n\n- `%{variable}V` for VCL variables\n- `%{Header}i` for request headers\n- `%{Header}o` for response headers",
         },
         {
           kind: "read",
@@ -402,6 +420,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "The variables table lists what each one tells you. The words inside each name (state, datacenter, as, retrans, first_byte) are strong clues.",
           prompt: "Match each Fastly variable to what it logs.",
           pairs: [
             ["`fastly_info.state`", "Cache state (HIT, MISS, PASS)"],
@@ -415,11 +434,12 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "A delivery-focused log format",
-          body: "Fastly's Datadog guide says the JSON must be valid, entered as **one line** in the log format field, with `ddsource` set to `fastly`. It is shown on many lines here for reading.\n\nThe last field captures the CMCD session header (lesson 5).",
+          body: "Fastly's Datadog guide says the JSON must be valid, entered as **one line** in the log format field, with `ddsource` set to `fastly`. It is shown on many lines here for reading.\n\nNotice two fields. `path` logs `req.url.path`: the path only, without the query string. The last field captures the CMCD session header (lesson 5).",
           visual: { kind: "code", lang: "json", code: FASTLY_JSON, caption: "Fastly log format string (one line in practice)" },
         },
         {
           kind: "quiz",
+          teach: "Recall Chapter 8: a signed URL carries proof that the viewer may fetch the file. Think about where that proof usually sits in the URL, and how many people can read logs.",
           prompt: "The format logs `req.url.path`, not the full URL with its query string. Why?",
           options: [
             "Query strings are too long for Datadog",
@@ -437,11 +457,17 @@ const chapter: Chapter = {
         },
         {
           kind: "read",
-          title: "CloudFront: standard and real-time logs",
-          body: "**Standard logs (v2)** go to CloudWatch Logs, Firehose or S3, in formats including JSON and Parquet. Enabling them is free, though delivery and storage can cost money. They suit forensics and daily reports, not real-time alerting.\n\n**Real-time logs** go to a Kinesis Data Stream \"within seconds\". You set a **sampling rate** (a whole number from 1 to 100, the percent of requests logged), the fields, and the cache behaviors that log. For example, segments at 5% and manifests at 100%.",
+          title: "CloudFront standard logs",
+          body: "Amazon CloudFront has two kinds of logs.\n\n**Standard logs (v2)** go to CloudWatch Logs, Firehose or S3, with fields you select, in formats including JSON and Parquet. Enabling them is free, though delivery and storage can cost money.\n\nThey suit **forensics** (looking back after an incident) and daily reports, not real-time alerting.",
+        },
+        {
+          kind: "read",
+          title: "CloudFront real-time logs",
+          body: "**Real-time logs** go to an Amazon Kinesis Data Stream \"within seconds\". You set:\n\n- a **sampling rate**: a whole number from 1 to 100, the percent of requests logged\n- the fields you want\n- the cache behaviors (path patterns) that log, for example segments at 5% and manifests at 100%\n\nTwo warnings from AWS: they cost extra on top of Kinesis, and they are **best-effort**. A record may arrive late or, rarely, never.",
         },
         {
           kind: "quiz",
+          teach: "Recall the second warning AWS gives about real-time logs: how strong is its promise that every record arrives?",
           prompt: "Your CloudFront real-time log count is slightly below the billing count. What is the most likely explanation?",
           options: [
             "Your Kinesis consumer has a bug",
@@ -471,6 +497,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "In the fields table, compare what each field's values describe. You want the field whose values change depending on which hop had the problem.",
           prompt: "Which single CloudFront field often tells you which hop failed?",
           options: ["`c-country`", "`x-edge-detailed-result-type`", "`time-taken`", "`sr-reason`"],
           answer: 1,
@@ -478,8 +505,13 @@ const chapter: Chapter = {
         },
         {
           kind: "read",
-          title: "Kinesis sizing",
-          body: "Each Kinesis shard accepts up to **1,000 records and 1 MB per second**.\n\nAssume CloudFront carries 30% of the 500,000 requests per second: 150,000 per second. Records are ~1 KB with the fields you want. How many shards do you need?",
+          title: "Kinesis sizing: a worked example",
+          body: "A Kinesis stream is split into **shards**. Each shard accepts up to **1,000 records and 1 MB per second**. You need enough shards for both limits.\n\nWorked example: 40,000 requests per second, 25% sampling, ~1 KB per record.\n\n- Records: 40,000 x 25% = 10,000 per second. 10,000 / 1,000 = 10 shards.\n- Bytes: 10,000 x 1 KB = 10 MB per second. 10 / 1 = 10 shards.\n- Take the larger: **10 shards**.",
+        },
+        {
+          kind: "number",
+          teach: "Apply the sampling rate first. Then check both shard limits: records per second and MB per second.",
+          prompt: "Now the book's model. CloudFront carries 30% of the 500,000 requests per second: 150,000 per second (assumed). At 10% sampling and ~1 KB per record, how many shards at normal peak?",
           visual: {
             kind: "stats",
             items: [
@@ -488,23 +520,11 @@ const chapter: Chapter = {
               { value: "150k/s", label: "CloudFront requests", note: "30% share, assumed" },
             ],
           },
-        },
-        {
-          kind: "number",
-          prompt: "At 10% sampling and ~1 KB per record, how many Kinesis shards for 150,000 requests per second (normal peak)?",
           answer: 15,
           tolerance: 1,
           unit: "shards",
           hint: "10% of 150,000 records per second. Each shard takes 1,000 records and 1 MB per second.",
-          explain: "150,000 x 10% = 15,000 records and ~15 MB per second. 15,000 / 1,000 = 15 shards. Size for the spike and you need ~30.",
-        },
-        {
-          kind: "number",
-          prompt: "Same traffic, but at 100% sampling. How many shards at normal peak?",
-          answer: 150,
-          tolerance: 10,
-          unit: "shards",
-          explain: "150,000 records and ~150 MB per second: ~150 shards. Sampling is a cost decision.",
+          explain: "150,000 x 10% = 15,000 records and ~15 MB per second. 15,000 / 1,000 = 15 shards. Size for the spike and you need ~30. At 100% sampling it is ~150,000 records and ~150 MB per second: ~150 shards. Sampling is a cost decision.",
         },
         {
           kind: "read",
@@ -513,6 +533,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "The basic AWS integration and the more important CloudFront metrics do not come the same way. Recall which metrics need something switched on in CloudFront first.",
           prompt: "Your Datadog CloudFront dashboard shows `aws.cloudfront.requests`, but `aws.cloudfront.cache_hit_rate` is empty. Why?",
           options: [
             "Real-time logs are sampled at 5%",
@@ -531,7 +552,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "One schema for many CDNs",
-          body: "Each vendor names the same idea differently. Build a **normalized delivery log schema**, or every [[multi-CDN]] comparison becomes manual translation. Check the exact Akamai field names in the DataStream 2 docs for your stream version.",
+          body: "Each vendor names the same idea differently. Build a **normalized delivery log schema**: one set of field names for every vendor. Without it, every [[multi-CDN]] comparison becomes manual translation. Check the exact Akamai field names in the DataStream 2 docs for your stream version.",
           visual: {
             kind: "table",
             headers: ["Common field", "Fastly", "CloudFront", "Akamai DS2"],
@@ -557,6 +578,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Each processor does one kind of change: parse text, rename a field, group many values into a few, do arithmetic, or look a value up in a table.",
           prompt: "Match each Datadog pipeline processor to its job.",
           pairs: [
             ["Grok parser", "Parse a non-JSON log format"],
@@ -585,18 +607,24 @@ const chapter: Chapter = {
       id: "ch11-l3",
       title: "Players and probes",
       goal: "Choose a QoE data source, get it into Datadog safely, sample player events, and design the synthetic probes a delivery team needs.",
-      minutes: 10,
+      minutes: 11,
       steps: [
         {
+          kind: "read",
+          title: "What did the viewer feel?",
+          body: "CDN logs tell you about requests. They cannot tell you what the viewer felt. For that you need data from the **player** itself, plus test traffic you create on purpose.\n\nIn this lesson you will compare ways to collect player data, get it into Datadog safely, decide what to sample, and design **synthetic probes**: scripted test requests.\n\nBy the end you can say which source answers which question.",
+        },
+        {
           kind: "quiz",
-          prompt: "A CDN log shows a segment took 3 seconds to send. Was that a stall for the viewer?",
+          guess: true,
+          prompt: "Take a guess. A CDN log shows a segment took 3 seconds to send. What would you expect: was that a stall for the viewer?",
           options: [
             "Yes, 3 seconds is always a stall",
             "No, the CDN would have logged an error",
             "You cannot tell from CDN logs alone: it depends on the player's buffer",
           ],
           answer: 2,
-          explain: "With a full buffer, 3 seconds is fine. With an empty buffer, it is a stall. Only the player knows, which is why player-side telemetry is essential.",
+          explain: "You cannot tell from the CDN log alone. The player keeps a **buffer**: video it has downloaded but not yet shown. If the buffer held 20 seconds, a 3-second download is fine. If it was empty, the picture froze. Only the player knows its buffer, which is why player-side telemetry is essential.",
         },
         {
           kind: "read",
@@ -620,6 +648,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Use the Strengths column of the table. Each option wins at something different: speed of setup, one shared tool, or full control.",
           prompt: "Match each need to the QoE option that fits it best.",
           pairs: [
             ["Ready SDKs and industry benchmarks", "Commercial QoE analytics"],
@@ -634,8 +663,15 @@ const chapter: Chapter = {
           body: "Two vendors have native Datadog integrations.\n\n- **Conviva** (partnership announced August 2021): pulls metrics defined by a Conviva \"MetricLens\", such as `conviva.quality.total_attempts`, maps Conviva dimensions to Datadog tags, and supports monitors on playback and startup failure percentages.\n- **Mux Data**: `mux.metric.video_startup_time`, `mux.metric.rebuffer_percentage`, `mux.metric.playback_failure_percentage`, `mux.metric.exits_before_video_start`.\n\nWatch definitions. Mux's \"monitoring metrics\" have sub-20-second latency, but some are computed differently from the full QoE metrics. Label which one each dashboard uses.",
         },
         {
+          kind: "read",
+          title: "Pair every ratio with volume",
+          body: "A **ratio** such as rebuffering ratio divides bad by total. Ratios hide missing data. If telemetry drops, the denominator shrinks with the numerator, and the dashboard stays calm while viewers suffer.",
+          callout: { type: "staff", text: "Ask in design review: \"When the player cannot reach the analytics collector, what do we see?\" A total outage looks like zero telemetry, and a ratio over the sessions that still report can look better. Always pair QoE ratio alerts with a volume alert (plays per minute versus baseline)." },
+        },
+        {
           kind: "quiz",
-          prompt: "The analytics collector becomes unreachable for the players hit worst by an outage. What happens to the rebuffering ratio on your dashboard?",
+          teach: "A ratio is computed only over the sessions that still report. Think about which sessions stop reporting when the collector cannot be reached.",
+          prompt: "During an outage, the players hit worst cannot reach the analytics collector. What happens to the rebuffering ratio on your dashboard?",
           options: [
             "It spikes, so the alert fires",
             "It can look better, because only healthy sessions still report",
@@ -646,12 +682,12 @@ const chapter: Chapter = {
         },
         {
           kind: "read",
-          title: "Pair every ratio with volume",
-          body: "Ratios hide missing data. If telemetry drops, the denominator shrinks with the numerator, and the dashboard stays calm while viewers suffer.",
-          callout: { type: "staff", text: "Ask in design review: \"When the player cannot reach the analytics collector, what do we see?\" A total outage looks like zero telemetry, and a ratio over the sessions that still report can look better. Always pair QoE ratio alerts with a volume alert (plays per minute versus baseline)." },
+          title: "Counting player events: a worked example",
+          body: "Many players send a **heartbeat**: a small event every few seconds that says \"still playing, here is my state\".\n\nWorked example: 200,000 concurrent streams, one heartbeat every 20 seconds.\n\n- Events per second = streams / seconds between heartbeats\n- 200,000 / 20 = **10,000 events per second**\n\nAt one heartbeat every 5 seconds, the same streams send 40,000 events per second.",
         },
         {
           kind: "number",
+          teach: "Divide the number of streams by the seconds between heartbeats.",
           prompt: "~1M concurrent streams each send a heartbeat every 10 seconds. How many heartbeat events per second?",
           answer: 100000,
           tolerance: 5000,
@@ -661,18 +697,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Sampling the player",
-          body: "If you build in-house:\n\n- Send **start, failure and session-end** events at 100%. They are rare and they matter.\n- **Sample heartbeats.**\n- Record the **sample rate on each event**, so counts can be scaled back up.",
-        },
-        {
-          kind: "quiz",
-          prompt: "Why store the sample rate on every sampled event?",
-          options: [
-            "So the warehouse can delete old events",
-            "So counts can be scaled back up to true totals",
-            "So the CDN can cache the event",
-          ],
-          answer: 1,
-          explain: "A heartbeat sampled at 10% stands for 10 heartbeats. Storing the rate on the event lets every query scale counts back up, even if the rate changes over time.",
+          body: "If you build in-house:\n\n- Send **start, failure and session-end** events at 100%. They are rare and they matter.\n- **Sample heartbeats**, for example keep 10% of them.\n- Record the **sample rate on each event**. A heartbeat kept at 10% stands for 10 heartbeats, so every query can scale counts back up to true totals, even if the rate changes over time.",
         },
         {
           kind: "read",
@@ -696,6 +721,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Use the tools table. An ISP will accept evidence about its network routes, not about how a video played.",
           prompt: "You must prove to an ISP that a routing problem is on their side. Which tool is strongest here?",
           options: ["Catchpoint streaming test", "ThousandEyes", "Mux Data", "Datadog RUM"],
           answer: 1,
@@ -704,17 +730,25 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "What a delivery team should probe",
-          body: "1. **Per-CDN manifest fetch**, through each CDN hostname directly, bypassing steering.\n2. **Per-CDN segment fetch with a time assertion.**\n3. **Cache-miss path**: a cache-busting object that tests shield and origin, which normal hits hide.\n4. **DNS answers** per delivery hostname (Chapter 3) and **TLS certificate expiry** (Chapter 15).\n5. **Control-plane flow**: a multistep test that calls the playback API, gets a signed URL, and fetches manifest and segment. It catches signing mistakes a plain URL test misses.",
+          body: "1. **Per-CDN manifest fetch**, through each CDN hostname directly, bypassing steering.\n2. **Per-CDN segment fetch with a time assertion** (a check that the download was fast enough, not just a 200).\n3. **Cache-miss path**: a cache-busting object that tests shield and origin, which normal hits hide.\n4. **DNS answers** per delivery hostname (Chapter 3) and **TLS certificate expiry** (Chapter 15).\n5. **Control-plane flow**: a multistep test that calls the playback API, gets a signed URL, and fetches manifest and segment. It catches signing mistakes a plain URL test misses.",
         },
         {
           kind: "quiz",
+          teach: "Compare the download time with how many seconds of video the segment holds. Recall what happens to the player's buffer while it waits.",
           prompt: "A synthetic probe downloads a 4-second segment. It gets a 200, and the download takes 4.2 seconds. Pass or fail?",
           options: ["Pass: the status is 200", "Fail: it is slower than real time, so a player would drain its buffer", "Pass, unless the PoP is far away"],
           answer: 1,
           explain: "A 200 that takes 4 seconds to download a 4-second segment is already a failure for video. That is why segment probes need a time assertion, not just a status check.",
         },
         {
+          kind: "read",
+          title: "Green probes do not mean happy viewers",
+          body: "Synthetics are for **early warning and isolation**, not for QoE. Use them to know a CDN or hostname is broken before users arrive, and to localize a path problem once you have one.",
+          callout: { type: "mistake", text: "Treating green synthetics as proof viewers are fine. Probes run from well-connected data centers and miss the congested peering link to a Brazilian mobile carrier." },
+        },
+        {
           kind: "multi",
+          teach: "Probes run on a schedule from fixed, well-connected data centers, with no real viewers. For each item, ask: does catching it need real users, real devices or a real last mile?",
           prompt: "Which of these can synthetic probes catch well? Select all that apply.",
           options: [
             "A CDN hostname failing at 4 a.m. in a small country",
@@ -725,12 +759,6 @@ const chapter: Chapter = {
           ],
           answers: [0, 1, 3],
           explain: "Probes work with zero users and test fixed things like hostnames and certificates. They run from well-connected data centers, so they miss real last-mile congestion and real devices.",
-        },
-        {
-          kind: "read",
-          title: "Green probes do not mean happy viewers",
-          body: "Synthetics are for **early warning and isolation**, not for QoE. Use them to know a CDN or hostname is broken before users arrive, and to localize a path problem once you have one.",
-          callout: { type: "mistake", text: "Treating green synthetics as proof viewers are fine. Probes run from well-connected data centers and miss the congested peering link to a Brazilian mobile carrier." },
         },
         {
           kind: "summary",
@@ -753,18 +781,14 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
-          kind: "number",
-          prompt: "~540 billion CDN requests a month (assumed). Datadog listed Flex Logs storage from about $0.05 per million events per month. Storage cost alone, per month?",
-          answer: 27000,
-          tolerance: 2000,
-          unit: "$/month",
-          hint: "540 billion is 540,000 million.",
-          explain: "540,000 million x $0.05 = ~$27,000 per month for storage alone, before ingest. So many teams keep 100% of raw CDN logs in S3 or GCS (queried with Athena or BigQuery) and send Datadog only what real-time work needs.",
+          kind: "read",
+          title: "The control room has a meter",
+          body: "The 2026 job posting for the Media Delivery team names **Datadog** explicitly. Datadog is where metrics, logs, traces and alerts come together: the control room.\n\nBut it charges by volume. At ~540 billion CDN requests a month (assumed), careless use means bill shock.\n\nIn this lesson you will map questions to Datadog features, turn logs into cheap metrics, and keep the number of unique metric series under control.",
         },
         {
           kind: "read",
           title: "Datadog as the control room",
-          body: "The 2026 job posting for the Media Delivery team names Datadog explicitly. Each Datadog product answers a different delivery question.",
+          body: "Each Datadog product answers a different delivery question.",
           visual: {
             kind: "table",
             headers: ["Delivery question", "Datadog feature", "Notes"],
@@ -782,6 +806,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Use the table: find the row whose question is closest, then read its feature column.",
           prompt: "Match each delivery question to the Datadog feature that answers it.",
           pairs: [
             ["p95 TTFB across all PoPs", "Distribution metrics"],
@@ -799,6 +824,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall the order: logs are ingested first, then exclusion filters decide what gets indexed. Ask where logs-to-metrics rules run in that order.",
           prompt: "An exclusion filter drops 95% of segment logs from the index. Does a logs-to-metrics rule still count those dropped logs?",
           options: [
             "No, it only sees indexed logs",
@@ -815,6 +841,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Logs-to-metrics has a time limit on which logs it aggregates. Compare the batch's delay with that limit.",
           prompt: "A CDN vendor delivers a batch of logs 30 minutes after the requests happened. What happens to your log-based metrics?",
           options: [
             "They count the batch normally",
@@ -826,8 +853,23 @@ const chapter: Chapter = {
         },
         {
           kind: "read",
+          title: "Paying per million events: a worked example",
+          body: "**Flex Logs** is Datadog's cheaper log storage tier, with query compute priced separately. Datadog's pricing page listed Flex storage from about **$0.05 per million events per month** (annual billing).\n\nWorked example: 10 billion log events a month.\n\n- 10 billion = 10,000 million\n- 10,000 x $0.05 = **$500 per month**, for storage alone, before ingest",
+        },
+        {
+          kind: "number",
+          teach: "Turn billions into millions first (1 billion = 1,000 million), then multiply by the price per million events.",
+          prompt: "Now the book's model: ~540 billion CDN requests a month (assumed), one log event each. Flex storage cost alone, per month?",
+          answer: 27000,
+          tolerance: 2000,
+          unit: "$/month",
+          hint: "540 billion is 540,000 million.",
+          explain: "540,000 million x $0.05 = ~$27,000 per month for storage alone, before ingest. So many teams keep 100% of raw CDN logs in S3 or GCS (queried with Athena or BigQuery) and send Datadog only what real-time work needs.",
+        },
+        {
+          kind: "read",
           title: "Flex Logs and the raw-log lake",
-          body: "**Flex Logs** is a cheaper storage tier with separately priced query compute. Even so, at the book's assumed scale it is ~$27,000 a month for storage alone.\n\nSo a common split: **100% of raw CDN logs in S3 or GCS**, queried with Athena or BigQuery. Datadog gets only what real-time work needs.",
+          body: "Even the cheap tier costs ~$27,000 a month for storage alone at the book's assumed scale.\n\nSo a common split: **100% of raw CDN logs in S3 or GCS**, queried with Athena or BigQuery. Datadog gets only what real-time work needs.",
           visual: {
             kind: "compare",
             left: { title: "Datadog", points: ["Real-time dashboards and alerts", "Metrics from 100% of logs", "Indexed sample plus all errors"] },
@@ -852,10 +894,11 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Cardinality",
-          body: "**[[Cardinality]]** is the number of unique time series a metric creates. Datadog defines a custom metric as \"a unique combination of a metric's name and tag values (including the host tag)\".\n\nIts own example: a metric with tag `endpoint` (2 values) and tag `status` (2 values) counts as **4** custom metrics. Every tag multiplies.",
+          body: "**[[Cardinality]]** is the number of unique time series a metric creates. Datadog defines a custom metric as \"a unique combination of a metric's name and tag values (including the host tag)\".\n\nIts own example: a metric with tag `endpoint` (2 values) and tag `status` (2 values) counts as 2 x 2 = **4** custom metrics.\n\nA bigger example: `endpoint` (10) x `status` (5) x `region` (3) = **150** series. Every tag multiplies.",
         },
         {
           kind: "number",
+          teach: "Multiply the number of values of every tag together. Each new tag multiplies the series count.",
           prompt: "`delivery.requests` tagged by CDN (4) x PoP (say 80 per CDN) x status class (5) x cache status (4). Up to how many series?",
           answer: 6400,
           tolerance: 100,
@@ -888,23 +931,13 @@ const chapter: Chapter = {
           body: "1. **Choose a home for each dimension.** Low-cardinality ones (CDN, region, object type, status class, cache status) go on metrics. High-cardinality ones (session ID, path, IP, device model) stay in logs or the warehouse.\n2. **Bucket the long tail.** An `asn_bucket` tag holds the top N ASNs per country (say 20) plus `other`. Most traffic and most incidents that matter are there. Recompute weekly.\n3. **Separate metrics by question.** A per-PoP metric (CDN x PoP x status x cache) and a per-ISP metric (CDN x country x asn_bucket x status).",
         },
         {
-          kind: "match",
-          prompt: "Match each dimension to its home.",
-          pairs: [
-            ["CDN", "A metric tag, as is"],
-            ["ASN", "`asn_bucket`: top 20 per country plus other"],
-            ["Session ID", "Logs and warehouse, never a tag"],
-            ["Title, on a premiere day", "One `release_class` tag"],
-          ],
-          explain: "Low-cardinality dimensions go on metrics. ASNs get bucketed. Session IDs stay in logs. For launch-day titles, a single low-cardinality tag such as `release_class:simulcast_premiere` replaces a title tag.",
-        },
-        {
           kind: "read",
           title: "Strategies 4 to 6",
           body: "4. **Use Metrics without Limits.** Ingest all tags but index only an allowlist; billing follows indexed volume. Datadog warns an allowlist can drop tags used by dashboards, monitors or SLOs that were not queried recently.\n5. **Be careful with percentiles.** Distributions give globally correct percentiles via server-side DDSketch, but percentiles on a high-cardinality distribution multiply cost. Enable them only where you alert or report.\n6. **Push the long tail to the warehouse.** Datadog is the real-time control room, not the data lake.",
         },
         {
           kind: "quiz",
+          teach: "Look at the rough number of values for each dimension, and at how strategy 3 splits metrics by question. The dangerous pair is the one whose product is largest.",
           prompt: "Which two dimensions should never be tags on the same metric?",
           options: ["CDN and status class", "PoP and ASN", "Country and object type", "Cache status and CDN"],
           answer: 1,
@@ -921,6 +954,18 @@ const chapter: Chapter = {
           title: "Dubs and subtitles",
           body: "A catalogue with many languages makes language tags very tempting. Each one multiplies every other tag on the metric.",
           callout: { type: "crunchyroll", text: "With many audio dubs and 10+ subtitle languages per episode (book model), `rendition`, `audio_language` and `subtitle_language` are tempting tags. A platform like Crunchyroll would likely keep them in logs and the warehouse, and put only `object_type` (video, audio, subtitle, manifest) on metrics." },
+        },
+        {
+          kind: "match",
+          teach: "Recall the strategies: low-cardinality dimensions go on metrics as they are, very high ones stay in logs, some get bucketed, and launch-day titles get one small tag.",
+          prompt: "Match each dimension to its home.",
+          pairs: [
+            ["CDN", "A metric tag, as is"],
+            ["ASN", "`asn_bucket`: top 20 per country plus other"],
+            ["Session ID", "Logs and warehouse, never a tag"],
+            ["Title, on a premiere day", "One `release_class` tag"],
+          ],
+          explain: "Low-cardinality dimensions go on metrics. ASNs get bucketed. Session IDs stay in logs. For launch-day titles, a single low-cardinality tag such as `release_class:simulcast_premiere` replaces a title tag.",
         },
         {
           kind: "summary",
@@ -940,18 +985,24 @@ const chapter: Chapter = {
       id: "ch11-l5",
       title: "Following one session",
       goal: "Use a CMCD session ID and APM span tags to follow one playback through player, API, CDN and QoE data.",
-      minutes: 10,
+      minutes: 11,
       steps: [
         {
+          kind: "read",
+          title: "One bad session, four systems",
+          body: "Your QoE dashboard shows one viewer with a terrible session. To learn why, you need that session's lines in the CDN logs, its API calls and its player events.\n\nThe hard part is the **join**: finding the same session in every system.\n\nIn this lesson you will learn CMCD, a standard way for the player to send a shared session ID and its own state with every request, and the rules for one ID across every hop.",
+        },
+        {
           kind: "quiz",
-          prompt: "A QoE dashboard shows one bad session. To find its CDN log lines, you match on IP address, time and path. What goes wrong?",
+          guess: true,
+          prompt: "Take a guess. To find the bad session's CDN log lines, you match on IP address, time and path. What would you expect?",
           options: [
-            "Nothing. IP, time and path are unique enough.",
-            "Carrier-grade NAT puts many users behind one IP, and mobile users change IP mid-session.",
+            "It works. IP, time and path are unique enough.",
+            "It often fails: many users share one IP, and mobile users change IP mid-session.",
             "CDN logs never contain the client IP.",
           ],
           answer: 1,
-          explain: "Matching on IP, time and path is slow and often wrong. Carrier-grade NAT hides many users behind one IP, and mobile users change IP mid-session. You need a shared ID.",
+          explain: "Matching on IP, time and path is slow and often wrong. **Carrier-grade NAT** (an ISP putting many customers behind one public IP address) hides many users behind one IP, and mobile users change IP mid-session when they switch towers or networks. You need a shared ID that every system records.",
         },
         {
           kind: "read",
@@ -973,6 +1024,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "The CMCD table lists each key and its meaning. The letters are short forms of the words in the meaning.",
           prompt: "Match each CMCD key to its meaning.",
           pairs: [
             ["`sid`", "Playback session ID"],
@@ -995,6 +1047,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Use the worked log line as a model. Fast TTFB and a cache HIT describe the edge; buffer starvation and measured throughput describe the bytes after they leave it.",
           prompt: "A CDN log line says: TTFB 35 ms, cache HIT, CMCD `bs` present, `mtp` sharply lower than normal. Where is the problem most likely?",
           options: [
             "The origin",
@@ -1014,10 +1067,16 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Traces cover the control plane",
-          body: "CDNs do not emit spans into your Datadog account, so the bytes path is not traced. The control plane is: playback API, steering, URL signing and manifest services, instrumented in TypeScript with Datadog's Node.js tracer.\n\nDatadog supports `x-datadog-*` headers, W3C Trace Context and B3. The default style is `datadog,tracecontext,baggage`. **Agree on one style with partner teams.** Tag the playback API span with the session ID the player will send in CMCD.",
+          body: "A **trace** follows one request across your services. Each step in it, such as one service call, is a **span**.\n\nCDNs do not emit spans into your Datadog account, so the bytes path is not traced. The control plane is: playback API, steering, URL signing and manifest services, instrumented in TypeScript with Datadog's Node.js tracer.",
+        },
+        {
+          kind: "read",
+          title: "Passing the trace along",
+          body: "A trace survives a hop only if the caller passes its context in headers that the next service understands. This is **trace propagation**.\n\nDatadog supports `x-datadog-*` headers, W3C Trace Context and B3. The default style is `datadog,tracecontext,baggage`. **Agree on one style with partner teams.**\n\nAlso tag the playback API span with the session ID the player will send in CMCD, so one ID links trace and CDN logs.",
         },
         {
           kind: "quiz",
+          teach: "Trace context travels in headers from one service to the next. Recall what two teams must agree on for those headers to be understood.",
           prompt: "Traces from your playback API stop at the entitlement service, which a partner team owns. What is the most likely cause?",
           options: [
             "CDNs do not emit spans",
@@ -1041,6 +1100,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Only some records carry the session ID S1. Look at the sequence for the hop that logs both S1 and the cache status.",
           prompt: "This segment was a miss at the edge and the shield. Which record ties those bytes to the viewer's stall?",
           visual: { kind: "sequence", spec: { ...SESSION_SEQ, upTo: 8 } },
           options: [
@@ -1064,6 +1124,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall rule 3. The cache key is built from the URL, and CMCD values change on every request.",
           prompt: "A team ships CMCD as a query argument and forgets to strip it from the cache key. What happens?",
           options: [
             "Nothing. The CDN ignores unknown query arguments.",
@@ -1075,6 +1136,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "Check each option against the four rules: one ID minted once, log it at the edge, keep CMCD out of the cache key, treat the ID as personal data.",
           prompt: "Which practices follow the end-to-end ID rules? Select all that apply.",
           options: [
             "Mint one ID and reuse it in the QoE SDK, CMCD `sid` and APM tags",
@@ -1093,6 +1155,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Request sampling and session sampling keep different lines. Ask which one keeps every line of a chosen session.",
           prompt: "You want to rebuild complete bad sessions from indexed CDN logs, at low cost. Which sampling?",
           options: [
             "Keep a random 1% of requests",
@@ -1120,19 +1183,17 @@ const chapter: Chapter = {
       id: "ch11-l6",
       title: "SLOs and burn-rate alerts",
       goal: "Pick the right availability measure, compute an error budget, and design multiwindow burn-rate alerts that page on symptoms.",
-      minutes: 12,
+      minutes: 13,
       steps: [
         {
-          kind: "quiz",
-          prompt: "You measure availability by request. One failed manifest and one failed thumbnail. How do they count?",
-          options: ["The manifest counts more", "Exactly the same: one failed request each", "The thumbnail counts more"],
-          answer: 1,
-          explain: "By request, a failed manifest that kills a session counts like a failed thumbnail. Retries also inflate the denominator. That is why the measure you choose matters.",
+          kind: "read",
+          title: "Turning \"good enough\" into a number",
+          body: "Your team promises viewers a good experience. To manage that promise you need a measurement, a target, and a rule for when to wake someone up.\n\nIn this lesson you will learn SLIs, SLOs and error budgets, choose between counting by request, bytes or session, do the budget math, and design alerts that page on what viewers feel.\n\nBy the end you can say when an alert should page, and why.",
         },
         {
           kind: "read",
           title: "SLI, SLO, error budget",
-          body: "An **[[SLI]]** (service level indicator) is a ratio of good events to valid events, or good time to total time.\n\nAn **[[SLO]]** (service level objective) is a target for it over a window, such as 99.9% over 30 days.\n\nThe **[[error budget]]** is 100% minus the SLO.",
+          body: "An **[[SLI]]** (service level indicator) is a ratio of good events to valid events, or good time to total time.\n\nAn **[[SLO]]** (service level objective) is a target for it over a window, such as 99.9% over 30 days.\n\nThe **[[error budget]]** is 100% minus the SLO. At 99.9%, the budget is 0.1%: out of 1,000,000 starts, 1,000 may fail.",
         },
         {
           kind: "read",
@@ -1141,6 +1202,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "A percentile like p95 is not a count of good events. Recall which SLO type checks a condition over slices of time.",
           prompt: "Your SLI is \"p95 TTFB under 300 ms\". Which Datadog SLO type fits?",
           options: ["Metric-based", "Monitor-based", "Time slice"],
           answer: 2,
@@ -1149,7 +1211,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Request, bytes or session?",
-          body: "Use the **session SLO as the headline promise**. Use request and bytes SLIs per CDN, region and object type as the **diagnostic layer**.",
+          body: "There are three ways to count availability. By request, a failed manifest that kills a session counts like a failed thumbnail.\n\nUse the **session SLO as the headline promise**. Use request and bytes SLIs per CDN, region and object type as the **diagnostic layer**.\n\nBut a start failure can come from entitlement, DRM, the playback API, the CDN or the device. A session SLO only works if every failure has an owner.",
           visual: {
             kind: "table",
             headers: ["Measure", "Formula", "Catches", "Hides"],
@@ -1159,11 +1221,6 @@ const chapter: Chapter = {
               ["By session", "sessions without a delivery-caused fatal error / all sessions", "What the viewer feels", "Needs player data and failure attribution"],
             ],
           },
-        },
-        {
-          kind: "read",
-          title: "Whose budget is this?",
-          body: "A start failure can come from entitlement, DRM, the playback API, the CDN or the device. A session SLO only works if every failure has an owner.",
           callout: { type: "staff", text: "Ask \"whose budget is this?\" If Media Delivery owns \"all start failures,\" it gets paged for license outages it cannot fix. Map player error codes to owning teams, give each team its slice, and review the mapping with Playback and Content Protection." },
         },
         {
@@ -1187,8 +1244,14 @@ const chapter: Chapter = {
           },
         },
         {
+          kind: "read",
+          title: "Error budget math: a worked example",
+          body: "Turn an SLO into a count of allowed failures.\n\nWorked example: 60M streaming hours a month, average session 20 minutes (1/3 hour), SLO 99.9%.\n\n- Sessions = hours / hours per session = 60M / (1/3) = 180M a month\n- Budget = 100% - 99.9% = 0.1%\n- Allowed failures = 180M x 0.001 = **180,000 failed starts a month**",
+        },
+        {
           kind: "number",
-          prompt: "~300M streaming hours a month, average session ~30 minutes (both assumed). With a 99.9% session-start SLO, how many failed starts does the budget allow per month?",
+          teach: "First find sessions per month: hours divided by hours per session. Then multiply by the error budget (100% minus the SLO).",
+          prompt: "Now the book's model: ~300M streaming hours a month, average session ~30 minutes (both assumed), 99.9% session-start SLO. How many failed starts does the budget allow per month?",
           answer: 600000,
           tolerance: 30000,
           unit: "failed starts",
@@ -1196,13 +1259,9 @@ const chapter: Chapter = {
           explain: "300M hours / 0.5 h = ~600M sessions. The budget is 0.1%: 600M x 0.001 = ~600,000 failed starts per month.",
         },
         {
-          kind: "number",
-          prompt: "A simulcast premiere: ~1.5M sessions start in 10 minutes (assumed). One CDN fails 5% of them. What percent of the month's 600,000-start budget is gone?",
-          answer: 12.5,
-          tolerance: 0.5,
-          unit: "%",
-          hint: "Failed starts = 1.5M x 5%.",
-          explain: "1.5M x 5% = ~75,000 failed starts. 75,000 / 600,000 = 12.5% of the month's budget in 10 minutes. Spikes concentrate risk (Chapter 13).",
+          kind: "read",
+          title: "Spikes spend budget fast",
+          body: "A simulcast premiere: ~1.5M sessions start in 10 minutes (assumed). One CDN fails 5% of them.\n\n- Failed starts: 1.5M x 5% = ~75,000\n- Share of the month's ~600,000 budget: 75,000 / 600,000 = **12.5%**\n\nOne bad CDN spends an eighth of the month's budget in 10 minutes. Spikes concentrate risk (Chapter 13).",
         },
         {
           kind: "read",
@@ -1213,11 +1272,12 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Page on symptoms, not causes",
-          body: "Page on **symptoms**: start failures, rebuffering, segment errors on a CDN carrying real traffic, a sudden drop in plays per minute.\n\nDo not page on **causes** alone (hit ratio down 2 points, origin latency up 20 ms). Many cause changes never hurt viewers (the shield absorbs an origin slowdown), and some viewer-hurting failures have causes you never thought to monitor.",
+          body: "Page on **symptoms**: start failures, rebuffering, segment errors on a CDN carrying real traffic, a sudden drop in plays per minute.\n\nDo not page on **causes** alone (hit ratio down 2 points, origin latency up 20 ms). Many cause changes never hurt viewers (the shield absorbs an origin slowdown), and some viewer-hurting failures have causes you never thought to monitor. Causes go to dashboards and investigation views.",
           visual: { kind: "flow", spec: { ...ALERT_FLOW, focus: ["sym", "burn", "page", "ticket", "dash", "sym>burn", "burn>page", "burn>ticket", "burn>dash"], flow: ["sym>burn", "burn>page"] } },
         },
         {
           kind: "multi",
+          teach: "Sort each signal into symptom (what viewers feel) or cause (what might be behind it). Only one of those groups pages.",
           prompt: "Which of these should page someone? Select all that apply.",
           visual: { kind: "flow", spec: { ...ALERT_FLOW, focus: ["cause", "dash", "inv", "page", "cause>dash", "cause>inv", "page>inv"] } },
           options: [
@@ -1233,10 +1293,11 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Burn rate",
-          body: "A fixed threshold like \"errors above 1% for 5 minutes\" is either noisy or slow.\n\n**[[Burn rate]]** is how fast you consume error budget relative to the SLO. A burn rate of 1 uses exactly the whole budget by the end of the window.\n\n**Burn rate = observed error rate / (1 - SLO target)**",
+          body: "A fixed threshold like \"errors above 1% for 5 minutes\" is either noisy or slow.\n\n**[[Burn rate]]** is how fast you spend error budget relative to the SLO. A burn rate of 1 uses exactly the whole budget by the end of the window.\n\n**Burn rate = observed error rate / (1 - SLO target)**\n\nWorked example: SLO 99.5%, so the budget is 0.5%. Error rate 2%: burn rate = 2 / 0.5 = **4**. Turned around: error rate = burn rate x budget = 4 x 0.5% = 2%.",
         },
         {
           kind: "number",
+          teach: "Turn the formula around: error rate = burn rate x error budget. The budget is 100% minus the SLO.",
           prompt: "SLO 99.9% over 30 days. The fast-burn page fires at burn rate 14.4. What error rate is that?",
           answer: 1.44,
           tolerance: 0.05,
@@ -1259,23 +1320,18 @@ const chapter: Chapter = {
           },
         },
         {
-          kind: "number",
-          prompt: "A 30-day window has 720 hours. A burn rate of 6 sustained over the 6-hour long window spends what percent of the budget?",
-          answer: 5,
-          tolerance: 0.3,
-          unit: "%",
-          explain: "6 x 6 h / 720 h = 0.05 = 5%. Same idea for the fast page: 14.4 x 1 h / 720 h = 2%. And the ticket: 1 x 72 h / 720 h = 10%.",
+          kind: "read",
+          title: "Budget used: a worked example",
+          body: "Where does the \"Budget used\" column come from? A 30-day window has 720 hours. A burn rate of 1 spends the whole budget in 720 hours.\n\n**Budget used = burn rate x long window / 720 hours**\n\nWorked example, the fast page: 14.4 x 1 h / 720 h = 0.02 = **2%**.\n\nThe slow page: 6 x 6 h / 720 h = 0.05 = **5%**.",
         },
         {
-          kind: "quiz",
-          prompt: "Why does the fast-burn page also need a 5-minute short window?",
-          options: [
-            "To fire faster than the 1-hour window could",
-            "To prove the problem is still happening, so the alert resets about five minutes after recovery",
-            "To save Datadog query cost",
-          ],
-          answer: 1,
-          explain: "Without the short window, the 1-hour average stays high for up to an hour after the problem ends, and the alert keeps firing. The short window confirms it is still burning now.",
+          kind: "number",
+          teach: "Budget used = burn rate x long window (in hours) / 720 hours.",
+          prompt: "Datadog's 30-day recommendations add one more alert: burn rate 3 over a 24-hour long window. What percent of the monthly budget does that spend?",
+          answer: 10,
+          tolerance: 0.3,
+          unit: "%",
+          explain: "3 x 24 h / 720 h = 0.1 = 10%. The workbook's ticket spends the same: 1 x 72 h / 720 h = 10%.",
         },
         {
           kind: "widget",
@@ -1286,7 +1342,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Burn-rate alerts in Datadog",
-          body: "Burn-rate alerts work on metric-based, time slice and metric-monitor-based SLOs. The UI takes a long window of 1 to 48 hours and defaults the short window to 1/12 of it; the API or Terraform can override it. Datadog's 30-day recommendations match the workbook and add 3 at 24 hours. Grouped SLOs can alert per group, such as per CDN.",
+          body: "Burn-rate alerts work on metric-based, time slice and metric-monitor-based SLOs. The UI takes a long window of 1 to 48 hours and defaults the short window to 1/12 of it; the API or Terraform can override it. Grouped SLOs can alert per group, such as per CDN.\n\nEvery page needs a symptom title, scope, a pre-filtered dashboard link, a runbook and an owner. A page that needed no human action is a bug in the alert.",
           visual: { kind: "code", lang: "hcl", code: BURN_HCL, caption: "Fast-burn page as Terraform" },
         },
         {
@@ -1297,6 +1353,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "In a small slice, one failure makes a huge burn rate. Recall the practical rules: one checks traffic volume, one changes the level at which you page.",
           prompt: "A per-ASN burn-rate alert for a small ISP pages three times a night with only a handful of requests. Best fix?",
           options: [
             "Raise the burn-rate threshold to 100",
@@ -1329,7 +1386,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "The alert",
-          body: "Tuesday, 21:10 in Brazil. A monitor fires: rebuffering for `country:BR` has **doubled** versus the same hour last week. The Latin America session SLO shows a burn rate of **~6 over 6 hours**.\n\nThis is a realistic composite scenario, not a published Crunchyroll incident. All numbers are assumed.",
+          body: "Tuesday, 21:10 in Brazil. A monitor fires: rebuffering for `country:BR` has **doubled** versus the same hour last week. The Latin America session SLO shows a burn rate of **~6 over 6 hours**.\n\nYou are on call. In this lesson you will run the whole investigation, step by step: scope, logs, path, mitigation and vendor ticket.\n\nThis is a realistic composite scenario, not a published Crunchyroll incident. All numbers are assumed.",
           visual: {
             kind: "stats",
             items: [
@@ -1341,7 +1398,8 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
-          prompt: "You are on call. What is your first move?",
+          guess: true,
+          prompt: "Take a guess. You are on call and the alert just fired. What would you do first?",
           options: [
             "Open the 5xx dashboard",
             "Break down QoE by every dimension: CDN, ISP, device, app version, title, rendition",
@@ -1349,7 +1407,7 @@ const chapter: Chapter = {
             "Roll back the latest app release",
           ],
           answer: 1,
-          explain: "Step 1 is to scope the blast radius with player data. Breaking rebuffering down by every dimension tells you where to look before you guess at causes.",
+          explain: "Start by scoping the **blast radius** (who exactly is hurt) with player data. Breaking rebuffering down by every dimension tells you where to look before you guess at causes. A 5xx dashboard may show nothing, a vendor call is too early, and a rollback only helps if one app version is affected.",
         },
         {
           kind: "read",
@@ -1359,6 +1417,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "For each cause, ask who would be hurt if it were the cause: one app version, one title, every ISP and CDN, or only sessions that are starting. Compare that with who is actually hurt.",
           prompt: "Given these findings, which causes can you rule out? Select all that apply.",
           visual: { kind: "flow", spec: { ...TRIAGE_A, focus: ["c", "c1", "d", "d1", "e", "e1", "c>c1", "d>d1", "e>e1"] } },
           options: [
@@ -1380,11 +1439,12 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Step 2: the CDN logs",
-          body: "In Datadog Log Analytics (on indexed CDN logs) or with your log-based metrics, filter to the slice. Compare tonight with last week, and with other ISPs on the same CDN tonight.",
+          body: "In Datadog Log Analytics (on indexed CDN logs) or with your log-based metrics, filter to the slice. Compare tonight with last week, and with other ISPs on the same CDN tonight.\n\nRecall from lesson 5: a fast TTFB and a cache HIT describe the edge; CMCD buffer starvation and low measured throughput describe the bytes after the edge.",
           visual: { kind: "code", lang: "text", code: "cdn:cdn-a country:BR asn:ISP_X_ASN object_type:video", caption: "Datadog log query" },
         },
         {
           kind: "quiz",
+          teach: "Find the rows that changed tonight compared with last week and with other ISPs. A cache problem would move hit ratio and TTFB; an error incident would move the success rate.",
           prompt: "Read the table. What kind of incident is this?",
           visual: SIGNAL_TABLE,
           options: [
@@ -1411,25 +1471,19 @@ const chapter: Chapter = {
           },
         },
         {
-          kind: "quiz",
-          prompt: "Which single piece of evidence ruled out a cache or shield problem?",
-          options: [
-            "Segment success rate of 99.97%",
-            "Unchanged hit ratio (97%) and TTFB (~35 ms)",
-            "CMCD buffer starvation",
-            "The burn rate of 6",
-          ],
-          answer: 1,
-          explain: "A cache or shield problem would raise misses or TTFB. Both are unchanged. The network path was pointed to by throughput falling from ~11 to ~3 Mbps with more retransmits, plus CMCD buffer starvation.",
-        },
-        {
           kind: "read",
           title: "Step 3: which PoP, which path?",
           body: "Group the same filter by `pop`. Suppose ISP-X users normally hit CDN-A's **São Paulo** PoP, but tonight most of their requests come from **Miami**.\n\nThat suggests a routing change: CDN-A's mapping now sends ISP-X to a distant PoP, or ISP-X changed its [[BGP]] announcements (Chapters 2 and 3). A ThousandEyes or Datadog network path test from near ISP-X toward CDN-A shows where latency and loss jump.",
           visual: { kind: "flow", spec: { ...TRIAGE_B, focus: ["f", "g", "h", "f>g", "g>h"], flow: ["f>g", "g>h"] } },
         },
         {
+          kind: "read",
+          title: "Busy links at peak hour",
+          body: "**[[Peering]]** is where two networks hand traffic to each other, for example where CDN-A's network meets ISP-X's. A peering link has a fixed capacity, like a motorway on-ramp.\n\nAt noon the ramp is empty. In the evening, when everyone streams, it can fill up. Packets wait or get dropped, TCP sends them again (**retransmits**), and throughput falls, even while the CDN's cache works perfectly.",
+        },
+        {
           kind: "quiz",
+          teach: "If the PoP did not change, the routing did not change. Recall what can go wrong on the link between two networks at busy hours.",
           prompt: "Grouping by `pop` shows ISP-X is still served from São Paulo, as usual. Evidence is the same: fine status and TTFB, low throughput, high retransmits, 21:10 evening peak. Most likely cause?",
           options: [
             "A cache eviction storm",
@@ -1448,6 +1502,7 @@ const chapter: Chapter = {
         },
         {
           kind: "order",
+          teach: "Follow the path this lesson took: first find who is hurt, then look at logs, then find where, then stop the viewer's pain, then chase the root cause.",
           prompt: "Put the response steps in the right order.",
           items: [
             "Break down QoE by CDN, ISP, device, app and title",
@@ -1478,6 +1533,7 @@ const chapter: Chapter = {
         },
         {
           kind: "order",
+          teach: "Recall the rule for alerts: viewer pain comes first. The dashboard follows the same idea, from what viewers feel down to the deepest cause layer.",
           prompt: "Order the dashboard sections from top to bottom.",
           items: [
             "Symptoms: plays per minute, start success, rebuffering",
@@ -1505,10 +1561,16 @@ const chapter: Chapter = {
       id: "ch11-l8",
       title: "Checkpoint",
       goal: "Prove you can reason about delivery observability, SLOs, cardinality and investigations.",
-      minutes: 8,
+      minutes: 9,
       steps: [
         {
+          kind: "read",
+          title: "What this chapter covered",
+          body: "Here is what this chapter covered:\n\n- Each hop sees part of the truth. Join player, CDN, origin and control-plane data.\n- At this scale: metrics from 100% of logs, index a sample, raw logs in object storage.\n- Cardinality is the main Datadog cost risk.\n- CMCD puts a shared session ID and player state inside CDN log lines.\n- The session SLO is the headline. Page on symptoms with burn-rate alerts.\n- An incident can have zero HTTP errors.\n\nNow check yourself.",
+        },
+        {
           kind: "quiz",
+          teach: "Recall what a status code measures, and what a video player needs from every segment it downloads.",
           prompt: "How can a platform have 99.99% CDN request success and still have a serious viewer-facing incident?",
           options: [
             "It cannot: 99.99% means viewers are fine",
@@ -1520,6 +1582,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Each shard takes 1,000 records and 1 MB per second. At 100% sampling, every request becomes a record.",
           prompt: "CloudFront real-time logs at 100% sampling, 150,000 requests per second, 1 KB per record. About how many Kinesis shards?",
           answer: 150,
           tolerance: 10,
@@ -1528,6 +1591,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "A shard has two limits: records per second and bytes per second. Ask which options change how many records you send or how big they are, and which change something else.",
           prompt: "Which levers reduce that shard count? Select all that apply.",
           options: [
             "Lower the sampling rate",
@@ -1540,6 +1604,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall where logs-to-metrics rules run compared with exclusion filters, and the time limit on which logs they aggregate.",
           prompt: "Why does Datadog's logs-to-metrics help with CDN log cost, and what limit matters for CDNs that deliver logs late?",
           options: [
             "It compresses logs; late logs are rejected at ingest",
@@ -1551,6 +1616,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall what each measure hides. The headline promise should match whether the viewer could actually watch.",
           prompt: "Which availability measure should be the headline SLO?",
           options: ["By request", "By bytes", "By session"],
           answer: 2,
@@ -1568,6 +1634,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Error rate = burn rate x error budget. For a 99.9% SLO the budget is 0.1%.",
           prompt: "For a 99.9% 30-day SLO, what error rate sustained over one hour triggers the workbook's fast-burn page?",
           answer: 1.44,
           tolerance: 0.05,
@@ -1576,6 +1643,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "In a multiwindow alert, the long window proves the problem is big enough to matter. Recall what the short window proves.",
           prompt: "Why is there also a 5-minute short window on that page?",
           options: [
             "It confirms the problem is still happening, so the alert resets about five minutes after recovery",
@@ -1587,6 +1655,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall the signal table from the Brazil case: which rows changed tonight, and which stayed the same as last week?",
           prompt: "In the Brazil scenario, which evidence pointed to the network path?",
           options: [
             "Unchanged hit ratio and TTFB",
@@ -1599,6 +1668,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Recall the alert rule (symptoms page, causes help you investigate) and the two layers of SLOs: one headline promise, and diagnostic SLIs underneath.",
           prompt: "Match each signal to its job.",
           pairs: [
             ["Symptom signals (starts, stalls, play volume)", "Page via SLO burn-rate alerts"],

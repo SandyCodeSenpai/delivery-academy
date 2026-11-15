@@ -152,13 +152,22 @@ const chapter: Chapter = {
       minutes: 7,
       steps: [
         {
-          kind: "number",
-          prompt: "A big simulcast premiere has about 2M viewers watching at once (assumed). Each stream averages about 4 Mbps. Guess first: how much traffic leaves the service at peak?",
-          answer: 8,
-          tolerance: 0.5,
-          unit: "Tbps",
-          hint: "2,000,000 x 4 Mbps, then convert: 1 Tbps = 1,000,000 Mbps.",
-          explain: "2M x 4 Mbps = 8,000,000 Mbps = **about 8 Tbps** (assumed model). No single cloud region is built to push that to the public internet from one place, and the egress bill would be enormous (Chapter 16).",
+          kind: "read",
+          title: "Premiere night",
+          body: "A new episode of a hit anime goes live. About **2M viewers** (assumed) press play within minutes, all over the world.\n\nTheir video does not come from one server in one data center. It comes from a **CDN**, a network of caches spread around the world.\n\nBy the end of this lesson you can name the three jobs of a CDN, and work out how much traffic still reaches your own servers.",
+        },
+        {
+          kind: "quiz",
+          guess: true,
+          prompt: "What would you expect to go wrong first if all 2M viewers streamed from one data center in Virginia?",
+          options: [
+            "Nothing; one big data center can handle it",
+            "Its internet links and egress bill blow up, and far-away viewers get slow starts",
+            "Only the video quality drops a little",
+            "The viewers' phones run out of memory",
+          ],
+          answer: 1,
+          explain: "2M streams at ~4 Mbps each is about **8 Tbps** leaving one place. No single cloud region is built to push that to the public internet, the bill for outgoing traffic would be enormous (Chapter 16), and a viewer in São Paulo would wait on a long round trip for every request. Putting copies near viewers fixes all three.",
         },
         {
           kind: "read",
@@ -167,12 +176,23 @@ const chapter: Chapter = {
         },
         {
           kind: "read",
+          title: "Worked example: peak traffic",
+          body: "Peak traffic is **viewers x average bitrate**.\n\nThe assumed Crunchyroll model: 2M viewers at a big premiere, each stream about 4 Mbps.\n\n- 2,000,000 x 4 Mbps = 8,000,000 Mbps\n- 1 Tbps = 1,000,000 Mbps, so that is **about 8 Tbps**.\n\nKeep this number in mind. Most of this chapter measures things against it.",
+        },
+        {
+          kind: "read",
           title: "Why not serve video from the origin?",
-          body: "Use the assumed Crunchyroll model:\n\n- **Bandwidth.** About 8 Tbps at the 2M-stream spike. One region cannot push that, and the [[egress]] bill would be huge.\n- **Latency and throughput.** A viewer in São Paulo fetching from Virginia has an [[RTT]] well over 100 ms. TCP or QUIC throughput falls as RTT rises (Chapter 2).\n- **Request rate.** Thousands of small requests per second per thousand viewers. Try the math next.",
+          body: "Use the assumed Crunchyroll model:\n\n- **Bandwidth.** About 8 Tbps at the 2M-stream spike. One region cannot push that, and the [[egress]] bill (the charge for bytes leaving the cloud) would be huge.\n- **Latency and throughput.** A viewer in São Paulo fetching from Virginia has an [[RTT]] (round-trip time) well over 100 ms. TCP or QUIC throughput falls as RTT rises (Chapter 2).\n- **Request rate.** Hundreds of thousands of small requests per second. The next step shows how to count them.",
+        },
+        {
+          kind: "read",
+          title: "Worked example: counting requests",
+          body: "A player does not download a whole episode at once. It asks for one short [[segment]] (a few seconds of video) at a time. If audio is a separate track (common with [[CMAF]], Chapter 7), it asks for an audio segment too.\n\nRequests per second = **streams / segment length**, times the number of tracks.\n\nExample: 1M streams with 6-second segments.\n- Video: 1,000,000 / 6 = ~167k requests per second.\n- Audio doubles it: **~333k requests per second**.",
         },
         {
           kind: "number",
-          prompt: "Each stream asks for a video [[segment]] every ~5 seconds. If audio is a separate track (common with [[CMAF]]), it asks for an audio segment too. At 2M streams, about how many requests per second is that?",
+          teach: "Divide the number of streams by the segment length in seconds to get video requests per second. A separate audio track adds the same number again.",
+          prompt: "Now the premiere: 2M streams, segments every ~5 seconds, audio as a separate track. About how many requests per second is that?",
           answer: 800,
           tolerance: 60,
           unit: "thousand req/s",
@@ -186,6 +206,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Offload is about repeats, proximity is about distance, and absorption is about size. Ask which of these each problem is.",
           prompt: "Match each CDN job to what it protects you from.",
           pairs: [
             ["Offload", "Every repeat request reaching the origin"],
@@ -197,17 +218,16 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "The one key number",
-          body: "The **[[cache hit ratio|CHR (cache hit ratio)]]** is the share of traffic served from cache. Always say which version you mean:\n\n- **Request hit ratio:** hits divided by all requests. A tiny manifest counts the same as a big segment.\n- **[[Byte hit ratio|BHR (byte hit ratio)]]:** bytes served from cache divided by all bytes.",
+          body: "The **[[cache hit ratio|CHR (cache hit ratio)]]** is the share of traffic served from cache. Always say which version you mean:\n\n- **Request hit ratio:** hits divided by all requests. A tiny manifest counts the same as a big segment.\n- **[[Byte hit ratio|BHR (byte hit ratio)]]:** bytes served from cache divided by all bytes.\n\nFor video, the byte hit ratio is the one that controls origin egress and cost, because you pay for bytes. A few-KB manifest and a 2.5 MB segment are not equal.",
         },
         {
-          kind: "quiz",
-          prompt: "For video, which version of hit ratio controls origin egress and cost?",
-          options: ["Request hit ratio", "Byte hit ratio", "Both matter equally", "Neither; only the TTL matters"],
-          answer: 1,
-          explain: "Bytes drive origin egress, shield capacity and cost. The request ratio weighs a few-KB manifest the same as a 2.5 MB segment, so it can look healthy while big objects miss.",
+          kind: "read",
+          title: "Worked example: what still goes upstream",
+          body: "Every byte the cache does not serve is a **miss**, and misses go **upstream**: to a shield (a middle cache, Lesson 3) or to the origin.\n\nUpstream load = **(100% minus byte hit ratio) x peak traffic**.\n\nExample: a smaller service peaks at 1 Tbps with a 90% byte hit ratio.\n- Miss share: 100% - 90% = 10%.\n- Upstream: 10% x 1 Tbps = 0.1 Tbps = **100 Gbps**.",
         },
         {
           kind: "number",
+          teach: "Upstream load is the miss share times the peak. The miss share is 100% minus the byte hit ratio. 1 Tbps = 1,000 Gbps.",
           prompt: "Peak egress is about 8 Tbps (assumed). The byte hit ratio is 95%. How much traffic goes upstream to shields and origin?",
           answer: 400,
           tolerance: 10,
@@ -232,6 +252,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Do not compare the hit ratios. Compare the miss shares, because only misses go upstream, then divide the old load by the new one.",
           prompt: "The byte hit ratio rises from 95% to 99%. By how much does upstream load fall?",
           options: ["By about 4%", "By about 2x", "By 5x", "By about 99x"],
           answer: 2,
@@ -248,6 +269,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "One global hit ratio blends many kinds of traffic. Good follow-up questions split it into parts that could hide a problem.",
           prompt: "A teammate says \"our hit ratio is 97%\". Which follow-up questions does a staff engineer ask? Select all that apply.",
           options: [
             "Is that by requests or by bytes?",
@@ -280,11 +302,17 @@ const chapter: Chapter = {
       minutes: 10,
       steps: [
         {
+          kind: "read",
+          title: "Open the door of a CDN site",
+          body: "A CDN is not a cloud. It is real buildings full of real machines, close to where viewers live.\n\nIn this lesson you walk through one of those sites, from the cable that brings traffic in to the server that answers. By the end you can name its parts, say which storage holds which video, and explain how a packet reaches one server without breaking live connections.",
+        },
+        {
           kind: "quiz",
-          prompt: "Fastly's NSDI 2018 paper names one constraint as \"the defining constraint\" in the architecture of a PoP. Guess which.",
-          options: ["Physical space is at a premium", "Electricity prices", "The number of BGP peers", "Disk read speed"],
+          guess: true,
+          prompt: "A CDN site is a few racks rented inside someone else's data center, in a big city. What would you expect to be the tightest limit when designing it?",
+          options: ["Physical space is at a premium", "Electricity prices", "The number of network partners", "Disk read speed"],
           answer: 0,
-          explain: "The paper says \"the defining constraint in the architecture of a POP is that physical space is at a premium\". Every rack unit spent on load balancers is not spent on caching.",
+          explain: "Fastly's NSDI 2018 paper says \"the defining constraint in the architecture of a POP is that physical space is at a premium\". Rack space in a city data center is scarce and expensive, so every rack unit spent on load balancers is not spent on caching. Keep this in mind: it explains several design choices later in this lesson.",
         },
         {
           kind: "read",
@@ -306,6 +334,7 @@ const chapter: Chapter = {
         },
         {
           kind: "order",
+          teach: "Follow the diagram from left to right: traffic comes in from outside networks, is routed, is switched to one server, and leaves the PoP only on a miss.",
           prompt: "Put the parts in the order a viewer's request meets them on a cache miss.",
           items: ["Transit provider or IXP", "Edge router (BGP)", "Switch", "Cache server (TLS, proxy, cache)", "Upstream: shield PoP or origin"],
           explain: "Traffic arrives from transit or peering, enters an edge router, is switched to one cache server, and only on a miss goes upstream to a shield or the origin.",
@@ -313,7 +342,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "A real PoP, in numbers",
-          body: "Fastly's 2018 paper gives a rare public picture. The \"most common POP build has 4 switches fully meshed with 32 hosts using 25 Gbps NICs\", with each host rated at 40 Gbps.\n\nIn 2018 Fastly reported 40+ PoPs and 4+ Tbps of client traffic. Its network map listed more than 600 Tbps of connected capacity as of September 2026. Fastly says it focuses on \"fewer, more powerful POPs at strategic markets\".",
+          body: "Fastly's 2018 paper gives a rare public picture. The \"most common POP build has 4 switches fully meshed with 32 hosts using 25 Gbps NICs\", with each host rated at 40 Gbps. So the PoP's reference throughput is 32 x 40 Gbps = **1.28 Tbps**.\n\nIn 2018 Fastly reported 40+ PoPs and 4+ Tbps of client traffic. Its network map listed more than 600 Tbps of connected capacity as of September 2026. Fastly focuses on \"fewer, more powerful POPs at strategic markets\".",
           visual: {
             kind: "stats",
             items: [
@@ -323,14 +352,6 @@ const chapter: Chapter = {
               { value: "600+ Tbps", label: "connected capacity", note: "Sept 2026" },
             ],
           },
-        },
-        {
-          kind: "number",
-          prompt: "That common Fastly PoP has 32 hosts, each rated at 40 Gbps. What is its reference throughput?",
-          answer: 1280,
-          tolerance: 20,
-          unit: "Gbps",
-          explain: "32 x 40 Gbps = 1,280 Gbps = **1.28 Tbps**, the paper's reference throughput.",
         },
         {
           kind: "read",
@@ -348,6 +369,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "The faster the tier, the smaller and more expensive it is. The hottest, most-requested objects go in the fastest tier; the rarely watched ones go in the slowest.",
           prompt: "Match each storage tier to what it is good for.",
           pairs: [
             ["RAM (~100 ns)", "Live segments, a premiere's first minutes, manifests"],
@@ -357,18 +379,9 @@ const chapter: Chapter = {
           explain: "The hottest objects live in RAM. Flash serves most segments because it handles high parallel read throughput. Spinning disks are poor at many parallel random reads, so they hold only the cold tail.",
         },
         {
-          kind: "number",
-          prompt: "Why did video push CDNs to flash? Start with one segment: 5 seconds at 4 Mbps. How big is it?",
-          answer: 2.5,
-          tolerance: 0.1,
-          unit: "MB",
-          hint: "Megabits = seconds x Mbps. Divide by 8 for megabytes.",
-          explain: "5 s x 4 Mbps = 20 Mb, and 20 / 8 = **2.5 MB**. A busy server must push tens of Gbps from many such objects at once, which spinning disks cannot do.",
-        },
-        {
           kind: "read",
           title: "Video moved CDNs to flash",
-          body: "Segments are large, and a busy server reads many of them in parallel. That workload needs flash, not spinning disks.",
+          body: "How big is one segment? Size = seconds x bitrate, then divide by 8 to turn bits into bytes. A 5-second segment at 4 Mbps is 5 x 4 = 20 Mb, and 20 / 8 = **2.5 MB**.\n\nA busy server must push tens of Gbps from many such objects at once, reading them in parallel. Spinning disks cannot do that. That workload needs flash.",
           callout: {
             type: "industry",
             text: "Netflix's single-tenant CDN is a public reference point: its current Open Connect \"Storage\" appliance is SSD-based, with up to 120 TB raw and ~200 Gbps operational throughput per 2U box.",
@@ -389,20 +402,14 @@ const chapter: Chapter = {
           body: "Chapter 3 covers this in depth.\n\n- **DNS-based steering:** the CDN's DNS returns a good PoP's address. CloudFront's docs say \"DNS routes the request to the CloudFront POP (edge location) that can best serve the request\". Akamai is the classic DNS-mapped CDN.\n- **[[Anycast]]:** many PoPs announce the same IP prefix and BGP picks the nearest. Cloudflare is the best-known example.",
         },
         {
-          kind: "quiz",
-          prompt: "Many PoPs announce the same IP prefix, and BGP sends each user to the nearest one. What is this called, and which CDN is the best-known example?",
-          options: ["DNS-based steering; Akamai", "Anycast; Cloudflare", "ECMP; Fastly", "Consistent hashing; CloudFront"],
-          answer: 1,
-          explain: "That is **anycast**, and Cloudflare is the best-known example. Akamai is the classic DNS-mapped CDN, and CloudFront also routes with DNS.",
-        },
-        {
           kind: "read",
           title: "Inside the PoP: ECMP",
-          body: "The simplest tool inside a PoP is **[[ECMP]] (Equal-Cost Multi-Path)**. The router hashes each packet's **5-tuple** (source and destination IP and port, plus protocol) to pick one of several equal next hops. All packets of one connection go to the same server.\n\nThe problem: adding or removing a server changes the hash buckets.",
+          body: "The simplest tool inside a PoP is **[[ECMP]] (Equal-Cost Multi-Path)**. The router hashes each packet's **5-tuple** (source and destination IP and port, plus protocol) to pick one of several equal next hops. All packets of one connection go to the same server.\n\nThe problem: adding or removing a server changes the hash buckets. And a server only knows the connections it has already seen.",
           visual: flow(POP, ["r1", "r2", "s1", "s2", "c1", "c2", "cn", "s1>c1", "s1>c2", "s2>cn"], ["r1>s1", "s1>c2"]),
         },
         {
           kind: "quiz",
+          teach: "ECMP picks a server by hashing the connection's addresses into buckets. Think about which server the next packet of a live connection reaches after the buckets change.",
           prompt: "A PoP using plain ECMP adds one cache server. What happens to a viewer in the middle of a long HTTP/2 session?",
           options: [
             "Nothing; ECMP never moves existing connections",
@@ -419,7 +426,13 @@ const chapter: Chapter = {
           body: "**[[Maglev]]** (NSDI 2016): routers ECMP packets to a tier of Maglev machines. These are commodity Linux servers that use consistent hashing and connection tracking to pick backends, so most flows survive changes.\n\nOne Maglev machine can \"saturate a 10Gbps link with small packets\", and Maglev has served Google's traffic since 2008.",
         },
         {
+          kind: "read",
+          title: "Worked example: how many balancer hosts?",
+          body: "A software balancing tier must carry all the traffic of the PoP. So:\n\nBalancer hosts = **PoP throughput / throughput per balancer host**.\n\nExample: a small site carries 400 Gbps, and each balancer host handles 20 Gbps.\n- 400 / 20 = **20 balancer hosts**.\n\nEvery one of those hosts takes rack space that could have held a cache server.",
+        },
+        {
           kind: "number",
+          teach: "Divide the PoP's total throughput by what one balancer host can carry. Use the same unit for both: 1 Tbps = 1,000 Gbps.",
           prompt: "Fastly argued a separate software tier is too costly inside a PoP. At ~10 Gbps per balancer host, how many hosts would its 1.28 Tbps reference PoP need?",
           answer: 128,
           tolerance: 8,
@@ -429,10 +442,16 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Fix 2: balance in the switches (Fastly Faild)",
-          body: "**Faild** (NSDI 2018) does host selection in the switches: ECMP to fixed virtual next hops, each mapped to a server MAC address. Stateful balancers are also attack targets: PoPs \"are routinely subjected to SYN floods\" larger than flow tables can hold.\n\nTo **drain** a server (remove it without breaking live connections), Faild encodes extra meaning into MAC addresses. New connections go elsewhere; old packets are detoured to the old server. In production since 2013.",
+          body: "**Faild** (NSDI 2018) does host selection in the switches: ECMP to fixed virtual next hops, each mapped to a server **MAC address** (the hardware address of a network card). No extra boxes, no rack space lost.\n\nIt also avoids a **flow table** (a list of every live connection). Stateful balancers are attack targets: PoPs \"are routinely subjected to SYN floods\" (floods of fake connection starts) larger than flow tables can hold.",
+        },
+        {
+          kind: "read",
+          title: "Draining without a flow table",
+          body: "To **drain** a server means to remove it without breaking live connections.\n\nFaild encodes extra meaning into MAC addresses. New connections go elsewhere; old packets are detoured to the old server, which still tracks them in its own TCP stack. The insight: \"since end hosts track flows themselves\", the balancer needs no flow state.\n\nFastly reported Faild in production since 2013.",
         },
         {
           kind: "quiz",
+          teach: "Something in the system already remembers every live connection. Ask which machine that is, and whether the switches need to remember anything.",
           prompt: "Faild keeps no flow table, yet it can drain a server without resetting live connections. How?",
           options: [
             "It copies flow tables to the switches every second",
@@ -473,16 +492,27 @@ const chapter: Chapter = {
       minutes: 11,
       steps: [
         {
+          kind: "read",
+          title: "32 servers, one cache?",
+          body: "A PoP holds dozens of cache servers. Fastly's common build has 32. You might think that gives 32 servers' worth of cache space. It does not, unless the servers work together.\n\nIn this lesson you see how a PoP makes all its servers act as **one** cache, and where a request goes when the PoP does not have the object.",
+        },
+        {
           kind: "quiz",
-          prompt: "A PoP has 32 cache servers. Each request goes to a random server, and each server caches on its own. Roughly how big is the PoP's effective cache?",
+          guess: true,
+          prompt: "Imagine 32 shops in one mall, each stocking whatever its own customers asked for, with customers sent to a random shop. In a PoP, each request goes to a random server and each server caches on its own. What would you expect the PoP's effective cache size to be?",
           options: ["32 servers' worth", "About 16 servers' worth", "About one server's worth", "It depends only on the TTL"],
           answer: 2,
-          explain: "Each server builds its own cache, so a popular segment is stored 32 times. The PoP's effective cache is about the size of one server, and a long-tail episode rarely finds itself on the server the next request reaches.",
+          explain: "Each server builds its own cache, so a popular segment ends up stored 32 times, once on every server. The PoP's effective cache is about the size of one server. And a rarely watched episode seldom finds itself on the server the next request happens to reach, so it misses again and again.",
         },
         {
           kind: "read",
           title: "Give each object an owner",
           body: "Random spraying duplicates every popular object on every server. The fix: give each object one **owner server**, chosen by hashing its **[[cache key]]**. The cache key is the identifier the cache uses for lookup, usually host plus URL path.\n\nNow any server that gets a request knows which server should hold the object.",
+        },
+        {
+          kind: "read",
+          title: "The simplest owner rule: mod N",
+          body: "The obvious rule: owner = **`hash(key) mod N`**, where N is the number of servers and `mod` is the remainder after division.\n\nExample with a key whose hash is 100:\n- With N = 4 servers: 100 mod 4 = 0, so server 0 owns it.\n- With N = 3 servers: 100 mod 3 = 1, so now server 1 owns it.\n\nThe owner depends on N. Try it in the widget next.",
         },
         {
           kind: "widget",
@@ -493,6 +523,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "With mod N, the owner is a remainder, and the remainder depends on N. Think about how many keys keep the same remainder when you divide by 31 instead of 32.",
           prompt: "With owner = `hash(key) mod N`, one server out of 32 fails, so N becomes 31. How much of the cache moves to a new owner?",
           options: ["About 1/32 of objects", "About half", "Almost every object", "None; only new objects are affected"],
           answer: 2,
@@ -510,6 +541,7 @@ const chapter: Chapter = {
         },
         {
           kind: "order",
+          teach: "A miss climbs from the nearest, cheapest place to look toward the most expensive one: neighbors first, then a bigger cache, then the real copy.",
           prompt: "An Akamai edge server misses. Put its miss path in order.",
           items: ["Miss on this edge server", "Ask other servers in the same cluster", "Ask a parent cluster", "Fetch from the origin"],
           explain: "Akamai's 2015 paper: ask other servers in the cluster, then possibly a parent cluster, then the origin. The parent layer, tiered distribution, is the ancestor of every shield product.",
@@ -523,26 +555,19 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "The fetch node owns the key",
-          body: "The delivery node computes the cache key and \"will transfer the request to the server which owns the address space containing that cache key.\"\n\nThat owner is the **fetch node**. It stores the object and fetches it on a miss. On a hit, the fetch node returns the object to the delivery node, which answers the viewer.",
+          body: "The delivery node computes the cache key and \"will transfer the request to the server which owns the address space containing that cache key.\"\n\nThat owner is the **fetch node**. It stores the object and fetches it on a miss. On a hit, the fetch node returns the object to the delivery node, which answers the viewer.\n\nOne special case: if the delivery node is itself the primary fetch node, it uses a designated secondary fetch node \"in order to avoid load hot spots.\"",
           visual: flow(CLUSTER, ["deliv", "hash", "fetch", "deliv>hash", "hash>fetch", "fetch>deliv"], ["deliv>hash", "hash>fetch", "fetch>deliv"]),
         },
         {
           kind: "read",
           title: "On a miss: shield, then origin",
-          body: "If the fetch node does not have the object, it fetches upstream: to a **shield PoP**, which goes to **origin storage** only if it misses too.\n\nBecause one fetch node owns each key, each object is stored once per PoP. Concurrent misses for it can also be collapsed there (Lesson 5).",
+          body: "If the fetch node does not have the object, it fetches upstream: to a **shield PoP**, which goes to **origin storage** only if it misses too.\n\nBecause one fetch node owns each key, each object is stored once per PoP. Concurrent misses for it can also be **collapsed** there: many requests, one upstream fetch (Lesson 5).",
           visual: flow(CLUSTER, ["fetch", "shield", "origin", "fetch>shield", "shield>origin"], ["hash>fetch", "fetch>shield", "shield>origin"]),
         },
         {
-          kind: "quiz",
-          prompt: "The random delivery node turns out to be the primary fetch node for the key. What does Fastly do?",
-          options: [
-            "It serves directly and stores the object as normal",
-            "It uses a designated secondary fetch node, to avoid load hot spots",
-            "It sends the request to the shield instead",
-            "It picks another random delivery node",
-          ],
-          answer: 1,
-          explain: "Fastly's docs: if the delivery node is itself the primary fetch node, it uses a designated secondary fetch node \"in order to avoid load hot spots.\"",
+          kind: "read",
+          title: "A quick word on VCL",
+          body: "The next details use Fastly's config language, **[[VCL]]**. Lesson 7 covers it properly. For now you need two ideas:\n\n- VCL code is split into **subroutines** that run at fixed moments in a request's life. For example `vcl_fetch` runs when the origin's response arrives, and `vcl_deliver` runs just before the response goes to the viewer.\n- A **`restart`** sends a request back to the start of processing, for example to try another origin.",
         },
         {
           kind: "read",
@@ -551,6 +576,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "Look back at the list of clustering details. Watch out for header names that sound like they control one feature but actually control another.",
           prompt: "Which statements about Fastly clustering are true? Select all that apply.",
           options: [
             "GET and HEAD requests are clustered by default",
@@ -572,6 +598,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "With clustering, one request can be handled by two machines: the delivery node and the fetch node. Ask which machine runs each subroutine.",
           prompt: "Your VCL sets `req.http.X-Debug` in `vcl_fetch` and reads it in `vcl_deliver`. It works in a single-node test but is empty in production. Why?",
           options: [
             "VCL strips all custom headers in production",
@@ -607,6 +634,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Every big CDN has a middle tier between edge PoPs and the origin; only the names differ. Look back at the list in \"Tiers between PoPs\".",
           prompt: "Match each CDN to its name for the tier between edge PoPs and the origin.",
           pairs: [
             ["Akamai", "Parent clusters"],
@@ -637,11 +665,17 @@ const chapter: Chapter = {
       minutes: 10,
       steps: [
         {
+          kind: "read",
+          title: "A full fridge",
+          body: "A cache is like a small fridge that is always full. Every new item means something else must go.\n\nA video service has far more content than any cache can hold, so these choices decide the hit ratio. In this lesson you learn the main rules for what to keep and what to let in, see a modern one (S3-FIFO) step by step, and size a real video catalog against a cache.",
+        },
+        {
           kind: "quiz",
-          prompt: "A cache holds 10% of a real trace's footprint. Guess: what share of objects are never reused before they are evicted?",
+          guess: true,
+          prompt: "A cache can hold 10% of everything that is ever requested from it. Think of how much food in a fridge gets thrown out unused. What share of objects would you expect are never requested again before they are thrown out?",
           options: ["About 10%", "About 35%", "About 72%", "About 95%"],
           answer: 2,
-          explain: "The S3-FIFO paper (SOSP 2023) found that with a cache at 10% of a trace's footprint, \"about 72% of objects are not reused before they are evicted\". Most of what enters a cache is wasted space.",
+          explain: "Most of them. The S3-FIFO paper (SOSP 2023) found that with a cache at 10% of a real trace's footprint (all the distinct data requested), \"about 72% of objects are not reused before they are evicted\". So most of what enters a cache is wasted space. That is why *what you let in* matters as much as *what you throw out*.",
         },
         {
           kind: "read",
@@ -655,6 +689,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Recall what each name stands for: recently used, frequently used, arrival order with a second chance, or a mix of recency and frequency. The weakness follows from that one rule.",
           prompt: "Match each policy to its known weakness or trait.",
           pairs: [
             ["LRU", "A scan of one-time objects flushes useful ones"],
@@ -684,6 +719,7 @@ const chapter: Chapter = {
         },
         {
           kind: "order",
+          teach: "Every new object starts in the same queue. It must prove itself with a second hit to be promoted, and in the main queue its counter decides whether it gets another round.",
           prompt: "Follow one object through S3-FIFO. Put its life in order.",
           items: [
             "Arrives new; its key is not in G",
@@ -723,23 +759,21 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Cache on second hit",
-          body: "Akamai's **cache-on-second-hit** rule records requested keys in a **Bloom filter** (a compact probabilistic set). It stores an object only on its second request within a window. A primary and a secondary filter rotate, so the set does not fill up.\n\nWhen turned on in production, byte hit rate rose \"from around 74% to 83%\". Disk writes fell from 10,209 to 5,738 per second.",
-        },
-        {
-          kind: "number",
-          prompt: "Disk writes fell from 10,209 to 5,738 per second. By what percentage did they drop?",
-          answer: 44,
-          tolerance: 2,
-          unit: "%",
-          explain: "(10,209 - 5,738) / 10,209 = 4,471 / 10,209 = **~44%**. Fewer writes also means less flash wear and more disk time for reads.",
+          body: "Akamai's **cache-on-second-hit** rule records requested keys in a **Bloom filter** (a compact probabilistic set). It stores an object only on its second request within a window. A primary and a secondary filter rotate, so the set does not fill up.\n\nWhen turned on in production, byte hit rate rose \"from around 74% to 83%\". Disk writes fell from 10,209 to 5,738 per second: a **~44% drop**, which also means less flash wear and more disk time for reads.",
         },
         {
           kind: "read",
           title: "What this means for video",
-          body: "Reason with labeled assumptions for a platform like Crunchyroll:\n\n- ~50,000 episodes (Sony's May 2026 figure, Chapter 1) of ~24 minutes.\n- A 7-rung ladder summing to ~15 Mbps.\n- ~6 audio dubs at 128 kbps (~140 MB total per episode) and small subtitle files.\n\nWork out the size of one episode next.",
+          body: "Reason with labeled assumptions for a platform like Crunchyroll:\n\n- ~50,000 episodes (Sony's May 2026 figure, Chapter 1) of ~24 minutes.\n- A 7-rung **ladder** (the set of quality levels, each a separate stream) whose bitrates sum to ~15 Mbps.\n- ~6 audio dubs at 128 kbps (~140 MB total per episode) and small subtitle files.",
+        },
+        {
+          kind: "read",
+          title: "Worked example: sizing a catalog",
+          body: "Size = **seconds x bitrate / 8** (bits to bytes). For a catalog, multiply by the number of titles.\n\nExample: a 10-minute clip (600 s) whose ladder rungs sum to 8 Mbps.\n- 600 x 8 = 4,800 Mb, and 4,800 / 8 = **600 MB** (0.6 GB).\n\nA library of 1,000 such clips:\n- 1,000 x 0.6 GB = 600 GB = **0.6 TB** (1 TB = 1,000 GB).",
         },
         {
           kind: "number",
+          teach: "Multiply the length in seconds by the summed bitrate of all rungs to get megabits. Divide by 8 for megabytes, then by 1,000 for gigabytes.",
           prompt: "One 24-minute episode (1,440 s) with all 7 video rungs summing to ~15 Mbps. How many GB of video is that?",
           answer: 2.7,
           tolerance: 0.1,
@@ -749,6 +783,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Multiply the size of one episode by the number of episodes, then convert: 1 TB = 1,000 GB.",
           prompt: "At ~2.85 GB per episode, how big is the full 50,000-episode catalog in one packaging format?",
           answer: 143,
           tolerance: 3,
@@ -762,6 +797,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Compare the size of one new episode with the RAM in a cache server, then think about how many people ask for it in the same minute.",
           prompt: "A big simulcast premiere starts. What kind of problem is it mainly, for the CDN?",
           options: [
             "A cache capacity problem: the episode will not fit",
@@ -802,18 +838,29 @@ const chapter: Chapter = {
       minutes: 11,
       steps: [
         {
+          kind: "read",
+          title: "Release time",
+          body: "A simulcast episode goes live. Within one minute, hundreds of thousands of players ask for the **same** first segment, and every cache is **cold** (empty) because the episode did not exist a moment ago.\n\nThis lesson is about the trick that keeps that crowd from flattening the origin, its sharp edges on CloudFront and Fastly, and when it is safe to serve a slightly old copy instead.",
+        },
+        {
+          kind: "read",
+          title: "Thundering herd, and the fix",
+          body: "Without protection, each of those requests is a miss that goes upstream. This is the **[[thundering herd]]** or **cache stampede**.\n\n**[[Request collapsing]]** (or **coalescing**) is the fix: when many requests for the same cache key miss at once, send one request upstream, hold the others, and answer all of them with the one response.",
+        },
+        {
+          kind: "read",
+          title: "Worked example: the cost of a herd",
+          body: "If every miss reached the origin, origin egress for one object = **number of fetches x object size**.\n\nExample: 100,000 viewers, each fetching a 2 MB segment from a cold cache.\n- 100,000 x 2 MB = 200,000 MB.\n- 1 TB = 1,000,000 MB, so that is **0.2 TB** for one segment of a few seconds.\n\nWith collapsing, it would be one fetch: 2 MB.",
+        },
+        {
           kind: "number",
+          teach: "Multiply the number of fetches by the size of the segment, then convert megabytes to terabytes: 1 TB = 1,000,000 MB.",
           prompt: "Release time: one CDN carries 1M viewers through ~100 PoPs, all with cold caches (assumed). If every miss reached the origin, what would the first 2.5 MB segment of the top rendition cost in origin egress?",
           answer: 2.5,
           tolerance: 0.2,
           unit: "TB",
           hint: "1M fetches x 2.5 MB. 1 TB = 1,000,000 MB.",
           explain: "1,000,000 x 2.5 MB = 2,500,000 MB = **~2.5 TB** of origin egress for one 5-second object. With collapsing in each PoP and a shield in front, it costs **one origin fetch per rendition**.",
-        },
-        {
-          kind: "read",
-          title: "Thundering herd, and the fix",
-          body: "At release time, hundreds of thousands of players ask for the same first segment within a minute, and every PoP has a cold cache. Without protection, each request is a miss that goes upstream. This is the **[[thundering herd]]** or **cache stampede**.\n\n**[[Request collapsing]]** (or **coalescing**): when many requests for the same cache key miss at once, send one request upstream, hold the others, and answer all of them with the one response.",
         },
         {
           kind: "widget",
@@ -840,7 +887,13 @@ const chapter: Chapter = {
           body: "If more requests for the same object \"with the same cache key\" arrive before the first response returns, CloudFront \"pauses before forwarding the additional requests to the origin\". Then it sends them the original response.\n\n- Only requests sharing a cache key collapse. A per-user token, header or cookie in the key disables it.\n- In logs, the first request is a `Miss` in `x-edge-result-type`, and collapsed ones are `Hit`. So a log-based hit ratio counts collapsed waits as hits, although those viewers waited on the origin.",
         },
         {
+          kind: "read",
+          title: "When CloudFront will not collapse",
+          body: "Collapsing only works when requests share a cache key **and** the response may be cached. CloudFront turns it off when:\n\n- the managed **`CachingDisabled`** cache policy is attached, or\n- the **minimum TTL is 0** and the origin sends `no-store`, `no-cache`, `private`, `max-age=0` or `s-maxage=0`.\n\nA per-user token in the key also stops it, because no two requests share a key. A long `max-age` is exactly what collapsing wants.",
+        },
+        {
           kind: "multi",
+          teach: "Collapsing needs two things: a cache key shared by many requests, and a response CloudFront is allowed to cache. Check each option against both.",
           prompt: "Which of these stop CloudFront from collapsing requests for a segment? Select all that apply.",
           options: [
             "The managed `CachingDisabled` cache policy",
@@ -869,6 +922,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Each control fixes one problem with the waiting list: uncacheable answers, calls that should never wait, slow downloads, or waits that last too long.",
           prompt: "Match each Fastly control to what it does.",
           pairs: [
             ["Hit-for-pass", "Caches a \"don't collapse\" marker; origin calls go in parallel"],
@@ -900,21 +954,9 @@ const chapter: Chapter = {
           answer: "Ask: does it work across all servers in a PoP, or per server? Does it work through the shield? What happens to waiters if the origin is slow or returns 5xx? Is there a timeout? How do collapsed requests appear in logs?\n\nThen prove it with a synthetic herd against staging.",
         },
         {
-          kind: "quiz",
-          prompt: "A VOD segment's TTL just expired in the edge cache. Is the cached copy now wrong?",
-          options: [
-            "Yes; it must be deleted at once",
-            "No; a VOD segment never changes, so expired is not the same as wrong",
-            "Only if the origin is healthy",
-            "Only for HLS, not DASH",
-          ],
-          answer: 1,
-          explain: "An expired object is not necessarily wrong. A VOD segment never changes, and a finished episode's manifest rarely does. That is why serving stale is often safe.",
-        },
-        {
           kind: "read",
-          title: "Two stale directives",
-          body: "RFC 5861 defines two `Cache-Control` extensions for [[stale content|stale-if-error / stale-while-revalidate]]:\n\n- **`stale-while-revalidate=N`**: serve the stale copy for up to N seconds while refreshing in the background.\n- **`stale-if-error=N`**: serve stale for up to N seconds if the origin errors or is unreachable.",
+          title: "Expired is not wrong",
+          body: "When an object's **TTL** (time to live) runs out, the cache calls it **stale**. Stale does not mean wrong: a VOD segment never changes, and a finished episode's manifest rarely does. So serving stale is often safe.\n\nRFC 5861 defines two `Cache-Control` extensions for [[stale content|stale-if-error / stale-while-revalidate]]:\n\n- **`stale-while-revalidate=N`**: serve the stale copy for up to N seconds while refreshing in the background.\n- **`stale-if-error=N`**: serve stale for up to N seconds if the origin errors or is unreachable.",
         },
         {
           kind: "read",
@@ -923,11 +965,12 @@ const chapter: Chapter = {
         },
         {
           kind: "read",
-          title: "Stale on CloudFront: two limits",
-          body: "CloudFront \"supports the `Stale-While-Revalidate` and `Stale-If-Error` cache control directives\", with two limits:\n\n- Stale is served up to the directive value or the behavior's **maximum TTL**, \"whichever is less\". A small max TTL silently cancels your stale window.\n- If **minimum TTL is above 0**, CloudFront caches responses for that time even when the origin says `no-cache`, `no-store` or `private`, and may serve them during an outage. Send `stale-if-error=0` if you never want stale.",
+          title: "CloudFront limit 1: max TTL caps stale",
+          body: "CloudFront \"supports the `Stale-While-Revalidate` and `Stale-If-Error` cache control directives\", with two limits. The first: stale is served up to the directive value or the behavior's **maximum TTL**, \"whichever is less\".\n\nWorked example: segments carry `stale-if-error=300`, and max TTL is 3,600 s.\n- min(300, 3,600) = **300 seconds** of stale.\n\nIf max TTL were 100 s instead, you would get only 100. A small max TTL silently cancels your stale window.",
         },
         {
           kind: "number",
+          teach: "CloudFront serves stale for the smaller of two numbers: the stale directive's value and the behavior's maximum TTL.",
           prompt: "A CloudFront behavior has max TTL 600 seconds. Segments carry `stale-if-error=86400`. During an origin outage, how many seconds past expiry can stale be served at most?",
           answer: 600,
           tolerance: 1,
@@ -936,8 +979,8 @@ const chapter: Chapter = {
         },
         {
           kind: "read",
-          title: "An illustrative VOD policy",
-          body: "By object type: a segment, then a VOD manifest (long CDN TTL through Surrogate-Control, short browser TTL), then a live playlist.",
+          title: "Limit 2, and an illustrative policy",
+          body: "CloudFront's second limit: if **minimum TTL is above 0**, it caches responses for that time even when the origin says `no-cache`, `no-store` or `private`, and may serve them during an outage. Send `stale-if-error=0` if you never want stale.\n\nBelow, an illustrative policy by object type: a segment, then a VOD manifest (long CDN TTL through Surrogate-Control, short browser TTL), then a live playlist.",
           visual: {
             kind: "code",
             lang: "http",
@@ -969,16 +1012,22 @@ const chapter: Chapter = {
       minutes: 11,
       steps: [
         {
+          kind: "read",
+          title: "When a cached copy is wrong",
+          body: "Caches are great until a cached copy is wrong. A subtitle has a typo, a manifest is broken, or a show must come down tonight in one country. Thousands of servers still hold the old copy.\n\nThis lesson covers how to remove or replace cached content on Fastly and CloudFront, and how to design the **cache key** so that video caches well and never serves the wrong thing.",
+        },
+        {
           kind: "quiz",
-          prompt: "A subtitle file is wrong and must change. What is the first rule for avoiding cache trouble with changes like this?",
+          guess: true,
+          prompt: "A file that thousands of caches already hold has a mistake. What would you expect is the safest way to get the fix to viewers?",
           options: [
-            "Purge everything on every CDN",
-            "Publish the fix under a new versioned URL, so it is a new object",
-            "Set every TTL to 0",
-            "Wait for the TTL to run out",
+            "Ask every cache in the world to delete its copy",
+            "Publish the fixed file under a new name, so it is a new object",
+            "Tell every cache never to keep anything again",
+            "Wait until the old copies expire on their own",
           ],
           answer: 1,
-          explain: "The first rule is to avoid needing a purge. **Versioned URLs** (a version or hash in the path) make every change a new object.",
+          explain: "Give the fix a new name. **Versioned URLs** put a version or hash in the path, so every change is a brand-new object that no cache has seen. Nothing old needs to be deleted. Deleting cached copies (a **purge**) is still needed sometimes, and this lesson shows how it works.",
         },
         {
           kind: "read",
@@ -1005,6 +1054,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Powderhorn has two layers: a fast best-effort broadcast, and a slower background process between peers that repairs whatever the broadcast missed.",
           prompt: "A UDP broadcast of a purge is lost on the way to one server. How does Powderhorn still deliver it?",
           options: [
             "A central queue retries it",
@@ -1032,6 +1082,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "One key purge removes every object tagged with that key. Pick the narrowest key that covers exactly what must go, and remember a takedown also needs a rule so the content is not fetched again.",
           prompt: "Using the tagging scheme above, a whole season (`season-1234-s2`) must come down in one territory. What do you do on Fastly?",
           options: [
             "Purge-all on the service",
@@ -1078,6 +1129,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Fastly tags use spaces and care about case; CloudFront tags use commas, ignore case and are invalidated with a `#`. A wildcard is billed as one path.",
           prompt: "Match each purge feature to its description.",
           pairs: [
             ["Fastly surrogate keys", "Space-separated, case-sensitive, header up to 16 KB"],
@@ -1086,13 +1138,6 @@ const chapter: Chapter = {
             ["Fastly soft purge", "Marks objects stale so stale serving still works"],
           ],
           explain: "Both vendors can purge groups of objects, but with different syntax, case rules and billing. That is why a multi-CDN purge service maps one semantic key to each vendor's form.",
-        },
-        {
-          kind: "quiz",
-          prompt: "A per-session token query string slips into the segment cache key. What happens to the byte hit ratio?",
-          options: ["Nothing; tokens are ignored by caches", "It drops a few points", "It falls to near 0%", "It rises, because tokens are unique"],
-          answer: 2,
-          explain: "Tokens are unique per session. In the key, every viewer gets a private copy of every segment: hit ratio goes to nearly zero and collapsing stops, because no two requests share a key.",
         },
         {
           kind: "read",
@@ -1111,6 +1156,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "A value belongs in the key only if it changes the bytes of the segment and has few possible values. Values that are unique per viewer or have thousands of spellings create endless variants.",
           prompt: "Which of these should stay **out** of a segment's cache key? Select all that apply.",
           options: [
             "The signed token query string",
@@ -1129,6 +1175,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Each vendor has its own object-size limit. Check which limit belongs to Fastly, the account's creation date, and the feature that lifts the limit.",
           prompt: "A Fastly account created in 2021 must serve one 60 MB file per rendition through `Range` requests. What is needed?",
           options: [
             "Nothing; Fastly caches up to 50 GB per response",
@@ -1140,17 +1187,14 @@ const chapter: Chapter = {
           explain: "Accounts created on or after June 17, 2020 have a 20 MB maximum object size unless Segmented Caching is enabled. The 50 GB figure is CloudFront's. Separate segment files of a few MB avoid most of this.",
         },
         {
-          kind: "number",
-          prompt: "A 1M-stream evening is ~4 Tbps (assumed). At a ~97% byte hit ratio, how much traffic goes upstream to shields and origins?",
-          answer: 120,
-          tolerance: 10,
-          unit: "Gbps",
-          explain: "3% of 4 Tbps = 0.12 Tbps = **~120 Gbps**. Shields and origins are sized for this number.",
-        },
-        {
           kind: "read",
           title: "The cost of a bad key",
-          body: "Now a token query string slips into the key. Byte hit ratio falls from ~97% to near 0% within one segment duration. Upstream traffic jumps from ~0.12 Tbps to ~4 Tbps: over 30x, against shields and origins sized for the first number.\n\nTreat cache-key changes as high-risk deploys, with canaries and hit-ratio alarms (Chapters 11 and 14).",
+          body: "A 1M-stream evening is ~4 Tbps (assumed). At ~97% byte hit ratio, 3% goes upstream: ~120 Gbps (0.12 Tbps). Shields and origins are sized for that.\n\nNow a token query string slips into the key. Every viewer gets a private copy, so byte hit ratio falls to near 0% within one segment duration and collapsing stops. Upstream jumps to ~4 Tbps: over 30x.\n\nTreat cache-key changes as high-risk deploys, with canaries and hit-ratio alarms (Chapters 11 and 14).",
+        },
+        {
+          kind: "reveal",
+          prompt: "Think about it: why does one bad key change hurt so much more than one slow server?",
+          answer: "A slow server affects its own share of traffic. A bad key affects **every** request at once: hit ratio drops to near zero across the whole fleet, collapsing stops, and shields and origins sized for ~0.12 Tbps suddenly face ~4 Tbps. That is why key changes get canaries and alarms.",
         },
         {
           kind: "summary",
@@ -1173,21 +1217,27 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "Your code on someone else's servers",
+          body: "Every CDN lets you change how it treats your traffic: which requests to cache, for how long, what goes in the key, which origin to call. Some do it with code, some with settings.\n\nIn this lesson you read Fastly's code (VCL) and CloudFront's settings side by side, choose where custom edge code should run, and compare the big CDN vendors.",
+        },
+        {
           kind: "quiz",
-          prompt: "Fastly's VCL has no loops and cannot make arbitrary network calls. Why would a CDN limit its language like that?",
+          guess: true,
+          prompt: "A CDN runs your code on every single request, millions per second, on servers shared with thousands of other customers. What would you expect it to do with its programming language?",
           options: [
-            "To make it easier to learn",
-            "So it can run quickly with predictable performance and strong security",
-            "Because Varnish was written in Rust",
-            "To force customers onto paid features",
+            "Allow everything, so customers can do anything",
+            "Limit it, so code runs fast, predictably and safely",
+            "Allow only one line of code per customer",
+            "Run the code only once a day",
           ],
           answer: 1,
-          explain: "Fastly's VCL is \"intentionally limited in scope so that it can run quickly, maintain strong security\". No loops and no arbitrary network calls means predictable performance on every request.",
+          explain: "It limits it. Fastly's VCL is \"intentionally limited in scope so that it can run quickly, maintain strong security\". It has **no loops** and **no arbitrary network calls**, so every request takes a short, predictable time and one customer's code cannot hurt the others.",
         },
         {
           kind: "read",
           title: "Varnish and VCL",
-          body: "**[[Varnish]]** is an open-source HTTP cache. It is programmed in **[[VCL]] (Varnish Configuration Language)**: a small C-like language, compiled to native code, and organized as **subroutines** that run at fixed points in a request's lifecycle.\n\nFastly's VCL evolved from Varnish.",
+          body: "**[[Varnish]]** is an open-source HTTP cache. It is programmed in **[[VCL]] (Varnish Configuration Language)**: a small C-like language, compiled to native code, and organized as **subroutines** that run at fixed points in a request's lifecycle.\n\nFastly's VCL evolved from Varnish. It is intentionally limited: no loops, no arbitrary network calls.",
         },
         {
           kind: "read",
@@ -1208,13 +1258,8 @@ const chapter: Chapter = {
           },
         },
         {
-          kind: "order",
-          prompt: "A request misses the cache. Put the VCL subroutines in the order they run.",
-          items: ["vcl_recv", "vcl_hash", "vcl_miss", "vcl_fetch", "vcl_deliver", "vcl_log"],
-          explain: "Receive the request, build the cache key, handle the miss, process the origin response, deliver to the viewer, then log after delivery.",
-        },
-        {
           kind: "match",
+          teach: "Each subroutine runs at one moment: when the request arrives, when the origin's response arrives, when a synthetic response is made, or just before sending. Put each task at the moment it needs.",
           prompt: "Match each video task to the VCL subroutine where it belongs.",
           pairs: [
             ["Validate token, normalize the URL", "vcl_recv"],
@@ -1256,6 +1301,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall CloudFront's second stale limit from Lesson 5: what a minimum TTL above 0 does to responses the origin marked as not cacheable.",
           prompt: "Why does that policy set `min_ttl = 0`?",
           options: [
             "So segments are never cached",
@@ -1289,6 +1335,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Use the mapping table: each row pairs a Fastly concept with the CloudFront concept that does the same job.",
           prompt: "Match each Fastly concept to its CloudFront counterpart.",
           pairs: [
             ["Service, with versions", "Distribution"],
@@ -1307,7 +1354,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "CloudFront's two tiers",
-          body: "Source: AWS. **[[CloudFront Functions]]** fit per-request video work: key normalization, header changes, redirects, and token checks such as JWT validation. **[[Lambda@Edge]]** is heavier and far lower rate.",
+          body: "Source: AWS. **[[CloudFront Functions]]** fit per-request video work: key normalization, header changes, redirects, and token checks such as JWT validation. **[[Lambda@Edge]]** is heavier and far lower rate.\n\nWorked example: a function on a path with 50,000 requests per second, against a limit of 10,000 per second: 50,000 / 10,000 = **5x** over the limit.",
           visual: {
             kind: "table",
             headers: ["", "CloudFront Functions", "Lambda@Edge"],
@@ -1324,6 +1371,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Divide the request rate by the limit, with both in requests per second. 0.8M means 800,000.",
           prompt: "A Lambda@Edge viewer-request function runs on every segment at ~0.8M requests per second. Its documented limit is 10,000 requests per second per Region. How many times over the limit is that?",
           answer: 80,
           tolerance: 5,
@@ -1350,6 +1398,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall what VCL cannot do, and which Fastly tool was built to do exactly those things.",
           prompt: "You need to rewrite manifests at the edge on Fastly: parse them, loop over entries and call two backends. Which tool fits?",
           options: ["VCL", "Fastly Compute (Wasm)", "A surrogate key", "A CloudFront Function"],
           answer: 1,
@@ -1386,6 +1435,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Think deep inside ISPs, few big PoPs, a regional tier on its own cloud backbone, YouTube's network, and one address announced everywhere.",
           prompt: "Match each vendor to its most distinctive architecture trait.",
           pairs: [
             ["Akamai", "Servers deep inside ISPs, DNS mapping"],
@@ -1417,7 +1467,18 @@ const chapter: Chapter = {
       minutes: 10,
       steps: [
         {
+          kind: "read",
+          title: "What this chapter covered",
+          body: "Here is what this chapter covered:\n\n- A CDN does **offload, proximity and absorption**. Byte hit ratio drives origin load.\n- A **PoP** is routers, switches and cache servers. Consistent hashing makes it act as one cache.\n- **Admission** (cache-on-second-hit, S3-FIFO) keeps one-hit wonders out.\n- **Request collapsing** turns a premiere herd into one origin fetch. Stale serving hides origin trouble.\n- Prefer **versioned URLs**; purge by key or tag. Keep tokens out of the cache key.\n- Fastly is code (VCL, Compute); CloudFront is settings (behaviors, policies, Functions).",
+        },
+        {
+          kind: "read",
+          title: "Two formulas to keep",
+          body: "**Upstream load = (100% minus byte hit ratio) x peak traffic.**\nExample: 1 Tbps at 90% is 10% x 1 Tbps = 100 Gbps.\n\n**CloudFront stale window = the smaller of the stale directive and max TTL.**\nExample: `stale-if-error=300` with max TTL 3,600 s gives min(300, 3,600) = 300 seconds.\n\nThe review questions below use both.",
+        },
+        {
           kind: "order",
+          teach: "Go from outside the PoP inward: first something picks the PoP, then something picks a server, then your logic runs, then the key's owner is asked, and last the response is cleaned up and logged.",
           prompt: "A viewer in Osaka presses play two minutes after a premiere, on a Fastly-served URL (assumed setup). Put the path of one segment request in order.",
           items: [
             "DNS or anycast picks a Tokyo PoP",
@@ -1442,6 +1503,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Ask which one the origin bill and shield capacity are measured in, and whether a tiny manifest and a big segment should count the same.",
           prompt: "Q1. Why does byte hit ratio matter more than request hit ratio for video?",
           options: [
             "Bytes drive origin egress, shield capacity and cost; the request ratio weighs a manifest like a 2.5 MB segment",
@@ -1454,6 +1516,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Upstream load is the miss share times the peak. The miss share is 100% minus the byte hit ratio.",
           prompt: "Q1, continued. Peak egress is 8 Tbps. What upstream load does a 98% byte hit ratio imply?",
           answer: 160,
           tolerance: 5,
@@ -1462,6 +1525,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Without an owner per object, each server fills its cache on its own. Think about how many copies of one popular segment the PoP ends up holding.",
           prompt: "Q2. Without clustering, what happens to a 32-server PoP's effective cache?",
           options: [
             "It becomes 32 times larger",
@@ -1474,6 +1538,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall the defining constraint of a PoP, how many balancer hosts a software tier would need, and what attackers can do to a flow table.",
           prompt: "Q3. Why did Fastly balance load in switches (Faild) instead of a Maglev-style software tier?",
           options: [
             "Maglev is closed source",
@@ -1486,6 +1551,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "The name says it: requested how many times? Akamai's rule waited for a second request before storing an object; recall the before and after numbers.",
           prompt: "Q4. What is a one-hit wonder, and what did Akamai's cache-on-second-hit rule achieve?",
           options: [
             "A viral video; it doubled its hit ratio",
@@ -1503,6 +1569,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "CloudFront serves stale for the smaller of the stale directive and the behavior's maximum TTL.",
           prompt: "Q6. CloudFront has `max_ttl = 60`, and segments carry `stale-if-error=86400`. During an origin outage, how many seconds past expiry can stale be served at most?",
           answer: 60,
           tolerance: 1,
@@ -1516,6 +1583,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Compare the segment request rate (~0.8M per second) with Lambda@Edge's per-Region limit, and recall which lighter CloudFront tier scales to millions of requests per second.",
           prompt: "Q8. Why is a Lambda@Edge viewer-request function on every segment a bad idea at this scale, and what would you use instead?",
           options: [
             "It cannot read headers; use VCL instead",
@@ -1528,6 +1596,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "Check each statement against the chapter: what collapsing needs, what consistent hashing does, what a unique token does to the key, and which vendor has soft purge and a 150 ms target.",
           prompt: "Key takeaways. Which statements are true? Select all that apply.",
           options: [
             "A simulcast premiere is a collapsing problem, not a cache-size problem",

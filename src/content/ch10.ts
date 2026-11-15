@@ -194,16 +194,22 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "The other end of the wire",
+          body: "Every chapter so far followed bytes from the origin out to the edge. This chapter looks at the other end: the app on the viewer's phone or TV that receives those bytes.\n\nThat app decides what to ask your CDN for, and it is the only part that knows if the viewer is happy.\n\nBy the end of this lesson you will name its parts, see why your CDN sits inside its decision loop, and break \"time to start\" into steps.",
+        },
+        {
           kind: "quiz",
-          prompt: "Your CDN log says: segment 42 of the 1080p rendition, 200 OK in 35 ms, cache hit. The viewer is staring at a spinner. Who can tell you why?",
+          guess: true,
+          prompt: "Take a guess. Your CDN log says: segment 42 of the 1080p rendition, 200 OK in 35 ms, cache hit. But the viewer is staring at a spinner. Who would you expect can tell you why?",
           options: [
             "The CDN, from its access logs",
             "The origin, from its request logs",
-            "The player, because it sees the whole session",
+            "The app on the viewer's device, because it sees the whole viewing session",
             "The DNS resolver, from its query logs",
           ],
           answer: 2,
-          explain: "From the CDN's point of view all is fine. But maybe the segment arrived too late because the player picked a bitrate the network could not carry. Maybe it was waiting for a DRM license. Maybe it started on a bad CDN and spent three seconds on retries before it failed over. Only the player sees that.",
+          explain: "The app on the device, called the **player**. The CDN sees one request at a time, and each one looked fine. But maybe the segment arrived too late because the player picked a quality the network could not carry. Maybe it was waiting for a DRM license. Maybe it started on a bad CDN and spent three seconds on retries before it switched. Only the player sees all of that together.",
         },
         {
           kind: "read",
@@ -213,10 +219,11 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Three facts that follow",
-          body: "- **The player is a control loop on top of your network.** It measures throughput and buffer, then picks the next request. A change in [[TTFB]], a slow cache miss, or a connection reset changes what it does next.\n- **The player decides how much traffic you get.** Aggressive [[ABR]] raises average bitrate and [[egress]]. Conservative ABR lowers both. A one-line player config change can move your CDN bill.\n- **The player is where failover is fastest.**",
+          body: "- **The player is a control loop on top of your network.** It measures throughput and buffer, then picks the next request. A change in [[TTFB]], a slow cache miss, or a connection reset changes what it does next.\n- **The player decides how much traffic you get.** Aggressive [[ABR]] (its quality-picking logic) raises average bitrate and [[egress]]. A one-line config change can move your CDN bill.\n- **The player is where failover is fastest.** DNS answers stay cached until their [[TTL]] ends (Chapter 3). A player picks a URL per segment.",
         },
         {
           kind: "quiz",
+          teach: "Each mechanism has a delay before the viewer feels it. Think about what is cached on the way, and how often the player makes a fresh choice.",
           prompt: "A CDN goes bad. Which mechanism can move a viewer to another CDN fastest?",
           options: [
             "DNS steering, by changing the answer",
@@ -259,6 +266,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Follow the loop in order: first the player learns what exists, then it measures, then it chooses, then it fetches, and finally it reports what happened.",
           prompt: "Match each player part to its job.",
           pairs: [
             ["Manifest parser", "Builds the list of renditions and segment URLs"],
@@ -267,14 +275,7 @@ const chapter: Chapter = {
             ["Scheduler and loader", "Fetches, times out, retries, abandons"],
             ["Telemetry", "Sends start, stall, switch, error, end events"],
           ],
-          explain: "Five parts, one loop: parse what exists, measure the network, choose, fetch, and report. The buffer, DRM module and decoder sit beside this loop.",
-        },
-        {
-          kind: "quiz",
-          prompt: "In a web browser, which API lets the player talk to the device's CDM (Widevine, PlayReady or FairPlay)?",
-          options: ["Media Source Extensions (MSE)", "Encrypted Media Extensions (EME)", "Common Media Client Data (CMCD)", "The Fetch API"],
-          answer: 1,
-          explain: "EME talks to the Content Decryption Module. MSE is where the player appends media into a `SourceBuffer`, the browser's buffer. CMCD is data the player attaches to requests.",
+          explain: "Five parts, one loop: parse what exists, measure the network, choose, fetch, and report. The buffer, DRM module and decoder sit beside this loop. Remember the two browser APIs too: MSE holds the buffer (`SourceBuffer`), and EME talks to the CDM for DRM.",
         },
         {
           kind: "read",
@@ -296,6 +297,7 @@ const chapter: Chapter = {
         },
         {
           kind: "order",
+          teach: "The player cannot ask for something before it knows it exists. Permission and a URL come first, then the lists of what exists, then the key and codec setup, then the media itself.",
           prompt: "Put the startup steps in order, from press play to first frame.",
           items: [
             "Playback API call (login, entitlement, signed manifest URL)",
@@ -310,7 +312,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "A worked startup budget",
-          body: "An illustrative budget for a viewer in Sao Paulo on a good home connection. Assume 30 ms [[RTT]] to the CDN edge and 150 ms RTT to a playback API region in the United States. **All numbers are assumptions.**",
+          body: "An illustrative budget for a viewer in Sao Paulo on a good home connection. Assume 30 ms [[RTT]] (round-trip time) to the CDN edge and 150 ms RTT to a playback API region in the United States. **All numbers are assumptions.**\n\nTo read it, add rows. For example, the playlist work at the CDN is TCP + TLS (60 ms) + multivariant playlist (40 ms) + media playlists (40 ms) = **140 ms**.",
           visual: {
             kind: "table",
             headers: ["Step", "Network work", "Assumed time"],
@@ -331,6 +333,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "The **control plane** is the work that decides and permits playback, not the media bytes. Find the three named rows in the table and add their times, the same way as the 140 ms example.",
           prompt: "From the budget, add up the control-plane work: TCP + TLS to the API, playback API logic, and the license request. How many milliseconds?",
           answer: 650,
           tolerance: 30,
@@ -341,7 +344,8 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Three lessons from the budget",
-          body: "- **The control plane costs more than the bytes.** API and license dominate.\n- **Serial round trips add up.** A good player fetches the license in parallel with the first segments.\n- **A cache miss on the first segment** adds hundreds of milliseconds while the edge goes to the [[shield]] or origin (Chapter 6).\n\nSo the first segments of every rendition are the most valuable bytes in your cache.",
+          body: "- **The control plane costs more than the bytes.** API and license dominate.\n- **Serial round trips add up.** A good player fetches the license in parallel with the first segments.\n- **A cache miss on the first segment** adds hundreds of milliseconds while the edge goes to the [[shield]] or origin (Chapter 6).\n\nSo the first segments of every rendition are the most valuable bytes in your cache. Asked to \"improve startup time\"? First ask which step dominates, at p50 and p95.",
+          callout: { type: "staff", text: "Ask for the breakdown first. In most systems, p95 startup is dominated by a slow control-plane call in a far region, a license server tail, or first-segment cache misses at a cold edge. Each fix lives in a different team. Do not tune CDN config before you know the dominant step." },
         },
         {
           kind: "read",
@@ -357,7 +361,13 @@ const chapter: Chapter = {
           },
         },
         {
+          kind: "read",
+          title: "Four more ways to start faster",
+          body: "- **Preconnect and prefetch.** Open TLS connections to the CDN while the user is still on the episode page. Prefetch the manifest for the likely next episode.\n- **Inline data.** Return the multivariant playlist inside the playback API response, to save a round trip.\n- **License prefetch.** Request the DRM license on the episode page. This trades license server load for startup time.\n- **Faster transport.** [[HTTP/3]] and TLS [[session resumption]] save round trips (Chapters 2 and 4).\n\nEach one removes waiting from the startup path.",
+        },
+        {
           kind: "multi",
+          teach: "A real speed-up removes or overlaps a step on the startup path. Ask of each option: does it save a round trip on a healthy start, or does it only help when something fails?",
           prompt: "Which of these are ways platforms make startup faster? Select all that apply.",
           options: [
             "Preconnect TLS to the CDN while the user is still on the episode page",
@@ -367,13 +377,7 @@ const chapter: Chapter = {
             "Raise the retry count on the first segment",
           ],
           answers: [0, 1, 2, 3],
-          explain: "Preconnect and prefetch (also prefetch the manifest for the likely next episode), inline data to save a round trip, license prefetch (it trades license server load for startup time), and faster transport: [[HTTP/3]] and [[session resumption]] save round trips (Chapters 2 and 4). A higher retry count does nothing for a healthy start.",
-        },
-        {
-          kind: "read",
-          title: "Break it down before you fix it",
-          body: "When someone says \"improve startup time\", the first answer is a question: which step dominates, at p50 and at p95?\n\nEach step has a different owner. The API region belongs to one team, the license server to another, and the edge cache to yours.",
-          callout: { type: "staff", text: "Ask for the breakdown first. In most systems, p95 startup is dominated by a slow control-plane call in a far region, a license server tail, or first-segment cache misses at a cold edge. Each fix lives in a different team. Do not tune CDN config before you know the dominant step." },
+          explain: "Preconnect and prefetch, inline data to save a round trip, license prefetch (it trades license server load for startup time), and faster transport: HTTP/3 and session resumption save round trips. A higher retry count does nothing for a healthy start. Remember who owns each fix: the API region belongs to one team, the license server to another, and the edge cache to yours.",
         },
         {
           kind: "summary",
@@ -396,11 +400,17 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "Why the spinner appears",
+          body: "A video plays at a steady speed. The network delivers at a speed that goes up and down. The player hides the difference by keeping some video downloaded ahead of time.\n\nIn this lesson you will learn the one equation that predicts when that reserve runs out, and how the player picks a quality for each piece of video. You will also see how your CDN can fool that choice.",
+        },
+        {
           kind: "quiz",
-          prompt: "A 4-second segment at 4 Mbps. The network gives only 3 Mbps. What happens to the player's buffer on each segment?",
-          options: ["It grows", "It stays the same", "It shrinks", "The buffer does not depend on the network"],
+          guess: true,
+          prompt: "Take a guess. A 4-second piece of video is encoded at 4 Mbps. The network gives only 3 Mbps. What would you expect to happen to the video the player has saved up ahead?",
+          options: ["It grows", "It stays the same", "It shrinks", "It does not depend on the network"],
           answer: 2,
-          explain: "The segment holds 16 Mbit. At 3 Mbps it takes more than 5 seconds to download, but it only plays for 4 seconds. The screen drains the buffer faster than the network fills it.",
+          explain: "It shrinks. The piece holds 4 s x 4 Mbps = 16 Mbit. At 3 Mbps it takes more than 5 seconds to download, but it only plays for 4 seconds. The screen uses up saved video faster than the network adds it. Like a bath with the drain open wider than the tap.",
         },
         {
           kind: "read",
@@ -410,11 +420,12 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "The buffer equation",
-          body: "A segment of duration **D** at bitrate **R** takes time **T** to download. During that time the screen plays T seconds, and the segment adds D seconds.\n\nIf T is shorter than D, the buffer grows. If T is longer, it shrinks. Note that **TTFB** is part of T.",
-          visual: { kind: "code", lang: "text", code: "buffer change = D - T\n\nT = (R x D) / throughput + TTFB", caption: "Book 10.4" },
+          body: "A segment of duration **D** at bitrate **R** takes time **T** to download. During that time the screen plays T seconds, and the segment adds D seconds.\n\nIf T is shorter than D, the buffer grows. If T is longer, it shrinks. Note that **TTFB** (time to first byte, the wait before data starts) is part of T.\n\nThe worked example uses a 2 Mbps segment on a fast and on a slow network.",
+          visual: { kind: "code", lang: "text", code: "buffer change = D - T\nT = (R x D) / throughput + TTFB\n\nExample: D = 4 s, R = 2 Mbps -> 8 Mbit\n  10 Mbps, TTFB 0.1 s: T = 8/10 + 0.1 = 0.9 s\n     buffer change = 4 - 0.9 = +3.1 s\n  1.6 Mbps, TTFB 0.1 s: T = 8/1.6 + 0.1 = 5.1 s\n     buffer change = 4 - 5.1 = -1.1 s", caption: "Book 10.4, with a worked example" },
         },
         {
           kind: "number",
+          teach: "Size in megabits is R x D. Divide it by the throughput to get seconds, then add the TTFB in seconds.",
           prompt: "A 4-second segment at 4 Mbps (16 Mbit, 2 MB). Throughput is 20 Mbps and TTFB is 50 ms. How long does the download take?",
           answer: 0.85,
           tolerance: 0.05,
@@ -424,6 +435,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "First find T the same way. The buffer change is D minus T. When T is bigger than D, the difference is what the player loses.",
           prompt: "Same segment, same 50 ms TTFB, but throughput drops to 3 Mbps. How many seconds of buffer does the player LOSE on this segment?",
           answer: 1.4,
           tolerance: 0.1,
@@ -451,26 +463,20 @@ const chapter: Chapter = {
           },
         },
         {
-          kind: "quiz",
-          prompt: "Which player's documented default buffers furthest ahead?",
-          options: ["hls.js", "Shaka Player", "ExoPlayer / Media3"],
-          answer: 2,
-          explain: "Media3: 50 s. hls.js: 30 s (with a 600 s cap). Shaka: a 10 s buffering goal. Same content, very different byte patterns at your CDN.",
+          kind: "read",
+          title: "The buffer is not free",
+          body: "Every buffered second the user never watches is egress you paid for. So **buffer size is a cost lever**, not only a QoE lever. A bigger target protects against stalls, and also raises your CDN bill when people leave early.\n\nWorked example, Media3's 50 s target at 4 Mbps:\n\n50 s x 4 Mbps = 200 Mbit. Divide by 8 bits per byte: **25 MB** that nobody may watch.\n\nThe three players above make very different byte patterns at your CDN for the same content.",
+          callout: { type: "mistake", text: "Treating the buffer as free safety. If 30% of sessions end in the first two minutes and the player buffers 50 seconds ahead at 4 Mbps, each of those sessions can download up to 25 MB nobody sees." },
         },
         {
           kind: "number",
-          prompt: "A session buffers 50 seconds ahead at 4 Mbps, then the viewer quits. How many megabytes were downloaded that nobody watched?",
-          answer: 25,
-          tolerance: 1.5,
+          teach: "Buffered seconds times bitrate gives megabits. Divide by 8 to get megabytes, as in the 25 MB example.",
+          prompt: "An hls.js session buffers its default 30 seconds ahead at 4 Mbps, then the viewer quits. How many megabytes were downloaded that nobody watched?",
+          answer: 15,
+          tolerance: 1,
           unit: "MB",
-          hint: "50 s x 4 Mbps = 200 Mbit. Divide by 8.",
-          explain: "50 x 4 = 200 Mbit = 25 MB. If 30% of sessions end in the first two minutes, each of those can download up to 25 MB nobody sees.",
-        },
-        {
-          kind: "read",
-          title: "The buffer is not free",
-          body: "Every buffered second the user never watches is egress you paid for. So **buffer size is a cost lever**, not only a QoE lever.\n\nA bigger buffer target protects against stalls. It also raises your CDN bill when people leave early.",
-          callout: { type: "mistake", text: "Treating the buffer as free safety. If 30% of sessions end in the first two minutes and the player buffers 50 seconds ahead at 4 Mbps, each of those sessions can download up to 25 MB nobody sees." },
+          hint: "30 s x 4 Mbps = 120 Mbit. Divide by 8.",
+          explain: "30 x 4 = 120 Mbit = 15 MB. Media3's 50 s default would waste 25 MB; Shaka's 10 s goal about 5 MB. Same content, very different egress for early quitters.",
         },
         {
           kind: "read",
@@ -495,6 +501,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "The algorithm picks whatever gives the highest score. If one kind of event costs a lot of points, it will choose bitrates that make that event less likely.",
           prompt: "You raise the rebuffer penalty weight a lot. How does an algorithm that maximizes this QoE score behave?",
           options: [
             "It turns conservative and picks lower bitrates",
@@ -508,7 +515,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Throughput-based ABR",
-          body: "The simplest family:\n\n1. Estimate throughput from recent downloads.\n2. Smooth it with an **exponentially weighted moving average (EWMA)**.\n3. Multiply by a **safety factor** below 1.0.\n4. Pick the highest rendition that fits.\n\nThe safety factor leaves headroom for the estimate being wrong.",
+          body: "The simplest family:\n\n1. Estimate throughput from recent downloads.\n2. Smooth it with an **exponentially weighted moving average (EWMA)**: an average where recent samples count more.\n3. Multiply by a **safety factor** below 1.0.\n4. Pick the highest rendition that fits.\n\nThe safety factor leaves headroom for the estimate being wrong. Worked example, factor 0.75: to sit on a 3 Mbps rendition, the estimate must be at least 3 / 0.75 = **4 Mbps**.",
         },
         {
           kind: "read",
@@ -526,6 +533,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "The player only uses estimate x factor. Turn that around: the needed estimate is the rendition bitrate divided by the factor.",
           prompt: "With a 0.7 safety factor, what throughput estimate does a player need to sustain the assumed 4 Mbps average?",
           answer: 5.7,
           tolerance: 0.15,
@@ -537,9 +545,11 @@ const chapter: Chapter = {
           kind: "read",
           title: "How delivery fools the estimator",
           body: "Many failure modes come from delivery infrastructure:\n\n- **[[Slow start]].** A new connection starts with about 10 packets (about 14.6 KB) in flight and roughly doubles each RTT.\n- **TTFB counted as download time.** A cache miss adding 300 ms before the first byte lowers the estimate.\n- **Parallel downloads.** Audio, video and subtitles share one link; measuring each alone overestimates.\n- **Bursty Wi-Fi and cellular.** One fast sample can push the estimate up just before the link collapses.",
+          visual: { kind: "code", lang: "text", code: "measured throughput = segment size / download time\n\nExample: 2 MB = 16 Mbit, finished in 0.8 s\n  16 / 0.8 = 20 Mbps measured\n(even if the real link is much faster)", caption: "The player only sees size and time" },
         },
         {
           kind: "number",
+          teach: "The player divides the segment size in megabits by the time the download took. It does not know the real link speed.",
           prompt: "A 1 MB segment (8 Mbit) on a cold connection needs about 7 round trips. At 100 ms RTT that is about 0.7 s. What throughput does the player measure, even on a 100 Mbps link?",
           answer: 11,
           tolerance: 1,
@@ -581,6 +591,11 @@ const chapter: Chapter = {
       minutes: 11,
       steps: [
         {
+          kind: "read",
+          title: "Beyond the speed estimate",
+          body: "In Lesson 2 you saw that a throughput estimate is easy to fool: slow start, TTFB and bursty links all bend it.\n\nResearchers and streaming companies tried other ideas: use the buffer instead, plan several segments ahead, or let a neural network decide.\n\nBy the end of this lesson you can compare these families, and you will know the one rule that matters most: prove every ABR change on real viewers.",
+        },
+        {
           kind: "reveal",
           prompt: "In 2014, researchers at Stanford and Netflix asked: can a player pick the bitrate from the buffer level alone, with no throughput estimate at all? Think: why could that work?",
           answer: "The buffer already encodes throughput. A fast network grows the buffer; a slow one drains it. So the buffer level is a measurement of the network, smoothed over time, and it is not fooled by one fast or slow sample.",
@@ -604,6 +619,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "BBA reads the network through the buffer level. Think about the moment when the buffer has had no time to fill or drain yet.",
           prompt: "Why does BBA still need some throughput estimation, and when?",
           options: [
             "At startup, because an empty buffer carries no information about capacity",
@@ -648,7 +664,8 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
-          prompt: "Stanford's Puffer then ran a randomized, blinded experiment with real viewers. What did it find?",
+          guess: true,
+          prompt: "Take a guess. Learned and clever ABR schemes looked great in simulators. Stanford's Puffer project then tested them on real viewers, chosen at random. What would you expect it found?",
           options: [
             "Machine-learned schemes clearly beat everything, as in simulation",
             "Sophisticated and learned schemes found it hard to beat a simple buffer-based scheme",
@@ -656,12 +673,12 @@ const chapter: Chapter = {
             "Throughput-based ABR won by a wide margin",
           ],
           answer: 1,
-          explain: "Puffer's abstract says sophisticated or machine-learned schemes found it difficult to beat a \"simple\" buffer-based scheme in the real world, despite good results in emulators and simulators, because real network behavior is variable and heavy-tailed.",
+          explain: "Puffer's abstract says sophisticated or machine-learned schemes found it difficult to beat a \"simple\" buffer-based scheme in the real world, despite good results in emulators and simulators. The reason: real networks are variable and **heavy-tailed** (rare, very bad moments happen more often than a simulator expects).",
         },
         {
           kind: "read",
           title: "Puffer and Fugu",
-          body: "**Puffer** ran a live TV site and assigned each real session an ABR algorithm at random (NSDI 2020).\n\nThe authors' own design, **Fugu**, kept MPC-style control but used a neural network trained **in situ**, on real deployment data, to predict how long each chunk would take to transmit. Fugu had the lowest stall time of the tested schemes in the primary experiment.",
+          body: "**Puffer** ran a live TV site and assigned each real session an ABR algorithm at random, in a blinded experiment (NSDI 2020). Learned schemes found it hard to beat a simple buffer-based one.\n\nThe authors' own design, **Fugu**, kept MPC-style control but used a neural network trained **in situ**, on real deployment data, to predict how long each chunk would take to transmit. Fugu had the lowest stall time of the tested schemes in the primary experiment.",
           visual: {
             kind: "stats",
             items: [
@@ -679,6 +696,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Ask what each family looks at to decide: download speed, buffer level, a stability-and-reward rule, a plan over the next few segments, or a trained network.",
           prompt: "Match each ABR family to its core idea.",
           pairs: [
             ["Throughput-based", "EWMA of download speed times a safety factor"],
@@ -708,6 +726,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall the shared lesson from Netflix and BOLA: an empty buffer says nothing about the network, a full one says a lot. The dash.js default uses that.",
           prompt: "What is the default ABR strategy in dash.js?",
           options: [
             "Pure throughput-based",
@@ -745,8 +764,14 @@ const chapter: Chapter = {
       minutes: 11,
       steps: [
         {
+          kind: "read",
+          title: "When a request goes wrong",
+          body: "A player makes a request every few seconds for the whole episode. Some of those requests will fail. What the player does next decides whether the viewer sees a tiny blip, a long spinner, or an error screen.\n\nIn this lesson you will match each kind of error to the right response, see how retries can overload a CDN, and follow how a player moves to another CDN.",
+        },
+        {
           kind: "quiz",
-          prompt: "50 minutes into a long movie, segment requests start returning HTTP 403. The player retries the same URL with backoff. What happens?",
+          guess: true,
+          prompt: "Take a guess. 50 minutes into a long movie, segment requests start returning HTTP 403 (\"forbidden\"). The URLs carry a time-limited access token, like a ticket. The player retries the same URL. What would you expect?",
           options: [
             "The retry succeeds after a short wait",
             "It fails forever: the signed URL or token expired",
@@ -754,7 +779,7 @@ const chapter: Chapter = {
             "The player drops to a lower bitrate and continues",
           ],
           answer: 1,
-          explain: "A short-lived token that expires mid-episode causes 403s in the middle of playback. Retrying the same URL fails forever. The right behavior is to ask the playback API for a fresh URL.",
+          explain: "An expired ticket stays expired. A short-lived token that expires mid-episode causes 403s in the middle of playback, and retrying the same URL fails forever. The right behavior is to ask the playback API for a **fresh URL** with a new token.",
         },
         {
           kind: "read",
@@ -780,6 +805,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Ask what each signal means. A temporary problem is worth a retry or a move. A permission problem needs a new URL. A missing object may exist elsewhere. A slow download needs a smaller file.",
           prompt: "Match each signal to the good player response.",
           pairs: [
             ["Timeout, no bytes", "Retry on a new connection, then switch CDN"],
@@ -814,19 +840,20 @@ const chapter: Chapter = {
           answer: "Retries arrive in synchronized waves at the recovering CDN, and high retry counts multiply the request rate. This is a [[retry storm]], and it can turn a 10-second blip into an outage (Chapter 12). Jitter spreads the retries out; low retry counts cap the multiplier.",
         },
         {
-          kind: "number",
-          prompt: "If every segment request can retry 6 times, what is the worst-case multiple of its normal request rate that a failing CDN sees from players alone?",
-          answer: 7,
-          tolerance: 0.5,
-          unit: "x",
-          hint: "The first attempt plus 6 retries.",
-          explain: "1 original + 6 retries = up to 7 times the normal request rate, aimed at the CDN that is already failing.",
-        },
-        {
           kind: "read",
           title: "Retry less, fail over faster",
-          body: "Retries feel safe. At scale they are load. The fix is to retry a little, then **move**.\n\n- Keep per-CDN retries low.\n- Fail over fast.\n- Always use exponential backoff **with** jitter.\n- Give each session a [[retry budget]].",
+          body: "Retries feel safe. At scale they are load. In the worst case each request is sent **1 + N** times, where N is the retry count. With 6 retries: 1 + 6 = up to **7 times** the normal load.\n\nThe fix is to retry a little, then **move**:\n- Keep per-CDN retries low.\n- Fail over fast.\n- Always use **exponential backoff** (wait longer after each failure) **with** jitter.\n- Give each session a [[retry budget]].",
           callout: { type: "mistake", text: "A high retry count \"to be safe\". If every segment can retry 6 times, a failing CDN can see up to 7 times its normal request rate from players alone." },
+        },
+        {
+          kind: "number",
+          teach: "Every failing request is sent once, plus once more for each allowed retry. Use the hls.js timeout retry count from the stats above.",
+          prompt: "hls.js retries timeouts up to 4 times. If every segment request times out, what is the worst-case multiple of its normal request rate that the failing CDN sees?",
+          answer: 5,
+          tolerance: 0.5,
+          unit: "x",
+          hint: "The first attempt plus 4 retries.",
+          explain: "1 original + 4 retries = up to 5 times the normal request rate, aimed at the CDN that is already failing. With the 6 fragment retries it would be 7 times.",
         },
         {
           kind: "read",
@@ -837,18 +864,6 @@ const chapter: Chapter = {
           kind: "read",
           title: "HLS Content Steering",
           body: "Apple's spec adds an `EXT-X-CONTENT-STEERING` tag that points to a JSON **steering manifest**. Variants are grouped into **pathways**, for example one per CDN.\n\nThe steering manifest has a `PATHWAY-PRIORITY` list, a `TTL` (recommended 300 seconds) and an optional `RELOAD-URI`. On reload, the client may add `_HLS_pathway` and `_HLS_throughput` query parameters. DASH-IF defines a similar mechanism for DASH.\n\nHow the server ranks CDNs is Chapter 9. Here we care what the player does with the ranking.",
-        },
-        {
-          kind: "quiz",
-          prompt: "With HLS Content Steering, all variants on the current pathway fail with network errors. What does the client do?",
-          options: [
-            "Retries the same pathway until the TTL expires",
-            "Penalizes that pathway and moves to the next non-penalized pathway",
-            "Asks the playback API for a new manifest",
-            "Shows an error immediately",
-          ],
-          answer: 1,
-          explain: "The spec says the client penalizes the failing pathway and moves to the next non-penalized pathway in the `PATHWAY-PRIORITY` order.",
         },
         {
           kind: "read",
@@ -870,6 +885,7 @@ const chapter: Chapter = {
         },
         {
           kind: "order",
+          teach: "Follow the three parts of the diagram: first try again on the same CDN for a while, then mark it as bad, then move.",
           prompt: "A segment request returns 503. Put the player's failover steps in order.",
           items: [
             "Request fails with a 5xx",
@@ -892,6 +908,19 @@ const chapter: Chapter = {
           callout: { type: "staff", text: "Ask of any player failover design: \"What happens when **all** CDNs are degraded?\" Logic built for a single-CDN outage can worsen a shared problem, such as an origin failure behind every CDN. Good designs cap total retries per session and degrade quality before they fail." },
         },
         {
+          kind: "quiz",
+          teach: "With Content Steering, a pathway plays the role of a CDN in the failover diagram, and the `PATHWAY-PRIORITY` list is the priority list.",
+          prompt: "With HLS Content Steering, all variants on the current pathway fail with network errors. What does the client do?",
+          options: [
+            "Retries the same pathway until the TTL expires",
+            "Penalizes that pathway and moves to the next non-penalized pathway",
+            "Asks the playback API for a new manifest",
+            "Shows an error immediately",
+          ],
+          answer: 1,
+          explain: "The spec says the client penalizes the failing pathway and moves to the next non-penalized pathway in the `PATHWAY-PRIORITY` order. It is the same penalize-then-switch logic as the diagram.",
+        },
+        {
           kind: "summary",
           points: [
             "Match the response to the signal: retry 5xx and timeouts, refresh the URL on 403, try elsewhere on 404.",
@@ -912,11 +941,17 @@ const chapter: Chapter = {
       minutes: 11,
       steps: [
         {
+          kind: "read",
+          title: "Two sides that never talked",
+          body: "The player knows how the viewer is doing. The CDN knows how the servers are doing. For years, neither told the other anything.\n\nTwo standards changed that: one lets the player attach facts to each request, and one lets servers attach facts to each response.\n\nBy the end of this lesson you can read these facts in a request, use them to find stalls in CDN logs, and avoid three traps that can hurt your cache.",
+        },
+        {
           kind: "quiz",
-          prompt: "Your CDN logs a normal segment request. Which of these can the CDN NOT know from it?",
+          guess: true,
+          prompt: "Take a guess. Your CDN logs a normal segment request: a URL, some standard headers, the response. Which of these would the CDN NOT know from it?",
           options: ["The object's size", "The viewer's current buffer level", "The response status code", "Which PoP served it"],
           answer: 1,
-          explain: "For years the player and the CDN were strangers. The CDN saw a URL. The player knew the session, buffer, bitrate and stalls. CMCD fixes that.",
+          explain: "The buffer level. The CDN knows what it sent: size, status, which PoP. But the buffer lives inside the player. For years the player and the CDN were strangers: the CDN saw a URL, and the player knew the session, buffer, bitrate and stalls. CMCD fixes that.",
         },
         {
           kind: "read",
@@ -959,6 +994,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Each key is a two- or three-letter abbreviation of English words. Read the letters as the first letters of words, and look back at the request and status key table.",
           prompt: "Match each CMCD key to its meaning.",
           pairs: [
             ["bl", "Buffer length, in ms"],
@@ -981,6 +1017,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Find the buffer key in the request line, and check its unit in the key table. Divide milliseconds by 1,000 to get seconds.",
           prompt: "In that request, how much media does the player have buffered?",
           visual: {
             kind: "code",
@@ -1009,7 +1046,18 @@ const chapter: Chapter = {
           props: { trace: "evening", algo: "throughput" },
         },
         {
+          kind: "read",
+          title: "Trap 1: CORS preflight",
+          body: "Custom headers like `CMCD-Request` trigger a **CORS preflight** in browsers: an extra `OPTIONS` request the browser sends first to ask permission. That adds a round trip.\n\nThis is why many web players use **query mode**. The `CMCD` value then becomes part of the URL. And because `bl` and `mtp` change all the time, the URL is a little different on every request.",
+          visual: {
+            kind: "compare",
+            left: { title: "Header mode", points: ["Four CMCD-* headers", "URL and cache key unchanged", "Browsers send a CORS preflight: extra round trip"] },
+            right: { title: "Query mode", points: ["One CMCD query argument", "No preflight", "Changes every request: must leave the cache key"] },
+          },
+        },
+        {
           kind: "quiz",
+          teach: "The [[cache key]] is the name the CDN stores an object under (Chapters 4 and 5). A hit needs a later request with exactly the same key. Ask how many requests would share a key.",
           prompt: "A web player sends CMCD in query mode. The `CMCD` value changes on every request (`bl`, `mtp`). The CDN puts the full query string in the cache key. What happens?",
           options: [
             "Nothing; CDNs ignore query strings by default everywhere",
@@ -1018,31 +1066,22 @@ const chapter: Chapter = {
             "Only the manifest stops caching",
           ],
           answer: 1,
-          explain: "Every request becomes a unique [[cache key]], so every request misses. The edge forwards everything to the shield and origin.",
+          explain: "Every request becomes a unique cache key, so every request misses. The edge forwards everything to the shield and origin.",
         },
         {
           kind: "read",
-          title: "Trap 1: the cache key",
+          title: "Trap 2: the cache key",
           body: "In query mode, `CMCD` changes on every request. If the CDN includes the full query string in the cache key (Chapters 4 and 5), hit ratio collapses toward zero.\n\n**Exclude the `CMCD` argument from the cache key on every CDN**, and usually **strip** it before forwarding to shield and origin. On CloudFront, use a cache policy that omits it. On Fastly, add a URL normalization step in VCL or Compute.",
           callout: { type: "mistake", text: "Turning on CMCD query mode on one CDN that still keys on the full query string. One CDN missed is enough to send its whole share of traffic to origin." },
         },
         {
           kind: "read",
-          title: "Trap 2: CORS preflight",
-          body: "Custom headers like `CMCD-Request` trigger a **CORS preflight** (`OPTIONS`) in browsers, which adds a round trip. This is why many web players use **query mode**, which makes Trap 1 critical.",
-          visual: {
-            kind: "compare",
-            left: { title: "Header mode", points: ["Four CMCD-* headers", "URL and cache key unchanged", "Browsers send a CORS preflight: extra round trip"] },
-            right: { title: "Query mode", points: ["One CMCD query argument", "No preflight", "Changes every request: must leave the cache key"] },
-          },
-        },
-        {
-          kind: "read",
           title: "Trap 3: cardinality and privacy",
-          body: "`sid` is **high-[[cardinality]]**. Keep it in logs, not in metric tags (Chapter 11).\n\nSession and content IDs sent to third-party CDNs are **viewing data**. Use random session IDs, never user IDs, and review the design with Security.",
+          body: "`sid` is **high-[[cardinality]]**: it has millions of different values, one per session. Metric systems store one time series per tag value, so keep it in logs, not in metric tags (Chapter 11).\n\nSession and content IDs sent to third-party CDNs are **viewing data**. Use random session IDs, never user IDs, and review the design with Security.",
         },
         {
           kind: "multi",
+          teach: "Check each option against the three traps: the cache key, metric cardinality, and the privacy of viewing data.",
           prompt: "Which are good CMCD practices? Select all that apply.",
           options: [
             "Exclude the CMCD argument from the cache key on every CDN",
@@ -1073,6 +1112,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "MQCS is a quality score for a segment, sent from the origin side. CloudFront can compare scores when it has more than one place to get the same segment from.",
           prompt: "What can CloudFront do with the MQCS that MediaPackage v2 sends?",
           options: [
             "Pick the origin in an origin group whose segment scores better",
@@ -1110,11 +1150,22 @@ const chapter: Chapter = {
       minutes: 10,
       steps: [
         {
+          kind: "read",
+          title: "Measuring happy viewers",
+          body: "Your servers can be up, fast and error-free while viewers stare at spinners and leave. So streaming teams measure what the viewer actually experiences, from the player.\n\nIn this lesson you will learn the core viewer-side metrics, two traps in how they are counted, and the research that links them to money. By the end you can trace a delivery decision all the way to revenue.",
+        },
+        {
           kind: "quiz",
-          prompt: "Startup gets 3 seconds slower after a change. No errors appear anywhere. Which metric rises?",
-          options: ["Video start failure (VSF)", "Exits before video start (EBVS)", "Playback failure", "Dropped frames"],
+          guess: true,
+          prompt: "Take a guess. After a change, videos take 3 seconds longer to start. Nothing breaks and no errors appear. What would you expect many viewers to do?",
+          options: [
+            "Wait patiently; nothing failed",
+            "Leave before the video starts",
+            "See an error message",
+            "Watch at lower quality",
+          ],
           answer: 1,
-          explain: "VSF counts errors. EBVS counts users who leave before the first frame with no error. If startup slows, EBVS rises while VSF stays flat.",
+          explain: "Many leave. People are impatient with a black screen. The industry counts this as **exits before video start (EBVS)**: the user leaves before the first frame, with no error. It is different from **video start failure (VSF)**, which counts errors. If startup slows, EBVS rises while VSF stays flat.",
         },
         {
           kind: "read",
@@ -1153,6 +1204,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Ask when each symptom happens (before start, during playback, or in the decoder) and whether it involves an error. The two tables list the typical drivers.",
           prompt: "Match each QoE metric to a typical delivery driver.",
           pairs: [
             ["Video start time", "License latency and first-segment misses"],
@@ -1175,6 +1227,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "In one method every session counts once, however long it was. In the other, every second counts once. Which method lets a 2-hour session add more?",
           prompt: "Which way of computing rebuffering ratio gives long sessions more weight?",
           options: [
             "Average of each session's ratio",
@@ -1185,13 +1238,9 @@ const chapter: Chapter = {
           explain: "Per-session averaging counts every session once. Total over total lets a long session contribute more seconds. They can move in opposite directions.",
         },
         {
-          kind: "number",
-          prompt: "An anime episode is about 24 minutes. With a 1% rebuffering ratio, about how many seconds of spinner does a viewer see per episode?",
-          answer: 14.4,
-          tolerance: 1,
-          unit: "s",
-          hint: "24 x 60 x 0.01",
-          explain: "24 x 60 = 1,440 s. 1% of that is about 14 seconds of spinner per episode. A \"small\" 1% is very visible.",
+          kind: "read",
+          title: "What 1% looks like",
+          body: "A rebuffering ratio of 1% sounds tiny. Put it in seconds.\n\nAn anime episode is about 24 minutes: 24 x 60 = **1,440 seconds**. 1% of that is about **14 seconds of spinner** per episode.\n\nA \"small\" 1% is very visible to the viewer.",
         },
         {
           kind: "read",
@@ -1208,7 +1257,13 @@ const chapter: Chapter = {
           },
         },
         {
+          kind: "read",
+          title: "Turning the study into a rough rule",
+          body: "You can use the per-second number as a rough, straight-line rule:\n\nextra abandonment = (start time - 2 s) x 5.8%\n\nWorked example: a video takes **4 seconds** to start. (4 - 2) x 5.8% = 2 x 5.8% = about **11.6%** more viewers leave.\n\nThis is a back-of-envelope use of the study, not a figure from the paper.",
+        },
+        {
           kind: "number",
+          teach: "Subtract the 2-second patience window from the start time, then multiply the extra seconds by 5.8%.",
           prompt: "Rough estimate: a video takes 5 seconds to start. Using about 5.8% more abandonment per second beyond 2 seconds, how much extra abandonment is that?",
           answer: 17.4,
           tolerance: 1.5,
@@ -1219,10 +1274,11 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Evidence: buffering",
-          body: "Dobrian et al. (Conviva, SIGCOMM 2011) found **buffering ratio** had the largest impact on engagement of all metrics, across short VOD, long VOD and live.\n\nFor live, a 1% increase in buffering ratio could cut engagement by **more than three minutes** in a 90-minute event. Average bitrate mattered much more for live than for VOD.",
+          body: "Dobrian et al. (Conviva, SIGCOMM 2011) found **buffering ratio** had the largest impact on engagement of all metrics, across short VOD, long VOD and live.\n\nFor live, a 1% increase in buffering ratio could cut engagement by **more than three minutes** in a 90-minute event. Average bitrate mattered much more for live than for VOD.\n\nWhy the business cares: for a subscription service, more **engagement** (watch time) keeps people paying. That is **retention**, and retention is revenue.",
         },
         {
           kind: "order",
+          teach: "Start from what your team controls and end at what the company counts. Your choice changes what the viewer experiences, which changes how much they watch, which changes whether they keep paying.",
           prompt: "Put the chain you should explain in any review in order.",
           items: ["Delivery decision", "QoE metric", "Engagement", "Retention", "Revenue"],
           explain: "For a subscription service, engagement leads retention. The chain: delivery decision, QoE metric, engagement, retention, revenue.",
@@ -1230,16 +1286,18 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Premieres raise the stakes",
-          body: "At a simulcast premiere, fans who waited all week may be more patient than casual viewers. But they arrive together (Chapter 13). The first-segment herd at the edge and the license burst hit exactly when startup is most visible.",
+          body: "At a simulcast premiere, fans who waited all week may be more patient than casual viewers. But they arrive together (Chapter 13). The first-segment herd at the edge and the license burst hit exactly when startup is most visible.\n\nThe arithmetic of a failure rate is simple: failed starts = starts x rate. At a 2 million premiere, 1% is 2,000,000 x 0.01 = **20,000** failed starts.",
           callout: { type: "crunchyroll", text: "With the assumed 2-million-concurrent spike, even a 1% start failure rate is about 20,000 failed starts in a few minutes. This is an assumption about impact, not a published Crunchyroll figure." },
         },
         {
           kind: "number",
-          prompt: "Assumed premiere: 2 million concurrent starts, 1% start failure rate. How many failed starts?",
-          answer: 20000,
-          tolerance: 500,
+          teach: "Failed starts = number of starts x failure rate. Write the percentage as a decimal first, as in the 2-million example above.",
+          prompt: "A normal evening peak: about 1 million concurrent starts (assumed), with a 0.5% start failure rate. How many failed starts?",
+          answer: 5000,
+          tolerance: 200,
           unit: "starts",
-          explain: "2,000,000 x 0.01 = 20,000 failed starts in a few minutes, all of them fans who were waiting for this episode.",
+          hint: "1,000,000 x 0.005",
+          explain: "1,000,000 x 0.005 = 5,000 failed starts. At the assumed 2-million premiere with 1% failures it would be 20,000, all of them fans who were waiting for this episode.",
         },
         {
           kind: "read",
@@ -1255,6 +1313,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Read the diagram from the right. Find the one cause whose arrows reach both symptoms, and remember that errors did not move.",
           prompt: "In one region, rebuffering ratio is up and average bitrate is down. Errors are flat. Which cause fits best?",
           visual: { kind: "flow", spec: CAUSE_PLAY },
           options: [
@@ -1292,11 +1351,17 @@ const chapter: Chapter = {
       minutes: 12,
       steps: [
         {
+          kind: "read",
+          title: "Not one player, many",
+          body: "So far we talked about \"the player\" as if there were one. A real service has a different player on every platform: browsers, phones, smart TVs, game consoles, streaming sticks. Each behaves a little differently, and you cannot update them all at once.\n\nIn this lesson you will see what that means for your CDN config, meet the main player libraries, and estimate how segment length and ABR settings change request load and egress.",
+        },
+        {
           kind: "quiz",
-          prompt: "You tighten the TLS policy on a CDN. Web and mobile apps are fine. Which group is most likely to break silently?",
+          guess: true,
+          prompt: "Take a guess. You tighten the security settings for encrypted connections (the TLS policy) on a CDN. Web and mobile apps are fine. Which group would you expect is most likely to break silently?",
           options: ["Latest iPhones", "Chrome on desktop", "Old smart TV models", "Android phones with Media3"],
           answer: 2,
-          explain: "Old TVs stay in homes for years and may have older TLS and HTTP stacks, or strict header and byte-range expectations. A TLS policy change can silently break a device family (Chapters 4 and 15).",
+          explain: "Old smart TVs. They stay in homes for years and rarely get software updates, so they may have older TLS and HTTP stacks, or strict header and byte-range expectations. A TLS policy change can silently break a whole device family (Chapters 4 and 15).",
         },
         {
           kind: "read",
@@ -1328,6 +1393,7 @@ const chapter: Chapter = {
         },
         {
           kind: "match",
+          teach: "Apple platforms use Apple's own player. Android-based TV sticks use Google's open-source player. Roku has its own native player. Browsers run JavaScript libraries on top of MSE and EME.",
           prompt: "Match each platform to its typical player stack.",
           pairs: [
             ["iOS, iPadOS, tvOS", "AVPlayer, FairPlay, HLS only"],
@@ -1349,6 +1415,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Compare who has to change for each option: the app on millions of devices, the users themselves, or systems your own team runs.",
           prompt: "A delivery problem hurts QoE on one TV platform. An app fix needs weeks of certification. What is usually the fastest fix?",
           options: [
             "Ship a new TV app build",
@@ -1384,6 +1451,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall Lesson 2: hls.js, Shaka and Media3 had different buffer targets and different safety factors. Think about what that does to the requests your CDN receives.",
           prompt: "For Media Delivery, what is the key fact about player libraries?",
           options: [
             "They all share the same ABR defaults",
@@ -1416,7 +1484,7 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Worked example: request rate",
-          body: "Use the assumed model: **2 million concurrent streams** at a **4 Mbps** average. Assume **4-second segments** with **separate audio and video tracks** (common with CMAF).\n\nEvery stream asks for one video segment and one audio segment every 4 seconds, plus manifests and subtitles.",
+          body: "Use the assumed model: **2 million concurrent streams** at a **4 Mbps** average. Assume **4-second segments** with **separate audio and video tracks** (common with CMAF). Every stream asks for one video and one audio segment every 4 seconds, plus manifests and subtitles.\n\nThe formula: requests per second = streams / segment length x tracks.\n\nWorked example, smaller numbers: 300,000 streams, 6-second segments, one combined track: 300,000 / 6 x 1 = **50,000** requests per second.",
           visual: {
             kind: "stats",
             items: [
@@ -1428,7 +1496,8 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
-          prompt: "How many media segment requests per second (video plus audio) does that create?",
+          teach: "Each stream makes one request per track per segment length. Divide the streams by the segment length, then multiply by the number of tracks.",
+          prompt: "Back to the assumed model: 2 million streams, 4-second segments, video plus audio. How many media segment requests per second does that create?",
           answer: 1000000,
           tolerance: 50000,
           unit: "req/s",
@@ -1437,6 +1506,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "Same formula, same streams and tracks. Only the segment length changes.",
           prompt: "Move to 6-second segments. How many media requests per second (video plus audio) now?",
           answer: 667000,
           tolerance: 20000,
@@ -1447,25 +1517,17 @@ const chapter: Chapter = {
         {
           kind: "read",
           title: "Worked example: safety factor and egress",
-          body: "One device family's safety factor changes from **0.7 to 0.8**. Link-limited viewers can now pick renditions about **14% higher** (0.8 / 0.7).\n\nThat family is **30%** of traffic, and **half** its sessions are link-limited. Rebuffering may also rise.",
+          body: "One device family's safety factor changes from **0.7 to 0.8**. **Link-limited** viewers (those whose connection, not the top rendition, caps their quality) can now pick renditions about **14% higher** (0.8 / 0.7). Rebuffering may also rise.\n\nTo estimate the total egress rise, multiply the shares: share of traffic x share link-limited x bitrate rise.\n\nWorked example: if a family were 50% of traffic and all of it link-limited, 0.5 x 1 x 14% = **7%** more egress.",
         },
         {
           kind: "number",
-          prompt: "Estimate the rise in total egress: 30% of traffic x half link-limited x 14% higher bitrate.",
+          teach: "Multiply the three numbers: the family's share of traffic, the share of its sessions that are link-limited, and the bitrate rise. Keep the answer in percent.",
+          prompt: "The real family is 30% of traffic, and half its sessions are link-limited. Estimate the rise in total egress: 30% x half x 14%.",
           answer: 2.1,
           tolerance: 0.4,
           unit: "%",
           hint: "0.3 x 0.5 x 14%",
-          explain: "0.3 x 0.5 x 14% = about 2%. At the assumed ~540 PB per month, that is on the order of 10 PB more per month.",
-        },
-        {
-          kind: "number",
-          prompt: "About 2% more egress at the assumed ~540 PB per month. How many extra petabytes per month, roughly?",
-          answer: 10.8,
-          tolerance: 1.5,
-          unit: "PB",
-          hint: "540 x 0.02",
-          explain: "540 x 0.02 = 10.8, on the order of 10 PB more per month from a one-line player change. So Media Delivery should review ABR changes, and A/B tests should report egress next to QoE.",
+          explain: "0.3 x 0.5 x 14% = about 2%. At the assumed ~540 PB per month, that is 540 x 0.02 = about 10.8 PB, on the order of 10 PB more per month from a one-line player change. So Media Delivery should review ABR changes, and A/B tests should report egress next to QoE.",
         },
         {
           kind: "widget",
@@ -1501,12 +1563,18 @@ const chapter: Chapter = {
       minutes: 9,
       steps: [
         {
+          kind: "read",
+          title: "What this chapter covered",
+          body: "Here is what this chapter covered:\n\n- **The player is a control loop.** Your CDN sits inside it.\n- **Buffer change = D - T**, and TTFB is part of T. Buffer size is a cost lever.\n- **ABR families**: throughput, buffer (BBA, BOLA), MPC, learned. Real players blend them; A/B test every change.\n- **Failover**: backoff, jitter, budgets; refresh the URL on 403; penalize, then switch.\n- **CMCD and QoE**: CMCD puts session facts in CDN logs, but keep it out of the cache key. QoE links delivery to revenue.",
+        },
+        {
           kind: "reveal",
           prompt: "A CDN migration shows no change in error rate or hit ratio, but average bitrate dropped 8% on Android. Name two delivery-side causes.",
           answer: "1. Higher TTFB on cache misses (for example, a more distant shield) lowers measured throughput, because download time includes the wait for the first byte.\n\n2. Loss of connection reuse, or a protocol fallback, causes more TCP slow start, which also lowers measured throughput.\n\nEither makes ABR pick lower renditions with no errors.",
         },
         {
           kind: "number",
+          teach: "Download time T is the size in megabits divided by throughput, plus TTFB in seconds. The buffer change is D minus T.",
           prompt: "A 4-second, 4 Mbps segment is fetched at 3 Mbps with 100 ms TTFB. How many seconds of buffer does the player lose on it?",
           answer: 1.43,
           tolerance: 0.1,
@@ -1516,6 +1584,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "BBA learns about the network from how the buffer fills and drains. Think about when the buffer has not yet had time to do either.",
           prompt: "Why does BBA still need some throughput estimation, and when?",
           options: [
             "During seeks only, because the buffer is flushed",
@@ -1528,6 +1597,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Puffer compared schemes on real viewers, not in a simulator. Real networks are variable and heavy-tailed.",
           prompt: "What did Puffer find about machine-learned ABR, and what is the practical lesson?",
           options: [
             "Learned ABR won easily; deploy it everywhere",
@@ -1540,6 +1610,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "In query mode the CMCD value is part of the URL, and it changes on every request. Think about what the CDN uses to decide whether two requests are the same object.",
           prompt: "A web player starts sending CMCD as a query argument. Within an hour, origin egress triples. Why?",
           options: [
             "CMCD headers trigger CORS preflights at the origin",
@@ -1552,6 +1623,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "A 403 means \"not allowed\", not \"server busy\". Segment URLs carry a time-limited token.",
           prompt: "A viewer gets HTTP 403 errors 50 minutes into a long movie. Likely cause, and what should the player do?",
           options: [
             "Geo block; switch to another CDN",
@@ -1574,6 +1646,7 @@ const chapter: Chapter = {
         },
         {
           kind: "quiz",
+          teach: "Recall the Sao Paulo budget: compare the rows for API, license and first segment with the rows for raw media bytes and DNS.",
           prompt: "Startup time is usually dominated by what?",
           options: [
             "Raw bandwidth on the last mile",
@@ -1586,6 +1659,7 @@ const chapter: Chapter = {
         },
         {
           kind: "multi",
+          teach: "Check each statement against one lesson: ABR families, errors and failover, QoE evidence, and device fragmentation.",
           prompt: "Which statements match the chapter's key takeaways? Select all that apply.",
           options: [
             "Production players blend throughput and buffer logic, as dash.js DYNAMIC does",
@@ -1599,6 +1673,7 @@ const chapter: Chapter = {
         },
         {
           kind: "number",
+          teach: "The player only uses estimate x safety factor. So the estimate needed is the rendition bitrate divided by the factor.",
           prompt: "Quick drill: with a 0.7 safety factor, what throughput estimate does a player need to sit on a 4 Mbps rendition?",
           answer: 5.7,
           tolerance: 0.15,
